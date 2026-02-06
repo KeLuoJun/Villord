@@ -390,6 +390,17 @@ export class AIService {
         this._bus = eventBus;
     }
 
+    /** 热更新配置（前端修改后立即生效） */
+    updateConfig(newConfig) {
+        if (newConfig.baseUrl) this.baseUrl = newConfig.baseUrl;
+        if (newConfig.apiKey) this.apiKey = newConfig.apiKey;
+        if (newConfig.model) this.model = newConfig.model;
+        if (newConfig.proxyUrl !== undefined) this.proxyUrl = newConfig.proxyUrl;
+        this.enabled = !!this.apiKey && this.apiKey !== 'YOUR_API_KEY_HERE';
+        this.resetCircuitBreaker();
+        console.log(`[AIService] 🔄 配置已热更新: model=${this.model}, enabled=${this.enabled}`);
+    }
+
     /** 发送 Toast 通知 */
     _notify(message, type = 'info') {
         if (this._bus) {

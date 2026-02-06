@@ -26,19 +26,16 @@
                 <span id="status-hour">06:00</span>
             </div>
 
-            <div class="resource-quick">
-                <span class="resource-item">💰 <span id="quick-gold">100</span></span>
-                <span class="resource-item">🌾 <span id="quick-food">20</span></span>
-                <span class="resource-item">🪵 <span id="quick-wood">30</span></span>
-                <span class="resource-item">🪨 <span id="quick-stone">15</span></span>
-            </div>
-
             <div class="speed-controls">
                 <button class="pause-btn paused" title="继续">▶</button>
                 <button class="speed-btn" data-speed="0.5">0.5x</button>
                 <button class="speed-btn active" data-speed="1">1x</button>
                 <button class="speed-btn" data-speed="1.2">1.2x</button>
-                <button class="help-btn" onclick="showGameRulesModal()" title="游戏规则" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;">❓</button>
+                <span class="topbar-divider"></span>
+                <button class="topbar-icon-btn" id="btn-save" title="存档 (Ctrl+S)">💾</button>
+                <button class="topbar-icon-btn" id="btn-config" title="设置">⚙️</button>
+                <button class="topbar-icon-btn" id="btn-help" title="游戏规则">❓</button>
+                <button class="topbar-icon-btn" id="btn-exit" title="退出游戏">🚪</button>
             </div>
         </header>
 
@@ -203,17 +200,17 @@
 
         </div>
 
-        <!-- ===== 底部对话栏 ===== -->
-        <footer id="bottom-bar">
-            <span class="chat-icon">💬</span>
-            <span>对</span>
-            <select class="villager-select" id="villager-select">
-                <option value="">选择村民...</option>
-            </select>
-            <span>说：</span>
-            <input type="text" class="chat-input" id="chat-input" placeholder="输入你想说的话..." disabled>
-            <button class="send-btn" id="send-btn" disabled>发送 ↵</button>
-        </footer>
+        <!-- ===== 悬浮聊天气泡 ===== -->
+        <div id="chat-bubble" title="与村民对话">💬</div>
+        <div id="chat-float-panel" class="chat-float-hidden">
+            <div class="chat-float-header">
+                <span>💬 选择村民对话</span>
+                <button class="chat-float-close" id="chat-float-close">✕</button>
+            </div>
+            <div id="chat-villager-list" class="chat-villager-list">
+                <div class="text-muted" style="text-align:center;padding:24px 0;font-size:13px;">暂无村民</div>
+            </div>
+        </div>
 
     </div>
 

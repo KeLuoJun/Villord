@@ -49,14 +49,21 @@ const gameState = GameState;
 const timeSystem = new TimeSystem(gameState, eventBus);
 const saveSystem = new SaveSystem(gameState, eventBus);
 
-// ===== 加载配置 =====
+// ===== 加载配置（localStorage 优先，回退 config.json） =====
 let config = {};
 try {
-    const resp = await fetch('./config.json');
-    config = await resp.json();
-    console.log('[Main] 配置加载成功:', { baseUrl: config.baseUrl, model: config.model });
+    // 优先使用玩家在前端配置的设置
+    const localConfig = localStorage.getItem('villord_config');
+    if (localConfig) {
+        config = JSON.parse(localConfig);
+        console.log('[Main] 使用玩家自定义配置:', { baseUrl: config.baseUrl, model: config.model });
+    } else {
+        const resp = await fetch('./config.json');
+        config = await resp.json();
+        console.log('[Main] 使用 config.json 配置:', { baseUrl: config.baseUrl, model: config.model });
+    }
 } catch (e) {
-    console.warn('[Main] config.json 加载失败，AI 功能将降级:', e.message);
+    console.warn('[Main] 配置加载失败，AI 功能将降级:', e.message);
 }
 
 // ===== 初始化 AI 服务 =====
@@ -256,6 +263,9 @@ function showStartScreen() {
                 <button class="btn btn-ghost" id="start-rules" style="width:100%;padding:10px;font-size:13px;color:var(--text-secondary);">
                     📖 游戏规则与玩法介绍
                 </button>
+                <button class="btn btn-ghost" id="start-config" style="width:100%;padding:10px;font-size:13px;color:var(--text-secondary);">
+                    ⚙️ AI 服务配置
+                </button>
             </div>
         </div>
     `;
@@ -336,6 +346,11 @@ function showStartScreen() {
     overlay.querySelector('#start-rules').addEventListener('click', () => {
         showGameRulesModal();
     });
+
+    // AI 配置
+    overlay.querySelector('#start-config').addEventListener('click', () => {
+        showConfigModal();
+    });
 }
 
 // ===== 初始化新游戏 =====
@@ -366,39 +381,183 @@ function initNewGame() {
     console.log('[Main] ✅ 初始化完成，点击 ▶ 开始游戏');
 }
 
-// ===== 底部对话栏事件绑定 =====
+// ===== 悬浮聊天气泡：村民快选列表 =====
 function initChatBar() {
-    const input = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('send-btn');
-    const select = document.getElementById('villager-select');
+    const bubble = document.getElementById('chat-bubble');
+    const panel = document.getElementById('chat-float-panel');
+    const closeBtn = document.getElementById('chat-float-close');
 
-    // 选择村民后启用输入
-    select.addEventListener('change', () => {
-        const hasVillager = !!select.value;
-        input.disabled = !hasVillager;
-        sendBtn.disabled = !hasVillager;
-        if (hasVillager) input.focus();
+    // 点击气泡 → 打开/关闭面板并刷新村民列表
+    bubble.addEventListener('click', () => {
+        const isOpen = !panel.classList.contains('chat-float-hidden');
+        if (isOpen) {
+            panel.classList.add('chat-float-hidden');
+        } else {
+            refreshChatVillagerList();
+            panel.classList.remove('chat-float-hidden');
+        }
     });
+    closeBtn.addEventListener('click', () => panel.classList.add('chat-float-hidden'));
 
-    // 发送消息
-    const sendMessage = () => {
-        const villagerId = select.value;
-        const text = input.value.trim();
-        if (!villagerId || !text) return;
-
-        eventBus.emit('playerChat', { villagerId, text });
-        input.value = '';
-    };
-
-    sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-
-    // 村民变化时更新下拉
-    eventBus.on('villagerAdded', () => uiManager.updateVillagerSelect());
-    eventBus.on('villagerRemoved', () => uiManager.updateVillagerSelect());
+    // 村民变化时刷新列表（面板打开时）
+    eventBus.on('villagerAdded', () => refreshChatVillagerList());
+    eventBus.on('villagerRemoved', () => refreshChatVillagerList());
 }
+
+/** 刷新悬浮面板中的村民快选列表 */
+function refreshChatVillagerList() {
+    const container = document.getElementById('chat-villager-list');
+    if (!container) return;
+
+    if (gameState.villagers.length === 0) {
+        container.innerHTML = '<div class="text-muted" style="text-align:center;padding:24px 0;font-size:13px;">暂无村民，请先招募</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    gameState.villagers.forEach(v => {
+        const moodEmoji = v.mood >= 60 ? '😊' : v.mood >= 30 ? '😐' : '😟';
+        const row = document.createElement('div');
+        row.className = 'chat-villager-row';
+        row.innerHTML = `
+            <span class="chat-v-avatar">${v.avatar || '👤'}</span>
+            <div class="chat-v-info">
+                <div class="chat-v-name">${v.name}</div>
+                <div class="chat-v-status">${moodEmoji} ${v.mood}　💪 ${v.stamina}/${v.maxStamina}　📋 ${v.currentAction || '空闲'}</div>
+            </div>
+            <span class="chat-v-arrow">›</span>
+        `;
+        row.addEventListener('click', () => {
+            // 关闭面板，直接打开完整对话框
+            document.getElementById('chat-float-panel').classList.add('chat-float-hidden');
+            eventBus.emit('openDialogue', { villagerId: v.id });
+        });
+        container.appendChild(row);
+    });
+}
+
+// ===== 顶栏功能按钮 =====
+function initTopBarButtons() {
+    // 存档按钮
+    document.getElementById('btn-save')?.addEventListener('click', () => {
+        saveSystem.save('manual');
+        uiManager.showToast('💾 游戏已保存', 'success');
+    });
+
+    // 设置按钮
+    document.getElementById('btn-config')?.addEventListener('click', () => showConfigModal());
+
+    // 帮助按钮
+    document.getElementById('btn-help')?.addEventListener('click', () => showGameRulesModal());
+
+    // 退出按钮
+    document.getElementById('btn-exit')?.addEventListener('click', () => {
+        uiManager.showModal('🚪 退出游戏', '<p>是否保存并退出？退出后将返回主菜单。</p>', [
+            { id: 'cancel', text: '取消', class: 'btn-secondary', onClick: () => {} },
+            { id: 'save-exit', text: '💾 保存并退出', class: 'btn-primary', onClick: () => {
+                timeSystem.pause();
+                saveSystem.save('manual');
+                uiManager.showToast('💾 已保存，正在退出...', 'success');
+                setTimeout(() => location.reload(), 600);
+            }},
+            { id: 'exit-no-save', text: '直接退出', class: 'btn-danger', onClick: () => {
+                timeSystem.pause();
+                location.reload();
+            }},
+        ]);
+    });
+}
+
+// ===== 配置模态框 =====
+function showConfigModal() {
+    const currentConfig = { ...config };
+    // 尝试从 localStorage 读取最新配置
+    try {
+        const stored = localStorage.getItem('villord_config');
+        if (stored) Object.assign(currentConfig, JSON.parse(stored));
+    } catch (e) {}
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = '10001';
+    overlay.innerHTML = `
+        <div class="modal fade-in" style="max-width:500px;">
+            <div class="modal-title">⚙️ AI 服务配置</div>
+            <div class="modal-body" style="text-align:left;">
+                <div style="background:rgba(91,140,90,0.08);border:1px solid rgba(91,140,90,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;line-height:1.6;">
+                    💡 <b>建议</b>：使用生成速度较快的模型（如 <b>gemini-2.5-flash</b>、<b>gpt-4o-mini</b> 等）可显著提升游戏体验。<br>
+                    大模型响应越快，村民对话和每日计划生成越流畅，游戏不会频繁暂停等待。
+                </div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <label style="font-size:13px;font-weight:500;">
+                        代理地址 (Proxy URL)
+                        <input id="cfg-proxy" type="text" value="${currentConfig.proxyUrl || ''}" placeholder="例: http://127.0.0.1:7890（可留空）"
+                            style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;">
+                    </label>
+                    <label style="font-size:13px;font-weight:500;">
+                        API Base URL <span style="color:var(--danger,#c62828);">*</span>
+                        <input id="cfg-baseurl" type="text" value="${currentConfig.baseUrl || ''}" placeholder="例: https://generativelanguage.googleapis.com/v1beta"
+                            style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;">
+                    </label>
+                    <label style="font-size:13px;font-weight:500;">
+                        API Key <span style="color:var(--danger,#c62828);">*</span>
+                        <input id="cfg-apikey" type="password" value="${currentConfig.apiKey || ''}" placeholder="输入你的 API Key"
+                            style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;">
+                    </label>
+                    <label style="font-size:13px;font-weight:500;">
+                        模型名称 <span style="color:var(--danger,#c62828);">*</span>
+                        <input id="cfg-model" type="text" value="${currentConfig.model || ''}" placeholder="例: gemini-2.5-flash"
+                            style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;">
+                    </label>
+                </div>
+                <div style="margin-top:12px;font-size:11px;color:var(--text-muted);">
+                    配置保存在浏览器本地，刷新后仍有效。清空所有字段并保存将恢复使用 config.json 默认配置。
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" data-action="cancel">取消</button>
+                <button class="btn btn-danger" data-action="reset">恢复默认</button>
+                <button class="btn btn-primary" data-action="save">保存配置</button>
+            </div>
+        </div>
+    `;
+
+    overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
+
+    overlay.querySelector('[data-action="reset"]').addEventListener('click', () => {
+        localStorage.removeItem('villord_config');
+        overlay.remove();
+        uiManager.showToast('🔄 已恢复默认配置，刷新页面后生效', 'info');
+    });
+
+    overlay.querySelector('[data-action="save"]').addEventListener('click', () => {
+        const newConfig = {
+            proxyUrl: document.getElementById('cfg-proxy').value.trim(),
+            baseUrl: document.getElementById('cfg-baseurl').value.trim(),
+            apiKey: document.getElementById('cfg-apikey').value.trim(),
+            model: document.getElementById('cfg-model').value.trim(),
+        };
+
+        if (!newConfig.baseUrl || !newConfig.apiKey || !newConfig.model) {
+            uiManager.showToast('⚠️ 请填写必填项（Base URL、API Key、模型名称）', 'warning');
+            return;
+        }
+
+        // 保存到 localStorage
+        localStorage.setItem('villord_config', JSON.stringify(newConfig));
+
+        // 热更新当前 AI 服务配置
+        Object.assign(config, newConfig);
+        aiService.updateConfig(newConfig);
+
+        overlay.remove();
+        uiManager.showToast('✅ 配置已保存并生效', 'success');
+    });
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+window.showConfigModal = showConfigModal;
 
 // ===== 存档/读档快捷键 =====
 document.addEventListener('keydown', (e) => {
@@ -514,6 +673,7 @@ function showGameRulesModal() {
 window.showGameRulesModal = showGameRulesModal;
 
 // ===== 启动 =====
+initTopBarButtons();
 showStartScreen();
 
 // 暴露到全局（调试用）

@@ -135,11 +135,6 @@ export class UIManager {
             hourEl.textContent = `${String(t.hour).padStart(2, '0')}:00`;
         }
 
-        // 资源快览
-        this.setTextContent('quick-gold', this.state.resources.gold);
-        this.setTextContent('quick-food', this.state.resources.food);
-        this.setTextContent('quick-wood', this.state.resources.wood);
-        this.setTextContent('quick-stone', this.state.resources.stone);
     }
 
     /** 更新资源面板（左侧，含仓库容量进度条） */
@@ -237,11 +232,6 @@ export class UIManager {
             `;
         }).join('');
 
-        // 顶部快览也同步
-        this.setTextContent('quick-gold', r.gold);
-        this.setTextContent('quick-food', r.food);
-        this.setTextContent('quick-wood', r.wood);
-        this.setTextContent('quick-stone', r.stone);
     }
 
     /** 更新村民列表（左侧） */
