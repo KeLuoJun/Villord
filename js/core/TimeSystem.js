@@ -2,7 +2,7 @@
  * TimeSystem - 时间系统
  * 管理游戏时间推进（Tick循环）、速度控制、日/季/年事件
  * 1 Tick = 游戏内 1 小时 = 现实 3 秒（1倍速）
- * 24 Tick = 1 天, 9 天 = 1 季, 4 季 = 1 年 (36天/年)
+ * 24 Tick = 1 天, 5 天 = 1 季, 4 季 = 1 年 (20天/年)
  * 倍速选项：0.5x / 1x / 1.2x
  */
 
@@ -13,9 +13,9 @@ const SPEED_INTERVALS = {
     1.2: 2500,    // 1.2倍速：2.5秒/Tick
 };
 
-export const DAYS_PER_SEASON = 9;
+export const DAYS_PER_SEASON = 5;
 export const SEASONS_PER_YEAR = 4;
-export const DAYS_PER_YEAR = DAYS_PER_SEASON * SEASONS_PER_YEAR; // 36
+export const DAYS_PER_YEAR = DAYS_PER_SEASON * SEASONS_PER_YEAR; // 20
 
 const SEASON_IDS_LIST = ['spring', 'summer', 'autumn', 'winter'];
 
@@ -71,7 +71,7 @@ export class TimeSystem {
 
             const oldMonth = time.month; // month 即季节序号 (1-4)
 
-            // 跨季（每季9天）
+            // 跨季（每季5天）
             if (time.day > DAYS_PER_SEASON) {
                 time.day = 1;
                 time.month++;

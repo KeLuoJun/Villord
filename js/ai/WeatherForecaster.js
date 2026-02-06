@@ -32,10 +32,10 @@ export class WeatherForecaster {
             this.dailyBroadcast();
         }
 
-        // 每7天检查是否需要生成新预测（9天/季，7天间隔确保每季至少预测1次）
+        // 每4天检查是否需要生成新预测（5天/季，确保每季至少预测1次）
         if (data.hour === 3) {
             const daysSincePred = this.state.totalDays - this.lastPredictionDay;
-            if (daysSincePred >= 7) {
+            if (daysSincePred >= 4) {
                 this.generatePrediction();
             }
         }
@@ -86,13 +86,13 @@ export class WeatherForecaster {
         ).join('\n');
 
         // 计算当季剩余天数
-        const daysLeftInSeason = 9 - this.state.time.day + 1;
+        const daysLeftInSeason = 5 - this.state.time.day + 1;
         const daysSinceLastEvent = this.state.totalDays - this.state.weather.lastEventEndDay;
 
         return `你是村庄经营游戏的天气预测AI。为当前季节安排特殊天气事件。
 
 【当前状态】
-季节：${this.state.seasonName}，当季第${this.state.time.day}天（每季共9天）
+季节：${this.state.seasonName}，当季第${this.state.time.day}天（每季共5天）
 距上次特殊天气已过${daysSinceLastEvent}天
 
 【本季可用的特殊天气】
@@ -100,7 +100,7 @@ ${evtList}
 
 【规则】
 • 从上面选1-2个事件安排到未来几天
-• dayOffset范围：2~${Math.min(daysLeftInSeason, 8)}（当季剩余${daysLeftInSeason}天内）
+• dayOffset范围：2~${Math.min(daysLeftInSeason, 4)}（当季剩余${daysLeftInSeason}天内）
 • 两个事件间隔至少3天
 • 距上次特殊天气至少间隔3天（当前已过${daysSinceLastEvent}天，${daysSinceLastEvent >= 3 ? '可以安排' : '需等待'}）
 • 为每个事件提供一个简短的理由（为什么会在这天出现这种天气）

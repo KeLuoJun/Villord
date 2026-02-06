@@ -12,7 +12,7 @@ export const GameState = {
     time: {
         year: 1,
         month: 1,       // 1-4（即季节序号：1=春 2=夏 3=秋 4=冬）
-        day: 1,          // 1-9（每季9天）
+        day: 1,          // 1-5（每季5天）
         hour: 6,         // 0-23
         speed: 1,        // 游戏速度倍率
         isPaused: true,  // 初始暂停，等待玩家开始
@@ -189,8 +189,8 @@ export const GameState = {
 
     /** 当前总游戏天数（从第1天开始） */
     get totalDays() {
-        return (this.time.year - 1) * 36  // 36天/年
-            + (this.time.month - 1) * 9   // 9天/季
+        return (this.time.year - 1) * 20  // 20天/年
+            + (this.time.month - 1) * 5   // 5天/季
             + this.time.day;
     },
 

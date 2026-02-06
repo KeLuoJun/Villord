@@ -133,7 +133,7 @@ export class VillagerScheduler {
             if (validated.length > 0) return validated;
         }
 
-        return this.getDefaultSchedule(villager);
+        return this.fillScheduleGaps(this.getDefaultSchedule(villager));
     }
 
     /** 构建调度 Prompt（含市场早报/昨日晚报上下文 + 市场时间引导） */
@@ -304,7 +304,35 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             });
         }
 
-        return validated;
+        return this.fillScheduleGaps(validated);
+    }
+
+    /** 填充缺失时段，确保 8:00-21:00 全覆盖 */
+    fillScheduleGaps(schedule) {
+        const filled = [...schedule];
+        const occupied = new Set();
+
+        schedule.forEach(s => {
+            const sh = s.startHour ?? s.hour;
+            const dur = s.duration || 1;
+            for (let h = sh; h < Math.min(sh + dur, SLEEP_HOUR); h++) {
+                occupied.add(h);
+            }
+        });
+
+        for (let h = SCHEDULE_START_HOUR; h < SLEEP_HOUR; h++) {
+            if (!occupied.has(h)) {
+                filled.push({
+                    startHour: h,
+                    action: 'idle',
+                    target: null,
+                    duration: 1,
+                    note: '自动补齐',
+                });
+            }
+        }
+
+        return filled.sort((a, b) => (a.startHour ?? 0) - (b.startHour ?? 0));
     }
 
     /** 默认计划（降级方案） */

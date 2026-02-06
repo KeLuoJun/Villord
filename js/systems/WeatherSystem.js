@@ -105,7 +105,7 @@ export class WeatherSystem {
         for (const p of predictions.slice(0, 2)) {
             if (!seasonEventIds.includes(p.eventId)) continue;
             if (p.triggerDay < this.state.totalDays + 1) continue;
-            if (p.triggerDay > this.state.totalDays + 10) continue; // 最多10天内（适配9天季节）
+            if (p.triggerDay > this.state.totalDays + 6) continue; // 最多6天内（适配5天季节）
             if (p.triggerDay - lastDay < 3) continue; // 间隔至少3天（从5天改为3天适配短季节）
 
             valid.push(p);
