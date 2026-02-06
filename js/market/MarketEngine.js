@@ -7,7 +7,7 @@ import { SPECIAL_WEATHER_EVENTS } from '../config/weather.js';
 
 // 市场开放时间
 export const MARKET_OPEN_HOUR = 9;
-export const MARKET_CLOSE_HOUR = 15;
+export const MARKET_CLOSE_HOUR = 18;
 
 export class MarketEngine {
     constructor(gameState, eventBus) {

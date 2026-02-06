@@ -81,6 +81,12 @@ export class VillagerScheduler {
         this.isScheduling = false;
         this.state.addLog('📋', '所有村民今日行动计划已生成', 'info');
         this.bus.emit('schedulesGenerated', {});
+
+        // 如果游戏因等待计划生成而暂停，自动恢复
+        if (this.state.time.isPaused) {
+            this.bus.emit('aiResumeGame', {});
+            this.bus.emit('showToast', { message: '✅ 村民计划已生成，游戏继续', type: 'success' });
+        }
     }
 
     /**
@@ -385,7 +391,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             case 'trade': {
                 const hour = this.state.time.hour;
                 if (hour < MARKET_OPEN_HOUR || hour >= MARKET_CLOSE_HOUR) {
-                    return { canExecute: false, reason: '市场未开放(9:00-15:00)' };
+                    return { canExecute: false, reason: `市场未开放(${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00)` };
                 }
                 break;
             }

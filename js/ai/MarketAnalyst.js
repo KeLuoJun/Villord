@@ -1,7 +1,7 @@
 /**
  * MarketAnalyst - AI 市场分析师
  * 6:00 早报：今日物价走势预测与买卖建议
- * 16:00 晚报：今日交易回顾与玩家操作点评（表扬/嘲讽）
+ * 19:00 晚报：今日交易回顾与玩家操作点评（表扬/嘲讽）
  */
 import { MARKET_ITEMS } from '../config/marketItems.js';
 import { SPECIAL_WEATHER_EVENTS } from '../config/weather.js';
@@ -27,7 +27,7 @@ export class MarketAnalyst {
                 this.bus.emit('aiPauseGame', { reason: '市场早报仍在生成中，等待完成...' });
                 this.bus.emit('showToast', { message: '⏳ 市场早报尚未生成完毕，暂停等待...', type: 'warning' });
             }
-            if (data.hour === 16) {
+            if (data.hour === 19) {
                 this.generateEveningReport(); // 晚报是非关键调用，不暂停
             }
         });
@@ -141,7 +141,7 @@ ${priceInfo.join('\n')}
         return { broadcast, highlights: [], weatherImpact: '天气正常' };
     }
 
-    // ===== 晚报（16:00）：交易回顾与点评 =====
+    // ===== 晚报（19:00）：交易回顾与点评 =====
 
     /** 生成晚报 */
     async generateEveningReport() {
@@ -202,7 +202,7 @@ ${priceInfo.join('\n')}
 
         return `你是《治村物语》的毒舌市场分析师。你专业过硬，但性格特别毒舌——看到好操作会极力吹捧，看到烂操作会疯狂嘲讽。
 
-现在是16:00，市场刚关门。请做今日市场收盘总结和玩家操作点评。
+现在是19:00，市场刚关门。请做今日市场收盘总结和玩家操作点评。
 
 【今日各商品收盘数据】
 季节：${this.state.seasonName}
