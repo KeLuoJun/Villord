@@ -360,7 +360,7 @@ function initNewGame() {
     // 重置村民列表，确保初始村民固定
     gameState.villagers = [];
 
-    // 赠送初始建筑：1块农田 + 1座茅草屋
+    // 赠送初始建筑：2块农田 + 1座茅草屋
     buildingSystem.buildInitial();
 
     // 赠送初始村民："小青"（勤劳·乐观）
@@ -374,7 +374,7 @@ function initNewGame() {
 
     // 记录初始事件日志
     gameState.addLog('🏘️', '欢迎来到桃源村！你是这里的新村长。', 'success');
-    gameState.addLog('🌱', '系统赠送：1块农田 + 1座茅草屋 + 村民小青', 'info');
+    gameState.addLog('🌱', '系统赠送：2块农田 + 1座茅草屋 + 村民小青', 'info');
     gameState.addLog('💡', '提示：建造房屋后才能招募更多村民', 'info');
 
     // 初始更新 UI

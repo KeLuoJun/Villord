@@ -12,20 +12,23 @@ export class BuildingSystem {
 
     /** 初始建筑（游戏开始赠送） */
     buildInitial() {
-        // 赠送1块农田
-        this.state.plots.push({
-            id: 'plot_initial',
-            name: '农田A',
-            crop: null,
-            cropName: null,
-            stage: 'empty',
-            progress: 0,
-            growthHours: 0,
-            totalGrowthHours: 0,
-            watered: false,
-            fertilized: false,
-            assignedVillager: null,
-        });
+        // 赠送2块农田
+        for (let i = 0; i < 2; i++) {
+            const plotName = `农田${String.fromCharCode(65 + this.state.plots.length)}`;
+            this.state.plots.push({
+                id: `plot_initial_${i + 1}`,
+                name: plotName,
+                crop: null,
+                cropName: null,
+                stage: 'empty',
+                progress: 0,
+                growthHours: 0,
+                totalGrowthHours: 0,
+                watered: false,
+                fertilized: false,
+                assignedVillager: null,
+            });
+        }
 
         // 赠送1座茅草屋
         this.state.buildings.push({

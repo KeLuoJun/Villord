@@ -21,7 +21,7 @@ export const GameState = {
 
     // ===== 资源 =====
     resources: {
-        gold: 100,
+        gold: 150,
         food: 20,
         wood: 30,
         stone: 15,
