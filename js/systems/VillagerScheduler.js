@@ -310,8 +310,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
 
         // 体力恢复中断：如果正在强制休息，先恢复
         if (villager._forceResting) {
-            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 10);
-            if (villager.stamina >= 20) {
+            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 5);
+            if (villager.stamina >= 10) {
                 villager._forceResting = false;
                 // 恢复后继续当前时间点的计划
             } else {
@@ -358,7 +358,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             // 体力不足 → 进入强制恢复模式
             villager._forceResting = true;
             villager.currentAction = '💤 体力不足，休息中...';
-            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 5);
+            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 3);
             villager._scheduleStatus[taskKey] = 'deferred';
             return;
         }
@@ -483,14 +483,14 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 break;
             }
             case 'rest': {
-                villager.stamina = Math.min(villager.maxStamina, villager.stamina + 15);
+                villager.stamina = Math.min(villager.maxStamina, villager.stamina + 8);
                 villager.mood = Math.min(100, villager.mood + 3);
                 break;
             }
             case 'eat': {
                 if (this.state.resources.food >= 1) {
                     this.state.modifyResource('food', -1);
-                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 10);
+                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 5);
                     villager.mood = Math.min(100, villager.mood + 2);
                 } else {
                     success = false;
@@ -512,7 +512,10 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 }
                 break;
             }
-            case 'trade':
+            case 'trade': {
+                success = this._executeNPCTrade(villager, task);
+                break;
+            }
             case 'chat':
             case 'pest_control':
             default:
@@ -536,6 +539,102 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         if (action === 'process') {
             villager.skills.processing = Math.min(10, (villager.skills.processing || 1) + 0.02);
         }
+    }
+
+    /**
+     * NPC 自动交易逻辑：
+     * 根据库存和资源情况，智能决定买/卖什么，并在近期事件中记录详情
+     */
+    _executeNPCTrade(villager, task) {
+        const market = window.game?.market;
+        if (!market) {
+            console.warn(`[Scheduler] ${villager.name} 交易失败：市场引擎不可用`);
+            return false;
+        }
+
+        // 解析 task.note / task.target 中的交易意图（AI 可能指定如 "卖萝卜" "买种子"）
+        const hint = ((task.note || '') + ' ' + (task.target || '')).toLowerCase();
+        const wantBuy = hint.includes('买') || hint.includes('buy') || hint.includes('种子') || hint.includes('seed');
+        const wantSell = hint.includes('卖') || hint.includes('sell');
+
+        // 可卖出的商品（农产品/加工品，不卖建材避免影响建设）
+        const sellableItems = [
+            { id: 'radish',  name: '萝卜', icon: '🥕' },
+            { id: 'wheat',   name: '小麦', icon: '🌾' },
+            { id: 'potato',  name: '土豆', icon: '🥔' },
+            { id: 'pumpkin', name: '南瓜', icon: '🎃' },
+            { id: 'cotton',  name: '棉花', icon: '🧵' },
+            { id: 'grape',   name: '葡萄', icon: '🍇' },
+            { id: 'flour',   name: '面粉', icon: '🫘' },
+            { id: 'bread',   name: '面包', icon: '🍞' },
+        ];
+
+        // 可买入的种子
+        const buyableSeeds = [
+            { id: 'seed_r',  name: '萝卜种子', icon: '🌱' },
+            { id: 'seed_w',  name: '小麦种子', icon: '🌱' },
+            { id: 'seed_p',  name: '土豆种子', icon: '🌱' },
+        ];
+
+        let tradeResult = null;
+
+        // ─── 卖出逻辑 ───
+        if (!tradeResult && (wantSell || !wantBuy)) {
+            const available = sellableItems
+                .map(item => ({
+                    ...item,
+                    qty: this.state.inventory[item.id] || 0,
+                }))
+                .filter(item => item.qty > 0)
+                .sort((a, b) => b.qty - a.qty);
+
+            if (available.length > 0) {
+                const chosen = available[0];
+                const sellQty = Math.min(chosen.qty, Math.max(1, Math.ceil(chosen.qty * 0.3)));
+                const result = market.executeTrade(chosen.id, sellQty, false);
+                if (result.success) {
+                    tradeResult = { isBuy: false, item: chosen, qty: sellQty, totalPrice: result.totalPrice };
+                }
+            }
+        }
+
+        // ─── 买入逻辑（没卖成或明确想买时） ───
+        if (!tradeResult && (wantBuy || !wantSell)) {
+            const gold = this.state.resources.gold;
+            if (gold >= 10) {
+                const affordable = buyableSeeds
+                    .map(s => ({ ...s, price: Math.round(market.getPrice(s.id)) }))
+                    .filter(s => s.price > 0 && s.price <= gold)
+                    .sort((a, b) => a.price - b.price);
+
+                if (affordable.length > 0) {
+                    const chosen = affordable[0];
+                    const maxBudget = Math.floor(gold * 0.3);
+                    const buyQty = Math.min(3, Math.max(1, Math.floor(maxBudget / chosen.price)));
+                    if (buyQty > 0) {
+                        const result = market.executeTrade(chosen.id, buyQty, true);
+                        if (result.success) {
+                            tradeResult = { isBuy: true, item: chosen, qty: buyQty, totalPrice: result.totalPrice };
+                        }
+                    }
+                }
+            }
+        }
+
+        if (tradeResult) {
+            const { isBuy, item, qty, totalPrice } = tradeResult;
+            const action = isBuy ? '买入' : '卖出';
+            const priceText = isBuy ? `花费${totalPrice}💰` : `获得${totalPrice}💰`;
+            // 带村民名字的详细交易日志（executeTrade 内已记录通用日志，此处补充NPC归属）
+            const npcLog = `${villager.avatar || '👤'}${villager.name} ${action}了${qty}个${item.icon}${item.name}（${priceText}）`;
+            this.state.addLog('🛒', npcLog, 'info');
+            this.bus.emit('showToast', { message: `🛒 ${villager.name} ${action}${qty}个${item.icon}${item.name}`, type: 'info' });
+            console.log(`[Scheduler] NPC交易: ${npcLog}`);
+            return true;
+        }
+
+        console.log(`[Scheduler] ${villager.name} 交易失败：无可交易商品或金币不足`);
+        return false;
     }
 
     /** 获取天气信息 */

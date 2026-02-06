@@ -227,7 +227,9 @@
 /* 标签页内容区 */
 #tab-content {
     flex: 1;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     padding: var(--spacing-lg);
 }
 
@@ -236,8 +238,23 @@
 }
 
 .tab-page.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     animation: fadeIn 0.2s ease;
+}
+
+/* 村民标签页特殊处理：左右独立滚动 */
+#tab-villagers.active {
+    overflow: hidden;
+}
+
+#villager-detail-area {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /* 右侧面板 */

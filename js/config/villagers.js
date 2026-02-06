@@ -52,21 +52,21 @@ export const DISMISS_COST = 20;
 /** 每日食物消耗（每个村民） */
 export const DAILY_FOOD_COST = 1;
 
-/** 体力消耗表 */
+/** 体力消耗表（基于50体力上限平衡） */
 export const STAMINA_COSTS = {
-    plant: 15,
-    water: 10,
-    fertilize: 10,
-    harvest: 15,
-    pest_control: 20,
-    chop: 20,
-    mine: 25,
-    process: 15,
-    trade: 5,
+    plant: 8,
+    water: 5,
+    fertilize: 5,
+    harvest: 8,
+    pest_control: 10,
+    chop: 10,
+    mine: 12,
+    process: 8,
+    trade: 3,
     rest: 0,
     eat: 0,
-    idle: 2,         // 每小时
-    chat: 3,
+    idle: 1,
+    chat: 2,
 };
 
 /** 行动耗时表（小时） */
@@ -108,8 +108,8 @@ export const ACTION_NAMES = {
 
 /** 性格对属性的影响 */
 export const TRAIT_EFFECTS = {
-    '健壮': { maxStamina: 120, staminaMod: 0.9 },
-    '体弱': { maxStamina: 80, staminaMod: 1.15 },
+    '健壮': { maxStamina: 65, staminaMod: 0.9 },
+    '体弱': { maxStamina: 40, staminaMod: 1.15 },
     '聪明': { accuracy: 1.0 },
     '愚笨': { accuracy: 0.7 },
     '勤劳': { workSpeed: 1.3 },

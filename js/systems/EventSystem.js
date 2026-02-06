@@ -141,7 +141,7 @@ export class EventSystem {
                             { text: '安排休息（-10💰药费）', id: 'heal', effect: () => {
                                 if (this.state.resources.gold >= 10) {
                                     this.state.resources.gold -= 10;
-                                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 30);
+                                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 15);
                                     villager.currentAction = '💊 养病中';
                                 }
                             }},

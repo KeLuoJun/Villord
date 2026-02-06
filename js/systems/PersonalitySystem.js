@@ -157,7 +157,7 @@ export class PersonalitySystem {
                 weight: 3,
                 execute: () => {
                     villager.currentAction = '💤 自行休息';
-                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 5);
+                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 3);
                 },
             });
         }

@@ -467,12 +467,12 @@ export class UIManager {
         const container = document.getElementById('villager-detail-area');
         if (!container) return;
 
-        // 创建左右分栏布局（60:40）
+        // 创建左右分栏布局（60:40），两侧独立滚动
         container.innerHTML = `
-            <div style="display:flex;gap:var(--spacing-md);height:100%;">
-                <div id="villager-left-panel" style="flex:6;overflow-y:auto;min-height:0;"></div>
+            <div style="display:flex;gap:var(--spacing-md);height:100%;min-height:0;">
+                <div id="villager-left-panel" style="flex:6;overflow-y:auto;min-height:0;padding-right:var(--spacing-sm);"></div>
                 <div id="villager-chat-panel" style="flex:4;display:flex;flex-direction:column;min-height:0;
-                    border-left:1px solid var(--border);padding-left:var(--spacing-md);">
+                    border-left:1px solid var(--color-divider, #e2ddd4);padding-left:var(--spacing-md);">
                     <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text-secondary);flex-shrink:0;">
                         💬 村民实时发言
                     </div>

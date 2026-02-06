@@ -37,8 +37,8 @@ export class VillagerSystem {
             traits: ['勤劳', '乐观'],
             specialty: '种植能手',
             quirk: '没问题！',
-            stamina: 100,
-            maxStamina: 100,
+            stamina: 50,
+            maxStamina: 50,
             mood: 80,
             accuracy: 0.9,
             workSpeed: 1.3,
@@ -85,7 +85,7 @@ export class VillagerSystem {
         const quirk = QUIRK_POOL[Math.floor(Math.random() * QUIRK_POOL.length)];
 
         // 4. 根据性格推算属性
-        let maxStamina = 100;
+        let maxStamina = 50;
         let accuracy = 0.9;
         let workSpeed = 1.0;
 
@@ -231,8 +231,8 @@ export class VillagerSystem {
             // 重置工作计数
             villager.todayWorkCount = 0;
 
-            // 睡眠恢复体力（夜间自动恢复20点）
-            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 20);
+            // 睡眠恢复体力（夜间自动恢复）
+            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 10);
 
             // 心情自然衰减（每天-2）
             villager.mood = Math.max(0, villager.mood - 2);
