@@ -106,26 +106,25 @@ export class MarketEngine {
         let netPressure = 0;
         const ratio = price / config.basePrice;
 
-        // 日常消费者
-        const consumerDemand = 40 * Math.max(0, 1 - (ratio - 1) * 0.5);
-        netPressure += consumerDemand * 0.001;
+        // 1) 基础供需（在 ratio=1 附近保持零漂移）
+        const demandBase = 30;
+        const supplyBase = 30 * (this.state.season === 'autumn' ? 1.3 : 1.0);
+        const sensitivity = 0.6;
+        const demand = demandBase * Math.max(0, 1 - (ratio - 1) * sensitivity);
+        const supply = supplyBase * Math.max(0, 1 + (ratio - 1) * sensitivity);
+        netPressure += (demand - supply) * 0.001;
 
-        // 农场主
-        const isHarvest = this.state.season === 'autumn';
-        const farmerSupply = 25 * (isHarvest ? 1.8 : 1.0);
-        netPressure -= farmerSupply * 0.001;
-
-        // 投机商人
+        // 2) 投机商人（趋势动量，幅度下调以避免整体上行）
         const trend = this.getTrend(itemId, 24);
-        const specPressure = 15 * trend * 0.8;
+        const specPressure = 8 * trend;
         netPressure += specPressure * 0.001;
 
-        // 囤货商
-        const hoarderPressure = 10 * (1 - ratio) * 0.5;
+        // 3) 囤货商（价格低时买入、价格高时抛售）
+        const hoarderPressure = 6 * (1 - ratio);
         netPressure += hoarderPressure * 0.001;
 
-        // 随机散户
-        netPressure += (Math.random() - 0.5) * 10 * 0.001;
+        // 4) 随机散户噪声（对称）
+        netPressure += (Math.random() - 0.5) * 6 * 0.001;
 
         return netPressure;
     }

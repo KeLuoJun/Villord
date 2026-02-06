@@ -5,6 +5,8 @@
 import { MAX_MOOD } from '../config/villagers.js';
 
 const MOOD_REBEL_THRESHOLD = Math.round(MAX_MOOD * 0.4); // 20 -> 8
+const MOOD_GOOD_THRESHOLD = Math.round(MAX_MOOD * 0.7);  // 20 -> 14
+const MOOD_LOW_THRESHOLD = Math.round(MAX_MOOD * 0.4);   // 20 -> 8
 
 export class PersonalitySystem {
     constructor(gameState, eventBus) {
@@ -109,12 +111,12 @@ export class PersonalitySystem {
         }
 
         // 乐观：提建议 / 帮同伴 — E: 触发自动暂停（村民主动发起对话）
-        if (villager.traits.includes('乐观') && villager.mood > 60) {
+        if (villager.traits.includes('乐观') && villager.mood >= MOOD_GOOD_THRESHOLD) {
             behaviors.push({
                 action: '帮同伴',
                 weight: 2,
                 execute: () => {
-                    const others = this.state.villagers.filter(v => v.id !== villager.id && v.mood < 50);
+                    const others = this.state.villagers.filter(v => v.id !== villager.id && v.mood < MOOD_LOW_THRESHOLD);
                     if (others.length > 0) {
                         const target = others[0];
                         target.mood = Math.min(MAX_MOOD, target.mood + 1);
@@ -126,7 +128,7 @@ export class PersonalitySystem {
         }
 
         // 悲观：抱怨
-        if (villager.traits.includes('悲观') && villager.mood < 50) {
+        if (villager.traits.includes('悲观') && villager.mood < MOOD_LOW_THRESHOLD) {
             behaviors.push({
                 action: '抱怨',
                 weight: 3,

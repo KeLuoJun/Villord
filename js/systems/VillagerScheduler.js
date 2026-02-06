@@ -120,13 +120,16 @@ export class VillagerScheduler {
 
     /** 为单个村民生成调度计划（关键调用：失败暂停+重试） */
     async generateScheduleForVillager(villager) {
-        const prompt = this.buildSchedulePrompt(villager);
+        const directiveInfo = this.getRecentPlayerDirectives(villager);
+        // 保存近期指令影响（供交易执行阶段使用）
+        villager._tradePolicy = directiveInfo.tradePolicy;
+        const prompt = this.buildSchedulePrompt(villager, directiveInfo);
         const result = await this.ai.criticalChat(prompt, { temperature: 0.7, maxTokens: 600 }, {
             label: `📋 ${villager.name}的行动计划`,
         });
 
         if (result && result.schedule && Array.isArray(result.schedule)) {
-            const validated = this.validateSchedule(result.schedule, villager);
+            const validated = this.validateSchedule(result.schedule, villager, directiveInfo.tradePolicy);
             if (validated.length > 0) return validated;
         }
 
@@ -134,7 +137,7 @@ export class VillagerScheduler {
     }
 
     /** 构建调度 Prompt（含市场早报/昨日晚报上下文 + 市场时间引导） */
-    buildSchedulePrompt(villager) {
+    buildSchedulePrompt(villager, directiveInfo = { summary: '无', tradePolicy: {} }) {
         // 农田状态
         const pendingTasks = [];
         this.state.plots.forEach(p => {
@@ -166,7 +169,16 @@ export class VillagerScheduler {
         const traitHint = villager.traits.includes('勤劳') ? '你很勤劳，尽量排满工作' :
                          villager.traits.includes('懒惰') ? '你比较懒，多安排休息和闲逛' : '';
 
+        const timeInfo = `第${this.state.time.year}年·${this.state.seasonName} 第${this.state.time.day}天 ${String(this.state.time.hour).padStart(2, '0')}:00`;
+        const directiveSummary = directiveInfo.summary || '无';
+        const directiveRule = directiveInfo.tradePolicy?.disallowTrade
+            ? '• 村长指令：禁止安排交易(trade)'
+            : '• 村长近期指令优先级最高，必须严格遵守';
+
         return `为村民${villager.name}${villager.avatar || '👤'}制定今日计划。
+
+【当前时间】
+${timeInfo}（正在为“今天”生成计划）
 
 【村民】${villager.traits.join('、')}，特长${villager.specialty}
 体力${villager.stamina}/${villager.maxStamina}，心情${villager.mood}/${MAX_MOOD}
@@ -181,6 +193,9 @@ ${eveningComment ? `分析师说：${eveningComment}` : ''}
 金币${this.state.resources.gold}💰，粮食${this.state.resources.food}🌾，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨
 农田：${pendingTasks.join('；') || '无待处理'}
 
+【村长近期指令（含时间，最高优先级）】
+${directiveSummary}
+
 ${otherPlans ? `【其他人的计划】（避免重复）\n${otherPlans}` : ''}
 
 【可用行动】
@@ -189,6 +204,7 @@ ${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${ST
 【硬性规则】
 • 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划从${SCHEDULE_START_HOUR}:00开始安排行动（${WAKE_HOUR}:00-${SCHEDULE_START_HOUR}:00为起床准备时间）
 • ⚠️ 必须安排从${SCHEDULE_START_HOUR}:00到${SLEEP_HOUR - 1}:00的完整计划，包括晚间活动（晚饭后安排idle/rest/chat等）
+${directiveRule}
 • 吃饭：一天3餐（早8点/午12点/晚18点左右），用eat行动
 • 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时变，选时机要慎重
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
@@ -208,8 +224,49 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
 }`;
     }
 
+    /**
+     * 提取近期玩家指令（从对话中获取）
+     * - 支持“今天/明天/后天”时间指向
+     * - 仅纳入与当前计划日期匹配的指令
+     */
+    getRecentPlayerDirectives(villager) {
+        const nowDay = this.state.time.day;
+        const recent = Array.isArray(villager.dialogueHistory)
+            ? villager.dialogueHistory.slice(-6)
+            : [];
+
+        const included = [];
+        recent.forEach(d => {
+            const msg = (d.player || '').trim();
+            if (!msg) return;
+            const dayMatch = (d.time || d.dateLabel || '').match(/第(\d+)天/);
+            const msgDay = dayMatch ? parseInt(dayMatch[1], 10) : nowDay;
+            let targetDay = null;
+            if (msg.includes('后天')) targetDay = msgDay + 2;
+            else if (msg.includes('明天')) targetDay = msgDay + 1;
+            else if (msg.includes('今天')) targetDay = msgDay;
+
+            if (targetDay !== null && targetDay !== nowDay) return;
+            if (targetDay === null && msgDay < nowDay - 1) return;
+            included.push({ time: d.time || '', text: msg });
+        });
+
+        const textAll = included.map(i => i.text).join(' ');
+        const tradePolicy = {
+            disallowTrade: /不要交易|别交易|暂停交易|不\s*交易|不要去.*市场|别去.*市场/.test(textAll),
+            avoidBuy: /不要买|别买|暂停购买|不再购买|先别买|存钱|攒钱|省钱|别花钱|不要花钱/.test(textAll),
+            preferSell: /卖出|清仓|卖掉|抛售|尽快卖/.test(textAll),
+        };
+
+        const summary = included.length
+            ? included.map(i => `- ${i.time ? `${i.time}：` : ''}${i.text}`).join('\n')
+            : '无';
+
+        return { summary, tradePolicy };
+    }
+
     /** 验证计划合法性 */
-    validateSchedule(schedule, villager) {
+    validateSchedule(schedule, villager, tradePolicy = {}) {
         const validated = [];
         let cumulativeStamina = 0;
 
@@ -223,6 +280,9 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             // 市场交易时间检查
             if (item.action === 'trade' && (startHour < MARKET_OPEN_HOUR || startHour >= MARKET_CLOSE_HOUR)) {
                 continue; // 跳过非营业时间的交易
+            }
+            if (item.action === 'trade' && tradePolicy.disallowTrade) {
+                continue; // 近期指令禁止交易
             }
 
             const duration = item.duration || ACTION_DURATIONS[item.action] || 1;
@@ -364,6 +424,13 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         // 只在行动的第一个小时触发效果
         if (currentHour !== task.startHour) return;
         if (villager._scheduleStatus[taskKey]) return; // 已执行过
+
+        // 如果玩家近期指令禁止交易，则直接跳过
+        if (task.action === 'trade' && villager._tradePolicy?.disallowTrade) {
+            villager.currentAction = '⚠️ 已遵从指令，取消交易';
+            villager._scheduleStatus[taskKey] = 'skipped';
+            return;
+        }
 
         // ===== 现实检查 =====
         const checkResult = this.realityCheck(villager, task);
@@ -576,8 +643,10 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
 
         // 解析 task.note / task.target 中的交易意图（AI 可能指定如 "卖萝卜" "买种子"）
         const hint = ((task.note || '') + ' ' + (task.target || '')).toLowerCase();
-        const wantBuy = hint.includes('买') || hint.includes('buy') || hint.includes('种子') || hint.includes('seed');
-        const wantSell = hint.includes('卖') || hint.includes('sell');
+        const policy = villager._tradePolicy || {};
+        const wantBuy = (hint.includes('买') || hint.includes('buy') || hint.includes('种子') || hint.includes('seed')) && !policy.avoidBuy;
+        const wantSell = hint.includes('卖') || hint.includes('sell') || policy.preferSell;
+        if (policy.disallowTrade) return false;
 
         // 可卖出的商品（农产品/加工品，不卖建材避免影响建设）
         const sellableItems = [
