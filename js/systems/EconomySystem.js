@@ -2,7 +2,7 @@
  * EconomySystem - 经济系统
  * 管理每日消耗（食物、木材）、资源变化追踪
  */
-import { DAILY_FOOD_COST, MAX_MOOD } from '../config/villagers.js';
+import { DAILY_FOOD_COST } from '../config/villagers.js';
 
 export class EconomySystem {
     constructor(gameState, eventBus) {

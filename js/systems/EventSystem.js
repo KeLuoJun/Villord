@@ -87,7 +87,7 @@ export class EventSystem {
             // 直接应用效果
             this.state.modifyResource('food', foodBonus);
             this.state.villagers.forEach(v => {
-                v.mood = Math.min(MAX_MOOD, v.mood + 3);
+                v.mood = Math.min(MAX_MOOD, v.mood + 2);
             });
             this.triggerEvent({
                 type: 'economic',
@@ -140,7 +140,7 @@ export class EventSystem {
             }
 
             // 体力过低 -> 生病（体弱村民更容易）
-            if (villager.stamina <= 10 && villager.traits.includes('体弱')
+            if (villager.stamina <= 4 && villager.traits.includes('体弱')
                 && !this.isOnCooldown(`sick_${villager.id}`)) {
                 if (Math.random() < 0.3) {
                     this.triggerEvent({
@@ -151,12 +151,12 @@ export class EventSystem {
                             { text: '安排休息（-10💰药费）', id: 'heal', effect: () => {
                                 if (this.state.resources.gold >= 10) {
                                     this.state.resources.gold -= 10;
-                                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 15);
+                                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 6);
                                     villager.currentAction = '💊 养病中';
                                 }
                             }},
                             { text: '硬撑着干活', id: 'work', effect: () => {
-                                villager.mood = Math.max(0, villager.mood - 4);
+                                villager.mood = Math.max(0, villager.mood - 3);
                             }},
                         ],
                     });
@@ -177,7 +177,7 @@ export class EventSystem {
                             { text: '加薪鼓励（-15💰）', id: 'bonus', effect: () => {
                                 if (this.state.resources.gold >= 15) {
                                     this.state.resources.gold -= 15;
-                                    villager.mood = Math.min(MAX_MOOD, villager.mood + 4);
+                                    villager.mood = Math.min(MAX_MOOD, villager.mood + 3);
                                 }
                             }},
                             { text: '不理会', id: 'ignore', effect: () => { villager.mood = Math.max(0, villager.mood - 2); } },
@@ -234,10 +234,10 @@ export class EventSystem {
                     title: `💔 ${villager.name}想要离开`,
                     description: `${villager.name}已经连续${consecutiveLowDays}天心情低落，表示想离开村庄。"${villager.quirk}"`,
                     options: [
-                        { text: '挽留（心情+4，-20💰）', id: 'retain', effect: () => {
+                        { text: '挽留（心情+3，-20💰）', id: 'retain', effect: () => {
                             if (this.state.resources.gold >= 20) {
                                 this.state.resources.gold -= 20;
-                                villager.mood = Math.min(MAX_MOOD, villager.mood + 4);
+                                villager.mood = Math.min(MAX_MOOD, villager.mood + 3);
                                 this.lowMoodDays[villager.id] = 0;
                             }
                         }},

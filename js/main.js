@@ -8,6 +8,7 @@ import { GameState } from './core/GameState.js';
 import { TimeSystem } from './core/TimeSystem.js';
 import { SaveSystem } from './core/SaveSystem.js';
 import { UIManager } from './ui/UIManager.js';
+import { MAX_MOOD } from './config/villagers.js';
 
 // 系统模块
 import { FarmSystem } from './systems/FarmSystem.js';
@@ -179,7 +180,7 @@ eventBus.on('switchTab', (data) => {
 // ===== 解雇事件 =====
 eventBus.on('dismissRequest', (data) => {
     uiManager.showModal('👋 确认解雇？', `
-        <p>解雇需支付 20💰 遣散费，且其他村民心情 -5。</p>
+        <p>解雇需支付 20💰 遣散费，且其他村民心情 -1。</p>
         <p>确定要解雇吗？</p>
     `, [
         { id: 'cancel', text: '取消', class: 'btn-secondary', onClick: () => {} },
@@ -419,7 +420,8 @@ function refreshChatVillagerList() {
 
     container.innerHTML = '';
     gameState.villagers.forEach(v => {
-        const moodEmoji = v.mood >= 12 ? '😊' : v.mood >= 6 ? '😐' : '😟';
+        const moodEmoji = v.mood >= Math.round(MAX_MOOD * 0.6) ? '😊'
+            : v.mood >= Math.round(MAX_MOOD * 0.3) ? '😐' : '😟';
         const row = document.createElement('div');
         row.className = 'chat-villager-row';
         row.innerHTML = `

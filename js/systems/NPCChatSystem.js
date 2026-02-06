@@ -9,6 +9,7 @@
  * - 串行调用 LLM（非并行），保证对话上下文连贯
  * - 聊天内容：闲聊、吐槽、互相鼓励、讨论天气/市场/工作等
  */
+import { MAX_MOOD } from '../config/villagers.js';
 
 export class NPCChatSystem {
     constructor(aiService, gameState, eventBus) {
@@ -144,8 +145,8 @@ export class NPCChatSystem {
                          currentHour < 17 ? '下午的活、累不累、今天的收获' :
                          '快下班了、今天总结、晚上打算';
 
-        const moodDesc = villager.mood >= 14 ? '心情不错' :
-                        villager.mood >= 8 ? '心情一般' : '心情不好';
+        const moodDesc = villager.mood >= Math.round(MAX_MOOD * 0.7) ? '心情不错' :
+                        villager.mood >= Math.round(MAX_MOOD * 0.4) ? '心情一般' : '心情不好';
 
         const prompt = `你是${villager.name}${villager.avatar}，《治村物语》的村民。现在${currentHour}:00。
 

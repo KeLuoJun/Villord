@@ -2,6 +2,7 @@
  * UIManager - UI 总管理器
  * 负责面板切换、UI 更新节流、全局 UI 操作
  */
+import { MAX_MOOD } from '../config/villagers.js';
 
 export class UIManager {
     /**
@@ -276,7 +277,7 @@ export class UIManager {
         card.className = 'villager-card';
         card.dataset.villagerId = villager.id;
 
-        const moodPercent = Math.round((villager.mood / 20) * 100);
+        const moodPercent = Math.round((villager.mood / MAX_MOOD) * 100);
         const staminaPercent = Math.round((villager.stamina / villager.maxStamina) * 100);
         const moodLevel = moodPercent >= 60 ? 'high' : moodPercent >= 30 ? 'medium' : 'low';
         const staminaLevel = staminaPercent >= 60 ? 'high' : staminaPercent >= 30 ? 'medium' : 'low';
@@ -294,7 +295,7 @@ export class UIManager {
                     <div class="stat-bar">
                         <div class="stat-fill ${moodLevel}" style="width:${moodPercent}%; background:var(--color-${moodLevel === 'high' ? 'success' : moodLevel === 'medium' ? 'warning' : 'danger'})"></div>
                     </div>
-                    <span class="stat-value">${villager.mood}/20</span>
+                    <span class="stat-value">${villager.mood}/${MAX_MOOD}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-icon">💪</span>
@@ -498,7 +499,7 @@ export class UIManager {
         }
 
         this.state.villagers.forEach(v => {
-            const moodPercent = Math.round((v.mood / 20) * 100);
+            const moodPercent = Math.round((v.mood / MAX_MOOD) * 100);
             const staminaPercent = Math.round((v.stamina / v.maxStamina) * 100);
             const moodLevel = moodPercent >= 60 ? 'high' : moodPercent >= 30 ? 'medium' : 'low';
             const staminaLevel = staminaPercent >= 60 ? 'high' : staminaPercent >= 30 ? 'medium' : 'low';
@@ -543,7 +544,7 @@ export class UIManager {
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-md);">
                     <div>
                         <div class="stat-row" style="margin-bottom:6px;">
-                            <span>${moodEmoji} 心情 ${v.mood}/20</span>
+                            <span>${moodEmoji} 心情 ${v.mood}/${MAX_MOOD}</span>
                             <div class="progress-bar" style="margin-left:8px;flex:1;"><div class="fill ${moodLevel}" style="width:${moodPercent}%"></div></div>
                         </div>
                         <div class="stat-row" style="margin-bottom:6px;">

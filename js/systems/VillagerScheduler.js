@@ -209,7 +209,7 @@ ${directiveRule}
 • 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时变，选时机要慎重
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
 ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
-• 体力不够时安排rest(+8)或eat(+5)
+• 体力不够时安排rest(+4)或eat(+3)
 
 输出JSON（必须覆盖8:00-21:00的完整时间段）：
 {
@@ -420,8 +420,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
 
         // 体力恢复中断：如果正在强制休息，先恢复
         if (villager._forceResting) {
-            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 5);
-            if (villager.stamina >= 10) {
+            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 2);
+            if (villager.stamina >= 6) {
                 villager._forceResting = false;
                 // 恢复后继续当前时间点的计划
             } else {
@@ -475,7 +475,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             // 体力不足 → 进入强制恢复模式
             villager._forceResting = true;
             villager.currentAction = '💤 体力不足，休息中...';
-            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 3);
+            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 2);
             villager._scheduleStatus[taskKey] = 'deferred';
             return;
         }
@@ -610,14 +610,14 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 break;
             }
             case 'rest': {
-                villager.stamina = Math.min(villager.maxStamina, villager.stamina + 8);
+                villager.stamina = Math.min(villager.maxStamina, villager.stamina + 4);
                 villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 break;
             }
             case 'eat': {
                 if (this.state.resources.food >= 1) {
                     this.state.modifyResource('food', -1);
-                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 5);
+                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 3);
                     villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 } else {
                     success = false;

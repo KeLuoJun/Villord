@@ -83,7 +83,7 @@ export class PersonalitySystem {
         const behaviors = [];
 
         // 勤劳：主动干活
-        if (villager.traits.includes('勤劳') && villager.stamina > 30) {
+        if (villager.traits.includes('勤劳') && villager.maxStamina && (villager.stamina / villager.maxStamina) > 0.6) {
             behaviors.push({
                 action: '主动干活',
                 weight: 3,
