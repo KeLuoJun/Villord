@@ -2,7 +2,7 @@
  * EconomySystem - 经济系统
  * 管理每日消耗（食物、木材）、资源变化追踪
  */
-import { DAILY_FOOD_COST } from '../config/villagers.js';
+import { DAILY_FOOD_COST, MAX_MOOD } from '../config/villagers.js';
 
 export class EconomySystem {
     constructor(gameState, eventBus) {
@@ -27,7 +27,7 @@ export class EconomySystem {
 
             // 全体村民心情下降
             this.state.villagers.forEach(v => {
-                v.mood = Math.max(0, v.mood - 15);
+                v.mood = Math.max(0, v.mood - 3);
             });
 
             this.state.addLog('⚠️', `粮食不足！缺少${deficit}🌾，村民心情大幅下降`, 'danger');
@@ -48,7 +48,7 @@ export class EconomySystem {
                 } else {
                     this.state.addLog('🥶', '木材不足以取暖，村民心情下降', 'warning');
                     this.state.villagers.forEach(v => {
-                        v.mood = Math.max(0, v.mood - 5);
+                        v.mood = Math.max(0, v.mood - 1);
                     });
                 }
             }

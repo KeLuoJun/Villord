@@ -2,6 +2,9 @@
  * PersonalitySystem - 完整性格系统
  * 处理执行偏差、村民自主行为、性格对调度的影响
  */
+import { MAX_MOOD } from '../config/villagers.js';
+
+const MOOD_REBEL_THRESHOLD = Math.round(MAX_MOOD * 0.4); // 20 -> 8
 
 export class PersonalitySystem {
     constructor(gameState, eventBus) {
@@ -50,7 +53,7 @@ export class PersonalitySystem {
         }
 
         // 叛逆：拒绝执行（心情<40时10%概率拒绝）— E: 触发自动暂停
-        if (villager.traits.includes('叛逆') && villager.mood < 40 && Math.random() < 0.1) {
+        if (villager.traits.includes('叛逆') && villager.mood < MOOD_REBEL_THRESHOLD && Math.random() < 0.1) {
             villager.currentAction = '😤 拒绝干活';
             this.state.addLog('😤', `${villager.name}拒绝执行任务："我不想干了！"`, 'warning');
             this.bus.emit('autoPause', { reason: `[村民] ${villager.name}拒绝执行任务` });
@@ -100,7 +103,7 @@ export class PersonalitySystem {
                 weight: 4,
                 execute: () => {
                     villager.currentAction = '🚶 在村里闲逛';
-                    villager.mood = Math.min(100, villager.mood + 1);
+                    villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 },
             });
         }
@@ -114,7 +117,7 @@ export class PersonalitySystem {
                     const others = this.state.villagers.filter(v => v.id !== villager.id && v.mood < 50);
                     if (others.length > 0) {
                         const target = others[0];
-                        target.mood = Math.min(100, target.mood + 5);
+                        target.mood = Math.min(MAX_MOOD, target.mood + 1);
                         villager.currentAction = `💬 安慰${target.name}`;
                         this.state.addLog('😊', `${villager.name}主动安慰了${target.name}`, 'info');
                     }

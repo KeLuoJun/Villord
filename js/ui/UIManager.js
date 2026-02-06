@@ -270,7 +270,7 @@ export class UIManager {
         card.className = 'villager-card';
         card.dataset.villagerId = villager.id;
 
-        const moodPercent = villager.mood;
+        const moodPercent = Math.round((villager.mood / 20) * 100);
         const staminaPercent = Math.round((villager.stamina / villager.maxStamina) * 100);
         const moodLevel = moodPercent >= 60 ? 'high' : moodPercent >= 30 ? 'medium' : 'low';
         const staminaLevel = staminaPercent >= 60 ? 'high' : staminaPercent >= 30 ? 'medium' : 'low';
@@ -288,7 +288,7 @@ export class UIManager {
                     <div class="stat-bar">
                         <div class="stat-fill ${moodLevel}" style="width:${moodPercent}%; background:var(--color-${moodLevel === 'high' ? 'success' : moodLevel === 'medium' ? 'warning' : 'danger'})"></div>
                     </div>
-                    <span class="stat-value">${moodPercent}</span>
+                    <span class="stat-value">${villager.mood}/20</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-icon">💪</span>
@@ -300,14 +300,7 @@ export class UIManager {
                 </div>
             </div>
             <div class="villager-task">📋 ${villager.currentAction ? villager.currentAction : '空闲'}</div>
-            <button class="btn btn-primary btn-sm chat-btn" data-villager-id="${villager.id}">💬 对话</button>
         `;
-
-        // 对话按钮事件
-        card.querySelector('.chat-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.bus.emit('openDialogue', { villagerId: villager.id });
-        });
 
         return card;
     }
@@ -499,7 +492,7 @@ export class UIManager {
         }
 
         this.state.villagers.forEach(v => {
-            const moodPercent = v.mood;
+            const moodPercent = Math.round((v.mood / 20) * 100);
             const staminaPercent = Math.round((v.stamina / v.maxStamina) * 100);
             const moodLevel = moodPercent >= 60 ? 'high' : moodPercent >= 30 ? 'medium' : 'low';
             const staminaLevel = staminaPercent >= 60 ? 'high' : staminaPercent >= 30 ? 'medium' : 'low';
@@ -510,7 +503,7 @@ export class UIManager {
                 `<span class="trait-tag ${isPositive(t) ? 'positive' : 'negative'}">${t}</span>`
             ).join('');
 
-            const scheduleHTML = v.schedule ? v.schedule.slice(0, 10).map(s => {
+            const scheduleHTML = v.schedule ? v.schedule.map(s => {
                 const icons = { plant:'🌱', water:'💧', fertilize:'🧪', harvest:'🌾', chop:'🪓', mine:'⛏️', process:'🏭', trade:'🛒', rest:'💤', eat:'🍽️', idle:'🚶', chat:'💬', pest_control:'🐛' };
                 const names = { plant:'种植', water:'浇水', fertilize:'施肥', harvest:'收获', chop:'伐木', mine:'采石', process:'加工', trade:'交易', rest:'休息', eat:'吃饭', idle:'闲逛', chat:'聊天', pest_control:'除虫' };
                 const sh = s.startHour ?? s.hour;
@@ -544,7 +537,7 @@ export class UIManager {
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-md);">
                     <div>
                         <div class="stat-row" style="margin-bottom:6px;">
-                            <span>${moodEmoji} 心情 ${moodPercent}</span>
+                            <span>${moodEmoji} 心情 ${v.mood}/20</span>
                             <div class="progress-bar" style="margin-left:8px;flex:1;"><div class="fill ${moodLevel}" style="width:${moodPercent}%"></div></div>
                         </div>
                         <div class="stat-row" style="margin-bottom:6px;">

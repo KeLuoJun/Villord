@@ -4,7 +4,7 @@
  * 每 Tick 驱动村民按计划执行行动（含现实检查）
  * 村民 7:00 起床，8:00 开始执行计划，22:00 睡觉
  */
-import { VALID_ACTIONS, ACTION_DURATIONS, ACTION_NAMES, ACTION_ICONS, STAMINA_COSTS } from '../config/villagers.js';
+import { VALID_ACTIONS, ACTION_DURATIONS, ACTION_NAMES, ACTION_ICONS, STAMINA_COSTS, MAX_MOOD } from '../config/villagers.js';
 import { MARKET_OPEN_HOUR, MARKET_CLOSE_HOUR } from '../market/MarketEngine.js';
 
 const WAKE_HOUR = 7;            // 起床 & 计划生成触发时间
@@ -169,7 +169,7 @@ export class VillagerScheduler {
         return `为村民${villager.name}${villager.avatar || '👤'}制定今日计划。
 
 【村民】${villager.traits.join('、')}，特长${villager.specialty}
-体力${villager.stamina}/${villager.maxStamina}，心情${villager.mood}/100
+体力${villager.stamina}/${villager.maxStamina}，心情${villager.mood}/${MAX_MOOD}
 ${traitHint}
 
 【市场消息】
@@ -188,17 +188,21 @@ ${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${ST
 
 【硬性规则】
 • 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划从${SCHEDULE_START_HOUR}:00开始安排行动（${WAKE_HOUR}:00-${SCHEDULE_START_HOUR}:00为起床准备时间）
+• ⚠️ 必须安排从${SCHEDULE_START_HOUR}:00到${SLEEP_HOUR - 1}:00的完整计划，包括晚间活动（晚饭后安排idle/rest/chat等）
 • 吃饭：一天3餐（早8点/午12点/晚18点左右），用eat行动
 • 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时变，选时机要慎重
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
 ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
-• 体力不够时安排rest(+15)或eat(+10)
+• 体力不够时安排rest(+8)或eat(+5)
 
-输出JSON：
+输出JSON（必须覆盖8:00-21:00的完整时间段）：
 {
   "schedule": [
     {"startHour": 8, "action": "eat", "duration": 1, "target": null, "note": "早饭"},
-    {"startHour": 9, "action": "water", "duration": 1, "target": null, "note": "浇水"}
+    {"startHour": 9, "action": "water", "duration": 1, "target": null, "note": "浇水"},
+    {"startHour": 18, "action": "eat", "duration": 1, "target": null, "note": "晚饭"},
+    {"startHour": 19, "action": "idle", "duration": 1, "target": null, "note": "散步"},
+    {"startHour": 20, "action": "rest", "duration": 2, "target": null, "note": "睡前休息"}
   ],
   "thought": "今天的想法..."
 }`;
@@ -297,6 +301,24 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             villager.currentAction = '🌅 起床准备中';
             villager.currentTask = null;
             return;
+        }
+
+        // 放假时间：跳过计划执行
+        if (villager._holidayUntilHour !== undefined) {
+            if (currentHour < villager._holidayUntilHour) {
+                villager.currentAction = '🎉 放假中';
+                villager.currentTask = null;
+                if (!villager._scheduleStatus) villager._scheduleStatus = {};
+                if (villager.schedule) {
+                    const task = villager.schedule.find(s => s.startHour === currentHour);
+                    if (task) {
+                        villager._scheduleStatus[`${task.startHour}_${task.action}`] = 'skipped';
+                    }
+                }
+                return;
+            }
+            // 放假结束
+            delete villager._holidayUntilHour;
         }
 
         if (!villager.schedule) {
@@ -484,21 +506,21 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             }
             case 'rest': {
                 villager.stamina = Math.min(villager.maxStamina, villager.stamina + 8);
-                villager.mood = Math.min(100, villager.mood + 3);
+                villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 break;
             }
             case 'eat': {
                 if (this.state.resources.food >= 1) {
                     this.state.modifyResource('food', -1);
                     villager.stamina = Math.min(villager.maxStamina, villager.stamina + 5);
-                    villager.mood = Math.min(100, villager.mood + 2);
+                    villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 } else {
                     success = false;
                 }
                 break;
             }
             case 'idle': {
-                villager.mood = Math.min(100, villager.mood + 1);
+                villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 break;
             }
             case 'fertilize': {

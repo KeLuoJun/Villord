@@ -55,8 +55,10 @@ export class MarketEngine {
         this.updatePriceList();
     }
 
-    /** 每 Tick 更新价格 */
+    /** 每 Tick 更新价格（仅市场开放期间） */
     updatePrices() {
+        if (!this.isMarketOpen()) return;
+
         for (const [id, config] of Object.entries(MARKET_ITEMS)) {
             const price = this.prices[id] || config.basePrice;
             const deviation = (price - config.basePrice) / config.basePrice;

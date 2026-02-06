@@ -416,7 +416,7 @@ function refreshChatVillagerList() {
 
     container.innerHTML = '';
     gameState.villagers.forEach(v => {
-        const moodEmoji = v.mood >= 60 ? '😊' : v.mood >= 30 ? '😐' : '😟';
+        const moodEmoji = v.mood >= 12 ? '😊' : v.mood >= 6 ? '😐' : '😟';
         const row = document.createElement('div');
         row.className = 'chat-villager-row';
         row.innerHTML = `

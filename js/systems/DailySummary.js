@@ -173,8 +173,8 @@ export class DailySummary {
         const villagersText = villagerSummaries.map(v => {
             const actionCount = v.actions.length;
             const actionSample = v.actions.slice(0, 6).join(' → ');
-            const moodDesc = v.mood >= 80 ? '心情很好' : v.mood >= 60 ? '心情不错' : v.mood >= 40 ? '心情一般' : v.mood >= 20 ? '心情低落' : '情绪很差';
-            const staminaDesc = v.stamina >= 80 ? '精力充沛' : v.stamina >= 50 ? '还有体力' : v.stamina >= 20 ? '有些疲惫' : '筋疲力尽';
+            const moodDesc = v.mood >= 16 ? '心情很好' : v.mood >= 12 ? '心情不错' : v.mood >= 8 ? '心情一般' : v.mood >= 4 ? '心情低落' : '情绪很差';
+            const staminaDesc = v.stamina >= 40 ? '精力充沛' : v.stamina >= 25 ? '还有体力' : v.stamina >= 10 ? '有些疲惫' : '筋疲力尽';
             return `- ${v.name}（性格：${v.traits}）：${moodDesc}，${staminaDesc}。做了${actionCount}件事${actionCount > 0 ? '：' + actionSample : ''}`;
         }).join('\n');
 
@@ -229,7 +229,7 @@ ${eventText}
         // 村民活动描述
         villagerSummaries.forEach(v => {
             const actionCount = v.actions.length;
-            const moodText = v.mood >= 70 ? '精神不错' : v.mood >= 40 ? '状态尚可' : '有些萎靡';
+            const moodText = v.mood >= 14 ? '精神不错' : v.mood >= 8 ? '状态尚可' : '有些萎靡';
             if (actionCount >= 5) {
                 parts.push(`${v.name}今天格外忙碌，完成了${actionCount}项工作，${moodText}`);
             } else if (actionCount > 0) {
@@ -251,9 +251,9 @@ ${eventText}
 
         // 收尾
         const totalMood = villagerSummaries.reduce((s, v) => s + v.mood, 0) / Math.max(villagerSummaries.length, 1);
-        if (totalMood >= 70) {
+        if (totalMood >= 14) {
             parts.push('总体来看，是充实而愉快的一天。');
-        } else if (totalMood >= 40) {
+        } else if (totalMood >= 8) {
             parts.push('平淡而踏实的一天。');
         } else {
             parts.push('日子虽不轻松，但村庄仍在坚持。');
@@ -367,7 +367,7 @@ ${eventText}
         if (!villagers || villagers.length === 0) return '';
 
         return villagers.map(v => {
-            const moodIcon = v.mood >= 70 ? '😊' : v.mood >= 40 ? '😐' : '😟';
+            const moodIcon = v.mood >= 14 ? '😊' : v.mood >= 8 ? '😐' : '😟';
             const staminaPercent = Math.round(v.stamina / v.maxStamina * 100);
 
             let actionsHtml = '';

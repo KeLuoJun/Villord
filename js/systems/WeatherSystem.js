@@ -75,7 +75,7 @@ export class WeatherSystem {
                     this.state.addLog(evt.icon, `${evt.name}来袭！${evt.effectSummary}`, 'warning');
                     this.bus.emit('weatherEventStart', { event: evt });
                     this.bus.emit('weatherChanged', { weather: evt, isSpecial: true });
-                    this.bus.emit('autoPause', { reason: `[天气] ${evt.icon} ${evt.name}来袭！` });
+                    this.bus.emit('showToast', { message: `${evt.icon} ${evt.name}来袭！${evt.effectSummary}`, type: 'warning' });
                 }
             }
         }

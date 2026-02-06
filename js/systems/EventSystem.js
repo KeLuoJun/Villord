@@ -3,6 +3,13 @@
  * 管理经济事件、村民事件、天气联动事件
  * 定时检测触发条件，弹出事件面板
  */
+import { MAX_MOOD } from '../config/villagers.js';
+
+const MOOD_LOW_THRESHOLD = Math.max(3, Math.round(MAX_MOOD * 0.3));   // 20 -> 6
+const MOOD_REBEL_THRESHOLD = Math.round(MAX_MOOD * 0.4);              // 20 -> 8
+const MOOD_HAPPY_THRESHOLD = Math.round(MAX_MOOD * 0.8);              // 20 -> 16
+const HOLIDAY_HOURS = 4;
+const HOLIDAY_END_HOUR = 22;
 
 export class EventSystem {
     constructor(gameState, eventBus, uiManager) {
@@ -36,7 +43,7 @@ export class EventSystem {
     onNewDay() {
         // 更新连续低心情天数追踪
         this.state.villagers.forEach(v => {
-            if (v.mood < 30) {
+            if (v.mood < MOOD_LOW_THRESHOLD) {
                 this.lowMoodDays[v.id] = (this.lowMoodDays[v.id] || 0) + 1;
             } else {
                 this.lowMoodDays[v.id] = 0;
@@ -80,7 +87,7 @@ export class EventSystem {
             // 直接应用效果
             this.state.modifyResource('food', foodBonus);
             this.state.villagers.forEach(v => {
-                v.mood = Math.min(100, v.mood + 15);
+                v.mood = Math.min(MAX_MOOD, v.mood + 3);
             });
             this.triggerEvent({
                 type: 'economic',
@@ -114,16 +121,19 @@ export class EventSystem {
     // ===== 村民事件 =====
     checkVillagerEvents() {
         this.state.villagers.forEach(villager => {
-            // F3: 心情 < 30 触发抱怨（策划文档要求）
-            if (villager.mood < 30 && !this.isOnCooldown(`mood_low_${villager.id}`)) {
+            // F3: 心情过低触发抱怨
+            if (villager.mood < MOOD_LOW_THRESHOLD && !this.isOnCooldown(`mood_low_${villager.id}`)) {
                 this.triggerEvent({
                     type: 'villager',
-                    title: `😟 ${villager.name}心情很差`,
-                    description: `${villager.name}看起来很不开心（心情${villager.mood}）。${villager.traits.includes('悲观') ? '唉...又要抱怨了...' : '也许给点休息时间？'}`,
+                    title: `😟 ${villager.name}心情不佳`,
+                    description: `${villager.name}看起来有点闷闷不乐（心情${villager.mood}）。${villager.traits.includes('悲观') ? '唉...又要抱怨了...' : '也许给点休息时间？'}`,
                     options: [
-                        { text: '安慰一下（心情+10）', id: 'comfort', effect: () => { villager.mood = Math.min(100, villager.mood + 10); } },
-                        { text: '放半天假（心情+15）', id: 'holiday', effect: () => { villager.mood = Math.min(100, villager.mood + 15); villager.currentAction = '🎉 放假中'; } },
-                        { text: '不管', id: 'ignore', effect: () => { villager.mood = Math.max(0, villager.mood - 5); } },
+                        { text: '安慰一下（心情+2）', id: 'comfort', effect: () => { villager.mood = Math.min(MAX_MOOD, villager.mood + 2); } },
+                        { text: '放半天假（心情+3）', id: 'holiday', effect: () => {
+                            villager.mood = Math.min(MAX_MOOD, villager.mood + 3);
+                            this.applyHalfDayHoliday(villager);
+                        }},
+                        { text: '不管', id: 'ignore', effect: () => { villager.mood = Math.max(0, villager.mood - 1); } },
                     ],
                 });
                 this.setCooldown(`mood_low_${villager.id}`, 3);
@@ -146,7 +156,7 @@ export class EventSystem {
                                 }
                             }},
                             { text: '硬撑着干活', id: 'work', effect: () => {
-                                villager.mood = Math.max(0, villager.mood - 20);
+                                villager.mood = Math.max(0, villager.mood - 4);
                             }},
                         ],
                     });
@@ -155,7 +165,7 @@ export class EventSystem {
             }
 
             // 叛逆村民可能拒绝工作
-            if (villager.traits.includes('叛逆') && villager.mood < 40
+            if (villager.traits.includes('叛逆') && villager.mood < MOOD_REBEL_THRESHOLD
                 && !this.isOnCooldown(`rebel_${villager.id}`)) {
                 if (Math.random() < 0.2) {
                     this.triggerEvent({
@@ -163,14 +173,14 @@ export class EventSystem {
                         title: `😤 ${villager.name}闹脾气了`,
                         description: `${villager.name}觉得工作太多，表示不想干活了！"${villager.quirk}"`,
                         options: [
-                            { text: '耐心劝说', id: 'persuade', effect: () => { villager.mood = Math.min(100, villager.mood + 5); } },
+                            { text: '耐心劝说', id: 'persuade', effect: () => { villager.mood = Math.min(MAX_MOOD, villager.mood + 1); } },
                             { text: '加薪鼓励（-15💰）', id: 'bonus', effect: () => {
                                 if (this.state.resources.gold >= 15) {
                                     this.state.resources.gold -= 15;
-                                    villager.mood = Math.min(100, villager.mood + 20);
+                                    villager.mood = Math.min(MAX_MOOD, villager.mood + 4);
                                 }
                             }},
-                            { text: '不理会', id: 'ignore', effect: () => { villager.mood = Math.max(0, villager.mood - 10); } },
+                            { text: '不理会', id: 'ignore', effect: () => { villager.mood = Math.max(0, villager.mood - 2); } },
                         ],
                     });
                     this.setCooldown(`rebel_${villager.id}`, 5);
@@ -178,7 +188,7 @@ export class EventSystem {
             }
 
             // 乐观村民的惊喜
-            if (villager.traits.includes('乐观') && villager.mood >= 80
+            if (villager.traits.includes('乐观') && villager.mood >= MOOD_HAPPY_THRESHOLD
                 && !this.isOnCooldown(`happy_${villager.id}`)) {
                 if (Math.random() < 0.1) {
                     const bonus = Math.floor(Math.random() * 3) + 1;
@@ -190,7 +200,7 @@ export class EventSystem {
 
             // F2: 村民间争吵（2个以上低心情村民）
             if (!this.isOnCooldown('villager_argument')) {
-                const unhappy = this.state.villagers.filter(v => v.mood < 30);
+                const unhappy = this.state.villagers.filter(v => v.mood < MOOD_LOW_THRESHOLD);
                 if (unhappy.length >= 2 && Math.random() < 0.25) {
                     const v1 = unhappy[0], v2 = unhappy[1];
                     this.triggerEvent({
@@ -198,17 +208,17 @@ export class EventSystem {
                         title: `😡 ${v1.name}和${v2.name}吵起来了！`,
                         description: `两人心情都不好，因为琐事发生了争吵。如果不处理，双方心情会继续下降。`,
                         options: [
-                            { text: '调解纠纷（心情各+10）', id: 'mediate', effect: () => {
-                                v1.mood = Math.min(100, v1.mood + 10);
-                                v2.mood = Math.min(100, v2.mood + 10);
+                            { text: '调解纠纷（心情各+2）', id: 'mediate', effect: () => {
+                                v1.mood = Math.min(MAX_MOOD, v1.mood + 2);
+                                v2.mood = Math.min(MAX_MOOD, v2.mood + 2);
                             }},
                             { text: '各打五十大板', id: 'punish', effect: () => {
-                                v1.mood = Math.max(0, v1.mood - 5);
-                                v2.mood = Math.max(0, v2.mood - 5);
+                                v1.mood = Math.max(0, v1.mood - 1);
+                                v2.mood = Math.max(0, v2.mood - 1);
                             }},
                             { text: '不管', id: 'ignore', effect: () => {
-                                v1.mood = Math.max(0, v1.mood - 10);
-                                v2.mood = Math.max(0, v2.mood - 10);
+                                v1.mood = Math.max(0, v1.mood - 2);
+                                v2.mood = Math.max(0, v2.mood - 2);
                             }},
                         ],
                     });
@@ -224,10 +234,10 @@ export class EventSystem {
                     title: `💔 ${villager.name}想要离开`,
                     description: `${villager.name}已经连续${consecutiveLowDays}天心情低落，表示想离开村庄。"${villager.quirk}"`,
                     options: [
-                        { text: '挽留（心情+20，-20💰）', id: 'retain', effect: () => {
+                        { text: '挽留（心情+4，-20💰）', id: 'retain', effect: () => {
                             if (this.state.resources.gold >= 20) {
                                 this.state.resources.gold -= 20;
-                                villager.mood = Math.min(100, villager.mood + 20);
+                                villager.mood = Math.min(MAX_MOOD, villager.mood + 4);
                                 this.lowMoodDays[villager.id] = 0;
                             }
                         }},
@@ -299,6 +309,31 @@ export class EventSystem {
 
         // 弹窗显示（仅非经济事件）
         this.showEventPopup(event);
+    }
+
+    /** 让村民放半天假（未来4小时内不执行计划） */
+    applyHalfDayHoliday(villager) {
+        const currentHour = this.state.time.hour;
+        const startHour = Math.max(currentHour, 8);
+        const endHour = Math.min(startHour + HOLIDAY_HOURS, HOLIDAY_END_HOUR);
+        if (startHour >= endHour) return;
+
+        // 标记放假时间窗口
+        villager._holidayUntilHour = Math.max(villager._holidayUntilHour || 0, endHour);
+        villager.currentAction = '🎉 放假中';
+
+        // 将放假时间段内的计划标记为跳过
+        if (!villager._scheduleStatus) villager._scheduleStatus = {};
+        if (villager.schedule) {
+            villager.schedule.forEach(task => {
+                const sh = task.startHour ?? task.hour;
+                if (sh >= startHour && sh < endHour) {
+                    villager._scheduleStatus[`${sh}_${task.action}`] = 'skipped';
+                }
+            });
+        }
+
+        this.state.addLog('🎉', `${villager.name}获得半天假期（${startHour}:00-${endHour}:00）`, 'info');
     }
 
     /** 显示事件弹窗 */

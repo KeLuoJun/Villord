@@ -5,7 +5,7 @@
 import {
     TRAIT_POOL, EXCLUSIVE_TRAITS, SPECIALTY_POOL, QUIRK_POOL,
     TRAIT_EFFECTS, RECRUIT_COST, DISMISS_COST, DAILY_FOOD_COST,
-    STAMINA_COSTS, AVATAR_POOL, generateRandomName,
+    STAMINA_COSTS, AVATAR_POOL, generateRandomName, MAX_MOOD,
 } from '../config/villagers.js';
 
 export class VillagerSystem {
@@ -39,7 +39,7 @@ export class VillagerSystem {
             quirk: '没问题！',
             stamina: 50,
             maxStamina: 50,
-            mood: 80,
+            mood: 16,
             accuracy: 0.9,
             workSpeed: 1.3,
             skills: { farming: 2, gathering: 1, processing: 1 },
@@ -111,7 +111,7 @@ export class VillagerSystem {
             quirk,
             stamina: maxStamina,
             maxStamina,
-            mood: 70,
+            mood: 14,
             accuracy,
             workSpeed,
             skills: { farming: 1, gathering: 1, processing: 1 },
@@ -165,9 +165,9 @@ export class VillagerSystem {
         this.state.resources.gold -= DISMISS_COST;
         const dismissed = this.state.villagers.splice(index, 1)[0];
 
-        // 其他村民心情 -5
+        // 其他村民心情 -1
         this.state.villagers.forEach(v => {
-            v.mood = Math.max(0, v.mood - 5);
+            v.mood = Math.max(0, v.mood - 1);
         });
 
         this.state.addLog('👋', `${dismissed.name}离开了村庄`, 'warning');
@@ -234,17 +234,17 @@ export class VillagerSystem {
             // 睡眠恢复体力（夜间自动恢复）
             villager.stamina = Math.min(villager.maxStamina, villager.stamina + 10);
 
-            // 心情自然衰减（每天-2）
-            villager.mood = Math.max(0, villager.mood - 2);
+            // 心情自然衰减（每天-1）
+            villager.mood = Math.max(0, villager.mood - 1);
 
-            // 乐观性格心情恢复快（+3）
+            // 乐观性格心情恢复快（+1）
             if (villager.traits.includes('乐观')) {
-                villager.mood = Math.min(100, villager.mood + 3);
+                villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
             }
 
-            // 悲观性格额外衰减（-2）
+            // 悲观性格额外衰减（-1）
             if (villager.traits.includes('悲观')) {
-                villager.mood = Math.max(0, villager.mood - 2);
+                villager.mood = Math.max(0, villager.mood - 1);
             }
         });
     }

@@ -104,7 +104,7 @@ export class DialogueManager {
 
     /** 渲染对话框 HTML */
     renderDialogueBox(villager) {
-        const moodEmoji = villager.mood >= 60 ? '😊' : villager.mood >= 30 ? '😐' : '😟';
+        const moodEmoji = villager.mood >= 12 ? '😊' : villager.mood >= 6 ? '😐' : '😟';
         const staminaPercent = Math.round((villager.stamina / villager.maxStamina) * 100);
 
         return `
@@ -290,7 +290,7 @@ export class DialogueManager {
 
     /** 更新对话框状态 */
     updateDialogueStatus(villager, overlay) {
-        const moodEmoji = villager.mood >= 60 ? '😊' : villager.mood >= 30 ? '😐' : '😟';
+        const moodEmoji = villager.mood >= 12 ? '😊' : villager.mood >= 6 ? '😐' : '😟';
         const statusItems = overlay.querySelectorAll('.dialogue-status .status-value');
         if (statusItems[0]) statusItems[0].textContent = villager.mood;
         if (statusItems[1]) statusItems[1].textContent = `${villager.stamina}/${villager.maxStamina}`;

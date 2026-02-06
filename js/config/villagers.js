@@ -52,6 +52,9 @@ export const DISMISS_COST = 20;
 /** 每日食物消耗（每个村民） */
 export const DAILY_FOOD_COST = 1;
 
+/** 心情上限 */
+export const MAX_MOOD = 20;
+
 /** 体力消耗表（基于50体力上限平衡） */
 export const STAMINA_COSTS = {
     plant: 8,
