@@ -1,8 +1,8 @@
 /**
  * TimeSystem - 时间系统
- * 管理游戏时间推进（Tick循环）、速度控制、日/月/季/年事件
+ * 管理游戏时间推进（Tick循环）、速度控制、日/季/年事件
  * 1 Tick = 游戏内 1 小时
- * 24 Tick = 1 天, 28 天 = 1 月, 3 月 = 1 季, 12 月 = 1 年
+ * 24 Tick = 1 天, 9 天 = 1 季, 4 季 = 1 年 (36天/年)
  */
 
 // 速度配置：speed -> 毫秒间隔（1x = 2秒/Tick）
@@ -14,10 +14,11 @@ const SPEED_INTERVALS = {
     10: 200,
 };
 
-const SEASON_IDS = ['spring', 'spring', 'spring',
-                    'summer', 'summer', 'summer',
-                    'autumn', 'autumn', 'autumn',
-                    'winter', 'winter', 'winter'];
+export const DAYS_PER_SEASON = 9;
+export const SEASONS_PER_YEAR = 4;
+export const DAYS_PER_YEAR = DAYS_PER_SEASON * SEASONS_PER_YEAR; // 36
+
+const SEASON_IDS_LIST = ['spring', 'summer', 'autumn', 'winter'];
 
 export class TimeSystem {
     /**
@@ -69,23 +70,23 @@ export class TimeSystem {
             time.hour = 0;
             time.day++;
 
-            const oldMonth = time.month;
+            const oldMonth = time.month; // month 即季节序号 (1-4)
 
-            // 跨月
-            if (time.day > 28) {
+            // 跨季（每季9天）
+            if (time.day > DAYS_PER_SEASON) {
                 time.day = 1;
                 time.month++;
 
-                // 跨年
-                if (time.month > 12) {
+                // 跨年（4季一年）
+                if (time.month > SEASONS_PER_YEAR) {
                     time.month = 1;
                     time.year++;
                     this.bus.emit('newYear', { year: time.year });
                 }
 
-                // 检查季节变化
-                const oldSeason = SEASON_IDS[oldMonth - 1];
-                const newSeason = SEASON_IDS[time.month - 1];
+                // 季节变化
+                const oldSeason = SEASON_IDS_LIST[(oldMonth - 1) % 4];
+                const newSeason = SEASON_IDS_LIST[(time.month - 1) % 4];
                 if (oldSeason !== newSeason) {
                     this.bus.emit('seasonChange', { season: newSeason, month: time.month });
                 }

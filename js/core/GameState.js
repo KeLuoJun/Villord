@@ -11,8 +11,8 @@ export const GameState = {
     // ===== 时间状态 =====
     time: {
         year: 1,
-        month: 1,       // 1-12
-        day: 1,          // 1-28
+        month: 1,       // 1-4（即季节序号：1=春 2=夏 3=秋 4=冬）
+        day: 1,          // 1-9（每季9天）
         hour: 6,         // 0-23
         speed: 1,        // 游戏速度倍率
         isPaused: true,  // 初始暂停，等待玩家开始
@@ -80,9 +80,8 @@ export const GameState = {
     storage: {
         baseCapacity: 50,          // 基础仓库容量
         upgradeBonus: 50,          // 每次升级增加的容量
-        // 重要系数：基础且重要的资源系数高
+        // 重要系数：基础且重要的资源系数高（gold 不占仓库容量）
         importanceFactors: {
-            gold: 2.0,             // 金币 - 核心货币，最重要
             food: 1.5,             // 粮食 - 生存必需
             wood: 1.0,             // 木材 - 建设基础
             stone: 0.8,            // 石料 - 建设辅助
@@ -119,14 +118,13 @@ export const GameState = {
 
     /** 当前季节ID（spring/summer/autumn/winter） */
     get season() {
-        const seasonIndex = Math.floor((this.time.month - 1) / 3);
-        return SEASON_IDS[seasonIndex] || 'spring';
+        // month 直接对应季节：1=春 2=夏 3=秋 4=冬
+        return SEASON_IDS[(this.time.month - 1) % 4] || 'spring';
     },
 
     /** 当前季节中文名 */
     get seasonName() {
-        const seasonIndex = Math.floor((this.time.month - 1) / 3);
-        return SEASON_NAMES[seasonIndex] || '春';
+        return SEASON_NAMES[(this.time.month - 1) % 4] || '春';
     },
 
     /** 房屋总容量 */
@@ -142,8 +140,9 @@ export const GameState = {
         return this.storage.baseCapacity + upgradeCount * this.storage.upgradeBonus;
     },
 
-    /** 获取某资源的容量上限 */
+    /** 获取某资源的容量上限（金币无上限） */
     getStorageLimit(resourceType) {
+        if (resourceType === 'gold') return Infinity;
         const factor = this.storage.importanceFactors[resourceType] || 0.3;
         return Math.floor(factor * this.warehouseCapacity);
     },
@@ -185,8 +184,8 @@ export const GameState = {
 
     /** 当前总游戏天数（从第1天开始） */
     get totalDays() {
-        return (this.time.year - 1) * 336
-            + (this.time.month - 1) * 28
+        return (this.time.year - 1) * 36  // 36天/年
+            + (this.time.month - 1) * 9   // 9天/季
             + this.time.day;
     },
 
@@ -206,8 +205,8 @@ export const GameState = {
         let newVal = this.resources[type] + amount;
         if (newVal < 0) return false;
 
-        // 增加时检查仓库容量上限
-        if (amount > 0) {
+        // 增加时检查仓库容量上限（金币无上限）
+        if (amount > 0 && type !== 'gold') {
             const limit = this.getStorageLimit(type);
             if (newVal > limit) {
                 newVal = limit; // 超出部分丢弃

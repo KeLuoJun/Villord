@@ -178,8 +178,8 @@ export class MarketEngine {
             tick: this.state.time.totalTicks,
             price: Math.round(price * 100) / 100,
         });
-        // 保留最近30天（720 Tick）
-        if (this.history[itemId].length > 720) {
+        // 保留最近1年（36天 × 24 Tick = 864 Tick）
+        if (this.history[itemId].length > 864) {
             this.history[itemId].shift();
         }
     }

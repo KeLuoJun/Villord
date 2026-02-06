@@ -178,11 +178,7 @@ export class UIManager {
 
         container.innerHTML = resources.map(res => {
             const limit = s.getStorageLimit(res.key);
-            const pct = limit > 0 ? Math.min(100, Math.round((res.value / limit) * 100)) : 0;
-            const isFull = res.value >= limit;
-            const barColor = pct >= 90 ? 'var(--danger, #c62828)' :
-                             pct >= 70 ? 'var(--warning, #e08800)' :
-                             'var(--accent)';
+            const noLimit = !isFinite(limit); // 金币无上限
 
             let changeHtml = '';
             if (res.change !== null && res.change !== undefined) {
@@ -192,6 +188,27 @@ export class UIManager {
                     changeHtml = `<span class="resource-change text-down">${res.change}</span>`;
                 }
             }
+
+            if (noLimit) {
+                // 金币：不显示容量条
+                return `
+                    <div class="resource-row-with-bar">
+                        <div class="resource-row-top">
+                            <span class="resource-name">${res.icon} ${res.name}</span>
+                            <span>
+                                <span class="resource-value">${res.value}</span>
+                                ${changeHtml}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const pct = limit > 0 ? Math.min(100, Math.round((res.value / limit) * 100)) : 0;
+            const isFull = res.value >= limit;
+            const barColor = pct >= 90 ? 'var(--danger, #c62828)' :
+                             pct >= 70 ? 'var(--warning, #e08800)' :
+                             'var(--accent)';
 
             return `
                 <div class="resource-row-with-bar">

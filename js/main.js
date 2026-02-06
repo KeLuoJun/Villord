@@ -397,6 +397,7 @@ function showGameRulesModal() {
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">⏰ 时间系统</h4>
                 <p>游戏以 <b>Tick</b> 为单位推进，1 Tick = 1 游戏小时，1天 = 24 Tick。</p>
+                <p><b>1 季 = 9 天</b>，春→夏→秋→冬，<b>1 年 = 4 季 = 36 天</b>。</p>
                 <p>可通过右上角按钮调节速度（0.5x ~ 10x），空格键暂停/恢复。</p>
                 <p>重要事件发生时游戏会自动暂停，给你时间做决策。</p>
 

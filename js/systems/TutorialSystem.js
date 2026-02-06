@@ -56,6 +56,7 @@ export class TutorialSystem {
                 title: '⏰ 时间与操作',
                 content: `
                     <p>游戏以 <b>Tick</b> 为单位推进时间，1 Tick = 1 游戏小时，1天 = 24小时。</p>
+                    <p><b>1季 = 9天</b>，春→夏→秋→冬循环，<b>1年 = 4季 = 36天</b>。</p>
                     <hr class="divider">
                     <p>⏸ <b>空格键</b> — 暂停/恢复游戏</p>
                     <p>⏩ <b>右上角按钮</b> — 调整速度（0.5x ~ 10x）</p>
