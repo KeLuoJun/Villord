@@ -520,8 +520,12 @@ export class UIManager {
                 const names = { plant:'种植', water:'浇水', fertilize:'施肥', harvest:'收获', chop:'伐木', mine:'采石', process:'加工', trade:'交易', rest:'休息', eat:'吃饭', idle:'闲逛', chat:'聊天', pest_control:'除虫' };
                 const sh = s.startHour ?? s.hour;
                 const isCurrent = this.state.time.hour >= sh && this.state.time.hour < sh + (s.duration || 1);
-                const statusIcon = v._scheduleStatus?.[`${sh}_${s.action}`] === 'skipped' ? '⚠️' :
-                                   v._scheduleStatus?.[`${sh}_${s.action}`] === 'done' ? '✅' : '';
+                const _st = v._scheduleStatus?.[`${sh}_${s.action}`];
+                const statusIcon = _st === 'done' ? '✅' :
+                                   _st === 'skipped' ? '⚠️' :
+                                   _st === 'failed' ? '❌' :
+                                   _st === 'past' ? '⏭️' :
+                                   _st === 'deferred' ? '💤' : '';
                 return `<div class="schedule-item ${isCurrent ? 'current' : ''}">
                     <span class="schedule-time">${String(sh).padStart(2,'0')}:00</span>
                     <span class="schedule-icon">${icons[s.action] || '📋'}</span>

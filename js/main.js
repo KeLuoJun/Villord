@@ -122,8 +122,27 @@ eventBus.on('aiResumeGame', () => {
 });
 eventBus.on('aiWarningModal', (data) => {
     uiManager.showModal(data.title, `<div style="white-space:pre-line;font-size:14px;line-height:1.6;">${data.message}</div>`, [
-        { text: '知道了', class: 'btn-primary', action: () => {} },
+        { id: 'ai-warn-ok', text: '知道了', class: 'btn-primary', onClick: () => {} },
     ]);
+});
+
+// AI 关键调用最终失败：暂停游戏，弹窗让玩家确认后才恢复（防止级联失败）
+eventBus.on('aiCriticalFailure', (data) => {
+    uiManager.showModal(
+        `⚠️ ${data.label} 生成失败`,
+        `<div style="white-space:pre-line;font-size:14px;line-height:1.6;">${data.message}</div>`,
+        [
+            {
+                id: 'ai-fail-ok',
+                text: '知道了，继续游戏',
+                class: 'btn-primary',
+                onClick: () => {
+                    timeSystem.resume();
+                    console.log('[AI] 玩家确认关键调用失败，恢复游戏（降级模式）');
+                },
+            },
+        ]
+    );
 });
 
 const dialogueManager = new DialogueManager(gameState, eventBus, villagerAI, uiManager);

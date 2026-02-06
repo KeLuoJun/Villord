@@ -65,13 +65,11 @@ export class VillagerScheduler {
 
             try {
                 const schedule = await this.generateScheduleForVillager(villager);
-                villager.schedule = schedule;
-                villager._scheduleStatus = {}; // 重置执行状态追踪
+                this._applySchedule(villager, schedule);
                 console.log(`[Scheduler] ${villager.name} 计划完成: ${schedule.length} 个行动`);
             } catch (e) {
                 console.warn(`[Scheduler] ${villager.name} 计划失败，使用默认`, e.message);
-                villager.schedule = this.getDefaultSchedule(villager);
-                villager._scheduleStatus = {};
+                this._applySchedule(villager, this.getDefaultSchedule(villager));
             }
         });
 
@@ -83,6 +81,34 @@ export class VillagerScheduler {
         this.isScheduling = false;
         this.state.addLog('📋', '所有村民今日行动计划已生成', 'info');
         this.bus.emit('schedulesGenerated', {});
+    }
+
+    /**
+     * 应用新计划到村民（保留已过去的任务执行状态）
+     * 解决异步生成期间已执行的任务状态被清除的问题
+     */
+    _applySchedule(villager, schedule) {
+        const currentHour = this.state.time.hour;
+        const oldStatus = { ...(villager._scheduleStatus || {}) };
+
+        villager.schedule = schedule;
+
+        // 构建新的执行状态：保留已过去时间段的旧状态，避免刷掉已完成的记录
+        const newStatus = {};
+        schedule.forEach(task => {
+            const key = `${task.startHour}_${task.action}`;
+            if (task.startHour < currentHour) {
+                // 该任务的时间窗口已过去
+                // 如果旧状态中有记录（说明旧计划的同时间/同行动已执行），保留它
+                // 否则标记为 'past'（计划生成完毕时该时间点已错过，未执行）
+                newStatus[key] = oldStatus[key] || 'past';
+            }
+            // startHour >= currentHour 的任务不设初始状态，允许正常触发执行
+        });
+        villager._scheduleStatus = newStatus;
+
+        console.log(`[Scheduler] ${villager.name} 计划已应用（当前${currentHour}:00，` +
+            `保留${Object.keys(newStatus).length}条历史状态）`);
     }
 
     /** 为单个村民生成调度计划（关键调用：失败暂停+重试） */
@@ -323,9 +349,12 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             return;
         }
 
-        // 执行行动
-        this.executeAction(villager, task);
-        villager._scheduleStatus[taskKey] = 'done';
+        // 执行行动（根据实际结果设置状态）
+        const actionSuccess = this.executeAction(villager, task);
+        villager._scheduleStatus[taskKey] = actionSuccess ? 'done' : 'failed';
+        if (!actionSuccess) {
+            villager.currentAction = `❌ ${actionName}失败`;
+        }
     }
 
     /** 现实检查：行动是否实际可执行 */
@@ -380,29 +409,50 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         return { canExecute: true, reason: '' };
     }
 
-    /** 执行具体行动 */
+    /**
+     * 执行具体行动
+     * @returns {boolean} 行动是否实际成功执行
+     */
     executeAction(villager, task) {
+        let success = true;
+
         switch (task.action) {
             case 'water': {
                 const plot = this.state.plots.find(p => p.crop && !p.watered);
-                if (plot) this.farmSys.water(plot.id);
+                if (plot) {
+                    const result = this.farmSys.water(plot.id);
+                    success = result?.success !== false;
+                } else {
+                    console.warn(`[Scheduler] ${villager.name} 浇水失败：未找到需浇水的农田（现实检查后状态变化）`);
+                    success = false;
+                }
                 break;
             }
             case 'harvest': {
                 const plot = this.state.plots.find(p => p.stage === 'ready');
-                if (plot) this.farmSys.harvest(plot.id);
+                if (plot) {
+                    const result = this.farmSys.harvest(plot.id);
+                    success = result?.success !== false;
+                } else {
+                    console.warn(`[Scheduler] ${villager.name} 收获失败：未找到成熟作物`);
+                    success = false;
+                }
                 break;
             }
             case 'plant': {
                 const emptyPlot = this.state.plots.find(p => p.stage === 'empty');
                 if (emptyPlot) {
+                    let planted = false;
                     const seeds = this.state.resources.seeds;
                     for (const [cropId, count] of Object.entries(seeds)) {
                         if (count > 0) {
                             const result = this.farmSys.plant(emptyPlot.id, cropId);
-                            if (result.success) break;
+                            if (result.success) { planted = true; break; }
                         }
                     }
+                    success = planted;
+                } else {
+                    success = false;
                 }
                 break;
             }
@@ -428,6 +478,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                     this.state.modifyResource('food', -1);
                     villager.stamina = Math.min(villager.maxStamina, villager.stamina + 10);
                     villager.mood = Math.min(100, villager.mood + 2);
+                } else {
+                    success = false;
                 }
                 break;
             }
@@ -437,7 +489,13 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             }
             case 'fertilize': {
                 const plot = this.state.plots.find(p => p.crop && !p.fertilized && p.stage !== 'ready');
-                if (plot) this.farmSys.fertilize(plot.id);
+                if (plot) {
+                    const result = this.farmSys.fertilize(plot.id);
+                    success = result?.success !== false;
+                } else {
+                    console.warn(`[Scheduler] ${villager.name} 施肥失败：未找到可施肥的农田`);
+                    success = false;
+                }
                 break;
             }
             case 'trade':
@@ -447,7 +505,10 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 break;
         }
 
-        this.growSkill(villager, task.action);
+        if (success) {
+            this.growSkill(villager, task.action);
+        }
+        return success;
     }
 
     /** 技能成长 */
