@@ -162,7 +162,8 @@ export class VillagerSystem {
         const index = this.state.villagers.findIndex(v => v.id === villagerId);
         if (index === -1) return { success: false, reason: '村民不存在' };
 
-        this.state.resources.gold -= DISMISS_COST;
+        // 使用统一资源修改以同步日变化显示
+        this.state.modifyResource('gold', -DISMISS_COST);
         const dismissed = this.state.villagers.splice(index, 1)[0];
 
         // 其他村民心情 -1

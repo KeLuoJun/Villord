@@ -357,6 +357,9 @@ function showStartScreen() {
 function initNewGame() {
     console.log('[Main] 🏘️ 治村物语 新游戏初始化...');
 
+    // 重置村民列表，确保初始村民固定
+    gameState.villagers = [];
+
     // 赠送初始建筑：1块农田 + 1座茅草屋
     buildingSystem.buildInitial();
 

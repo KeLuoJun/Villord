@@ -72,7 +72,12 @@ export class UIManager {
         });
         this.bus.on('cropHarvested', () => this.updateResourcePanel());
         this.bus.on('cropPlanted', () => this.updateResourcePanel());
-        this.bus.on('buildingBuilt', () => this.updateResourcePanel());
+        this.bus.on('buildingBuilt', () => {
+            this.updateResourcePanel();
+            this.updateVillagerList();
+        });
+        this.bus.on('villagerAdded', () => this.updateVillagerList());
+        this.bus.on('villagerRemoved', () => this.updateVillagerList());
 
         // 初始渲染
         this.updateAll();
@@ -258,7 +263,8 @@ export class UIManager {
             const btn = document.createElement('button');
             btn.className = 'btn btn-gold recruit-btn';
             btn.textContent = `+ 招募村民 50💰`;
-            btn.disabled = !this.state.canRecruit || this.state.resources.gold < 50;
+            // 允许点击显示原因（房屋不足等），仅金币不足时禁用
+            btn.disabled = this.state.resources.gold < 50;
             btn.addEventListener('click', () => this.bus.emit('recruitRequest', {}));
             container.appendChild(btn);
         }
