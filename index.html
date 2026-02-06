@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏘️ 治村物语 — AI 村长模拟器</title>
+
+    <!-- 样式表 -->
+    <link rel="stylesheet" href="css/theme-pastoral.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/panels.css">
+    <link rel="stylesheet" href="css/cards.css">
+    <link rel="stylesheet" href="css/dialogue.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body class="season-spring">
+    <div id="app">
+
+        <!-- ===== 顶部状态栏 ===== -->
+        <header id="top-bar">
+            <div class="game-title">🏘️ 治村物语</div>
+
+            <div class="time-info">
+                <span id="status-time">🌱第1年·春 第1天</span>
+                <span id="status-hour">06:00</span>
+            </div>
+
+            <div class="resource-quick">
+                <span class="resource-item">💰 <span id="quick-gold">100</span></span>
+                <span class="resource-item">🌾 <span id="quick-food">20</span></span>
+                <span class="resource-item">🪵 <span id="quick-wood">30</span></span>
+                <span class="resource-item">🪨 <span id="quick-stone">15</span></span>
+            </div>
+
+            <div class="speed-controls">
+                <button class="pause-btn paused" title="继续">▶</button>
+                <button class="speed-btn" data-speed="0.5">0.5x</button>
+                <button class="speed-btn active" data-speed="1">1x</button>
+                <button class="speed-btn" data-speed="2">2x</button>
+                <button class="speed-btn" data-speed="5">5x</button>
+                <button class="speed-btn" data-speed="10">10x</button>
+                <button class="help-btn" onclick="showGameRulesModal()" title="游戏规则" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;">❓</button>
+            </div>
+        </header>
+
+        <!-- ===== 主体三栏 ===== -->
+        <div id="main-content">
+
+            <!-- 左侧面板：资源 + 村民 -->
+            <aside id="left-panel">
+                <!-- 资源区 -->
+                <div class="panel-section">
+                    <div class="panel-section-title">📦 资源 <span id="warehouse-level" style="font-size:11px;color:var(--text-secondary);font-weight:400;"></span></div>
+                    <div class="resource-list" id="resource-list">
+                        <!-- 由 JS 动态渲染（含容量进度条） -->
+                    </div>
+                </div>
+
+                <!-- 市场价格简览 -->
+                <div class="panel-section">
+                    <div class="panel-section-title">📈 市场价格</div>
+                    <div class="price-list" id="price-list">
+                        <div class="text-muted" style="font-size:12px;">市场数据加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 村民列表 -->
+                <div class="panel-section" style="flex:1;">
+                    <div class="panel-section-title">👥 村民</div>
+                    <div id="villager-list">
+                        <!-- 村民卡片由 JS 动态生成 -->
+                        <div class="text-muted" style="font-size:12px;padding:8px;">尚未招募村民</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 中央面板：多标签页 -->
+            <main id="center-panel">
+                <!-- 标签导航 -->
+                <nav id="tab-nav">
+                    <button class="tab-btn active" data-tab="build">🏗️ 建设</button>
+                    <button class="tab-btn" data-tab="villagers">👥 村民</button>
+                    <button class="tab-btn" data-tab="farm">🌾 农场</button>
+                    <button class="tab-btn" data-tab="market">🛒 市场</button>
+                    <button class="tab-btn" data-tab="events">📋 事件</button>
+                </nav>
+
+                <!-- 标签内容 -->
+                <div id="tab-content">
+                    <!-- 建设标签页 -->
+                    <div class="tab-page active" id="tab-build">
+                        <h3 style="margin-bottom:var(--spacing-md);">🏗️ 建造与扩建</h3>
+                        <div id="building-section-gathering">
+                            <h4 style="color:var(--text-secondary);margin-bottom:var(--spacing-sm);">采集与农业</h4>
+                            <div class="building-grid" id="buildings-gathering"></div>
+                        </div>
+                        <hr class="divider">
+                        <div id="building-section-housing">
+                            <h4 style="color:var(--text-secondary);margin-bottom:var(--spacing-sm);">住房</h4>
+                            <div class="building-grid" id="buildings-housing"></div>
+                        </div>
+                        <hr class="divider">
+                        <div id="building-section-processing">
+                            <h4 style="color:var(--text-secondary);margin-bottom:var(--spacing-sm);">加工</h4>
+                            <div class="building-grid" id="buildings-processing"></div>
+                        </div>
+                        <hr class="divider">
+                        <div id="building-section-municipal">
+                            <h4 style="color:var(--text-secondary);margin-bottom:var(--spacing-sm);">市政设施</h4>
+                            <div class="building-grid" id="buildings-municipal"></div>
+                        </div>
+                    </div>
+
+                    <!-- 村民标签页 -->
+                    <div class="tab-page" id="tab-villagers">
+                        <h3 style="margin-bottom:var(--spacing-md);">👥 村民管理</h3>
+                        <div id="villager-detail-area">
+                            <p class="text-muted">选择左侧村民查看详情，或招募新村民</p>
+                        </div>
+                    </div>
+
+                    <!-- 农场标签页 -->
+                    <div class="tab-page" id="tab-farm">
+                        <h3 style="margin-bottom:var(--spacing-md);">🌾 农场管理</h3>
+                        <div class="farm-grid" id="farm-grid">
+                            <p class="text-muted">暂无农田，请先在建设面板中建造农田</p>
+                        </div>
+                    </div>
+
+                    <!-- 市场标签页 -->
+                    <div class="tab-page" id="tab-market">
+                        <h3 style="margin-bottom:var(--spacing-md);">🛒 市场交易</h3>
+                        <div class="market-broadcast" id="market-broadcast">
+                            <span class="broadcast-icon">📻</span>
+                            <span>市场简报加载中...</span>
+                        </div>
+                        <div id="market-content">
+                            <p class="text-muted">市场系统初始化中...</p>
+                        </div>
+                    </div>
+
+                    <!-- 事件标签页 -->
+                    <div class="tab-page" id="tab-events">
+                        <h3 style="margin-bottom:var(--spacing-md);">📋 事件日志</h3>
+                        <div class="event-log-list" id="events-full-log">
+                            <p class="text-muted">暂无事件记录</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 右侧面板：概况 + 日志 -->
+            <aside id="right-panel">
+                <!-- 村庄概况 -->
+                <div class="panel-section">
+                    <div class="panel-section-title">🏘️ 村庄概况</div>
+                    <div>
+                        <div class="overview-item">
+                            <span class="overview-label">村名</span>
+                            <span class="overview-value">桃源村</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">👥 村民</span>
+                            <span class="overview-value" id="overview-villagers">0/4</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">🏠 房屋容量</span>
+                            <span class="overview-value" id="overview-housing">0</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">🌾 农田</span>
+                            <span class="overview-value" id="overview-plots">0</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">⭐ 繁荣度</span>
+                            <span class="overview-value" id="overview-prosperity">0/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 天气预报（可点击查看详情） -->
+                <div class="panel-section">
+                    <div class="panel-section-title">🌤️ 天气预报</div>
+                    <div class="weather-info" id="weather-panel" style="cursor:pointer;" title="点击查看详细天气预报">
+                        <div class="weather-current">
+                            <span class="weather-icon">🌸</span>
+                            <span>和风（春季默认）</span>
+                        </div>
+                        <div style="font-size:12px;color:var(--text-secondary);">效果：作物生长+10%</div>
+                        <div style="margin-top:6px;text-align:center;">
+                            <span style="font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;">🔍 点击查看详细预报</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 近期事件（可滚动） -->
+                <div class="panel-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                    <div class="panel-section-title">📋 近期事件</div>
+                    <div class="event-log-list" id="event-log" style="flex:1;overflow-y:auto;min-height:0;">
+                        <div class="text-muted" style="font-size:12px;">暂无事件</div>
+                    </div>
+                </div>
+            </aside>
+
+        </div>
+
+        <!-- ===== 底部对话栏 ===== -->
+        <footer id="bottom-bar">
+            <span class="chat-icon">💬</span>
+            <span>对</span>
+            <select class="villager-select" id="villager-select">
+                <option value="">选择村民...</option>
+            </select>
+            <span>说：</span>
+            <input type="text" class="chat-input" id="chat-input" placeholder="输入你想说的话..." disabled>
+            <button class="send-btn" id="send-btn" disabled>发送 ↵</button>
+        </footer>
+
+    </div>
+
+    <!-- Toast 提示容器 -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- 入口脚本 -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
