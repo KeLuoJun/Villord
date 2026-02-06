@@ -14,32 +14,40 @@ export class MarketAnalyst {
         this.bus = eventBus;
         this.market = marketEngine;
 
+        this._isGeneratingMorning = false;
+
         // 监听 tick
         this.bus.on('tick', (data) => {
             if (data.hour === 6) {
-                this.generateMorningReport();
+                this._isGeneratingMorning = true;
+                this.generateMorningReport().finally(() => { this._isGeneratingMorning = false; });
+            }
+            // Deadline 检查：如果 7:00 了早报还没生成完，暂停等待（因为 7:00 要生成村民计划依赖早报）
+            if (data.hour === 7 && this._isGeneratingMorning) {
+                this.bus.emit('aiPauseGame', { reason: '市场早报仍在生成中，等待完成...' });
+                this.bus.emit('showToast', { message: '⏳ 市场早报尚未生成完毕，暂停等待...', type: 'warning' });
             }
             if (data.hour === 16) {
-                this.generateEveningReport();
+                this.generateEveningReport(); // 晚报是非关键调用，不暂停
             }
         });
     }
 
     // ===== 早报（6:00）：走势预测 =====
 
-    /** 生成早报 */
+    /** 生成早报（关键调用：07:00 前生成村民计划需要依赖早报） */
     async generateMorningReport() {
         console.log('[MarketAnalyst] 生成早报...');
 
         const prompt = this.buildMorningPrompt();
-        const result = await this.ai.chat(prompt, { temperature: 0.8, maxTokens: 400 });
+        const result = await this.ai.criticalChat(prompt, { temperature: 0.8, maxTokens: 600 }, {
+            label: '☀️ 市场早报',
+        });
 
         if (result && result.broadcast) {
             this.state.market.dailyReport = result;
             this.state.market.morningReport = result;
             this.updateBroadcast(`☀️ 早报 | ${result.broadcast}`);
-
-            // 市场早报不自动暂停（后台AI调用不影响游戏流程）
             console.log('[MarketAnalyst] 早报生成成功');
         } else {
             const fallback = this.getMorningFallback();
@@ -57,11 +65,13 @@ export class MarketAnalyst {
             if (config.category === 'seed') return;
             const price = this.market.getPrice(id);
             const trend = this.market.getTrend(id, 24);
-            const trendStr = trend > 0.03 ? '↑涨' : trend < -0.03 ? '↓跌' : '→平';
-            priceInfo.push(`${config.name}: ${price}💰(基准${config.basePrice}) ${trendStr}`);
+            const deviation = price / config.basePrice - 1;
+            const trendStr = trend > 0.03 ? '📈涨' : trend < -0.03 ? '📉跌' : '➡️平';
+            const devStr = deviation > 0 ? `高于基准${Math.round(deviation * 100)}%` : deviation < 0 ? `低于基准${Math.round(Math.abs(deviation) * 100)}%` : '接近基准';
+            priceInfo.push(`${config.name}: 当前${price}💰（基准${config.basePrice}💰，${devStr}），近期趋势${trendStr}`);
         });
 
-        let weatherInfo = '正常';
+        let weatherInfo = '正常天气';
         const w = this.state.weather;
         if (w.activeEvent) {
             const evt = window.SPECIAL_WEATHER_EVENTS?.[w.activeEvent];
@@ -77,39 +87,36 @@ export class MarketAnalyst {
                 if (!evt) return '';
                 const daysUntil = s.triggerDay - this.state.totalDays;
                 return `${daysUntil}天后: ${evt.icon}${evt.name}（${evt.effectSummary}）`;
-            }).filter(Boolean).join('\n');
+            }).filter(Boolean).join('；');
         }
 
-        return `# 任务：生成今日市场早报
-你是村庄经营游戏中的AI市场分析师。现在是早上6:00，市场${MARKET_OPEN_HOUR}:00开门。
-请分析今日物价走势并给出买卖建议。
+        return `你是村庄经营游戏《治村物语》的市场分析师。你专业、风趣、说话有分析师范儿。
 
-## 今日数据
-- 季节：${this.state.seasonName}
-- 天气：${weatherInfo}
-- 粮食库存：${this.state.resources.food}
-- 各商品价格与走势：
+现在是早上6:00，市场将在${MARKET_OPEN_HOUR}:00开门，${MARKET_CLOSE_HOUR}:00关门。请根据以下数据生成今日早间市场简报。
+
+【今日数据】
+季节：${this.state.seasonName}
+天气：${weatherInfo}
+未来天气：${upcomingWeatherInfo}
+村庄金币：${this.state.resources.gold}💰，粮食：${this.state.resources.food}🌾
+
+【各商品行情】
 ${priceInfo.join('\n')}
 
-## 未来天气预报
-${upcomingWeatherInfo}
+【你的任务】
+写一段市场早报，包含：
+1. broadcast：用一段话概括今日市场整体形势，80-120字左右，要有分析深度。指出哪些商品值得关注，给出买/卖/持有建议，简要说明原因。如果天气会影响市场，也提一下。语气像一个老练的股票分析师在做早间点评。
+2. highlights：列出2-3种值得操作的商品及建议。
+3. weatherImpact：天气对今日市场的影响预判。
 
-## 要求
-1. 口语化、简短（50字以内）
-2. 重点分析2-3种商品的今日走势预测
-3. 给出明确买入/卖出/持有建议
-4. 提醒市场${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00开放
-
-# 输出格式（严格JSON）
-\`\`\`json
+请直接输出JSON：
 {
-  "broadcast": "简报主播报（口语化，50字以内）",
+  "broadcast": "今日市场早报正文（80-120字，专业分析+建议）",
   "highlights": [
-    { "item": "商品名", "action": "buy|sell|hold", "reason": "原因" }
+    {"item": "商品名", "action": "buy或sell或hold", "reason": "简短原因"}
   ],
-  "weatherImpact": "天气对市场的简要影响"
-}
-\`\`\``;
+  "weatherImpact": "天气影响分析（1句话）"
+}`;
     }
 
     /** 早报降级 */
@@ -141,7 +148,7 @@ ${upcomingWeatherInfo}
         console.log('[MarketAnalyst] 生成晚报...');
 
         const prompt = this.buildEveningPrompt();
-        const result = await this.ai.chat(prompt, { temperature: 0.9, maxTokens: 500 });
+        const result = await this.ai.chat(prompt, { temperature: 0.9, maxTokens: 700 });
 
         if (result && result.broadcast) {
             this.state.market.eveningReport = result;
@@ -168,52 +175,60 @@ ${upcomingWeatherInfo}
             if (config.category === 'seed') return;
             const price = this.market.getPrice(id);
             const trend = this.market.getTrend(id, 24);
-            const trendStr = trend > 0.03 ? '↑涨' : trend < -0.03 ? '↓跌' : '→平';
-            priceInfo.push(`${config.name}: ${price}💰(基准${config.basePrice}) ${trendStr}`);
+            const deviation = price / config.basePrice - 1;
+            const trendStr = trend > 0.03 ? '📈涨' : trend < -0.03 ? '📉跌' : '➡️平';
+            priceInfo.push(`${config.name}: 收盘${price}💰（基准${config.basePrice}💰，偏离${deviation > 0 ? '+' : ''}${Math.round(deviation * 100)}%），今日${trendStr}`);
         });
 
         // 获取今日玩家交易记录
         const todayTrades = this.market.recentTrades.filter(t => {
-            // 过去24小时内的交易
             return (Date.now() - t.time) < 24 * 60 * 60 * 1000;
         });
-        let tradesDesc = '今日无交易记录';
+
+        let tradesDesc = '【今日无任何交易记录】';
+        let tradeAnalysis = '';
         if (todayTrades.length > 0) {
-            tradesDesc = todayTrades.map(t =>
-                `${t.isBuy ? '买入' : '卖出'} ${t.quantity}个${t.itemName} @${t.price}💰 (基准${t.basePrice}💰, 偏离${Math.round(t.deviation * 100)}%)`
-            ).join('\n');
+            tradesDesc = todayTrades.map(t => {
+                const profitHint = t.isBuy
+                    ? (t.deviation < -0.05 ? '✅低价买入' : t.deviation > 0.1 ? '⚠️高价买入' : '普通买入')
+                    : (t.deviation > 0.05 ? '✅高价卖出' : t.deviation < -0.1 ? '⚠️低价卖出' : '普通卖出');
+                return `${t.isBuy ? '🛒买入' : '💰卖出'} ${t.quantity}个${t.itemName} @${t.price}💰（基准${t.basePrice}💰，偏离${Math.round(t.deviation * 100)}%）${profitHint}`;
+            }).join('\n');
+
+            const goodTrades = todayTrades.filter(t => t.isBuy ? t.deviation < -0.05 : t.deviation > 0.05).length;
+            const badTrades = todayTrades.filter(t => t.isBuy ? t.deviation > 0.1 : t.deviation < -0.1).length;
+            tradeAnalysis = `共${todayTrades.length}笔交易，其中${goodTrades}笔精明操作，${badTrades}笔值得商榷。`;
         }
 
-        return `# 任务：生成市场晚报
-你是村庄经营游戏中的AI市场分析师，性格毒舌但专业。现在是16:00，市场刚关门。
-请回顾今日市场情况并点评玩家的交易操作。
+        return `你是《治村物语》的毒舌市场分析师。你专业过硬，但性格特别毒舌——看到好操作会极力吹捧，看到烂操作会疯狂嘲讽。
 
-## 今日市场数据
-- 季节：${this.state.seasonName}
-- 各商品收盘价与走势：
+现在是16:00，市场刚关门。请做今日市场收盘总结和玩家操作点评。
+
+【今日各商品收盘数据】
+季节：${this.state.seasonName}
 ${priceInfo.join('\n')}
 
-## 玩家今日交易记录
+【玩家今日交易明细】
 ${tradesDesc}
+${tradeAnalysis}
 
-## 要求
-1. 先用50字内概括今日市场走势
-2. 如果玩家有交易记录，要给出点评：
-   - 交易精明（低买高卖/抓准时机）→ 用夸张的表扬语气
-   - 交易一般 → 给出中性评价
-   - 交易很亏（高买低卖/逆势操作）→ 用毒舌嘲讽语气
-3. 如果没有交易 → 嘲讽玩家"今天连市场都不去"
-4. 给出明日展望
+【你的任务】
+1. broadcast：用80-120字概括今日市场走势，哪些商品涨了跌了，有什么值得注意的行情变化。
+2. playerComment：根据玩家的交易记录给出2-3句犀利点评：
+   - 如果操作精明（低买高卖）：用"不得不说"、"这波可以"之类夸张表扬，让人飘起来
+   - 如果操作一般：中性评价，但带点"说你行也不太行"的语气
+   - 如果操作很烂（高买低卖/追涨杀跌）：毒舌嘲讽，"这钱花得真潇洒"、"你是在做慈善吗"之类
+   - 如果今天没做任何交易：嘲讽"市场都关门了你还没来过？钱放着会生锈的"之类
+3. playerRating：good/neutral/bad
+4. tomorrowOutlook：基于今日走势给出明日展望和建议（1-2句话）。
 
-# 输出格式（严格JSON）
-\`\`\`json
+请直接输出JSON：
 {
-  "broadcast": "晚报主播报（口语化，50字以内）",
-  "playerComment": "对玩家交易的点评（2-3句，有表扬或嘲讽）",
-  "playerRating": "good 或 neutral 或 bad",
-  "tomorrowOutlook": "明日市场展望（1句话）"
-}
-\`\`\``;
+  "broadcast": "今日市场总结（80-120字，有数据有分析）",
+  "playerComment": "对玩家交易的犀利点评（2-3句）",
+  "playerRating": "good或neutral或bad",
+  "tomorrowOutlook": "明日展望和建议（1-2句话）"
+}`;
     }
 
     /** 晚报降级 */

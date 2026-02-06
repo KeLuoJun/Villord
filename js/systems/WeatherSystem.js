@@ -68,7 +68,7 @@ export class WeatherSystem {
 
             if (scheduled) {
                 const evt = SPECIAL_WEATHER_EVENTS[scheduled.eventId];
-                if (evt && (today - w.lastEventEndDay >= 5)) {
+                if (evt && (today - w.lastEventEndDay >= 3)) {
                     w.activeEvent = scheduled.eventId;
                     w.activeEventRemaining = evt.duration;
 
@@ -105,14 +105,20 @@ export class WeatherSystem {
         for (const p of predictions.slice(0, 2)) {
             if (!seasonEventIds.includes(p.eventId)) continue;
             if (p.triggerDay < this.state.totalDays + 1) continue;
-            if (p.triggerDay > this.state.totalDays + 14) continue;
-            if (p.triggerDay - lastDay < 5) continue;
+            if (p.triggerDay > this.state.totalDays + 10) continue; // 最多10天内（适配9天季节）
+            if (p.triggerDay - lastDay < 3) continue; // 间隔至少3天（从5天改为3天适配短季节）
 
             valid.push(p);
             lastDay = p.triggerDay + (SPECIAL_WEATHER_EVENTS[p.eventId]?.duration || 1);
         }
 
-        this.state.weather.schedule = valid;
+        // 合并而非覆盖：保留尚未触发的已有预测
+        const existingFuture = this.state.weather.schedule.filter(s => s.triggerDay > this.state.totalDays);
+        const newIds = valid.map(v => v.eventId);
+        const merged = existingFuture.filter(s => !newIds.includes(s.eventId)).concat(valid);
+        this.state.weather.schedule = merged.sort((a, b) => a.triggerDay - b.triggerDay);
+
+        console.log('[WeatherSystem] 天气预测更新:', this.state.weather.schedule.length, '个事件');
     }
 
     /** 降级预测（AI不可用时） */
@@ -121,12 +127,15 @@ export class WeatherSystem {
         if (seasonEvents.length === 0) return;
 
         const pick = seasonEvents[Math.floor(Math.random() * seasonEvents.length)];
-        const triggerDay = this.state.totalDays + 5 + Math.floor(Math.random() * 5);
+        const triggerDay = this.state.totalDays + 2 + Math.floor(Math.random() * 4); // 2-5天内
 
-        this.state.weather.schedule = [{
+        // 同样用合并方式
+        const existing = this.state.weather.schedule.filter(s => s.triggerDay > this.state.totalDays);
+        existing.push({
             eventId: pick.id,
             triggerDay,
-            reason: '系统随机安排',
-        }];
+            reason: '天气系统预判',
+        });
+        this.state.weather.schedule = existing.sort((a, b) => a.triggerDay - b.triggerDay);
     }
 }

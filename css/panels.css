@@ -433,3 +433,247 @@
     width: 80px;
     font-family: var(--font-number);
 }
+
+/* ===== 中轴线时间线（事件面板） ===== */
+.center-timeline {
+    position: relative;
+    padding: 16px 0;
+}
+
+/* 垂直中轴线 */
+.center-timeline::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border, #ddd);
+    transform: translateX(-50%);
+}
+
+/* 中轴日期节点 */
+.ct-node {
+    position: relative;
+    text-align: center;
+    margin: 20px 0 8px;
+    z-index: 2;
+}
+
+.ct-node-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--bg-panel, white);
+    border: 3px solid var(--border, #ccc);
+    margin: 0 auto 6px;
+    position: relative;
+    z-index: 2;
+}
+
+.ct-node-dot.ct-node-active {
+    border-color: var(--accent, #4a90d9);
+    background: var(--accent, #4a90d9);
+    box-shadow: 0 0 0 4px rgba(74, 144, 217, 0.15);
+}
+
+.ct-node-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary, #666);
+    background: var(--bg-panel, white);
+    display: inline-block;
+    padding: 2px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border, #ddd);
+}
+
+.ct-badge-today {
+    font-size: 10px;
+    background: var(--accent, #4a90d9);
+    color: white;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+}
+
+/* 时间线条目 */
+.ct-item {
+    position: relative;
+    width: 45%;
+    margin-bottom: 12px;
+}
+
+.ct-item.ct-left {
+    margin-left: 4%;
+    margin-right: auto;
+}
+
+.ct-item.ct-right {
+    margin-left: auto;
+    margin-right: 4%;
+}
+
+/* 连接线（从卡片到中轴线） */
+.ct-item .ct-connector {
+    position: absolute;
+    top: 16px;
+    width: 16px;
+    height: 2px;
+    background: var(--border, #ddd);
+}
+
+.ct-item.ct-left .ct-connector {
+    right: -20px;
+}
+
+.ct-item.ct-right .ct-connector {
+    left: -20px;
+}
+
+/* 卡片样式 */
+.ct-card {
+    background: var(--bg-panel, white);
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.2s ease;
+}
+
+.ct-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ct-card.ct-card-latest {
+    border-color: var(--accent, #4a90d9);
+    border-width: 1.5px;
+}
+
+.ct-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border, #eee);
+}
+
+.ct-card-icon {
+    font-size: 15px;
+}
+
+.ct-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary, #333);
+}
+
+.ct-card-body {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-secondary, #555);
+}
+
+.ct-card-resources {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border, #eee);
+    font-size: 11px;
+    color: var(--text-muted, #999);
+}
+
+.ct-res-change {
+    color: var(--text-muted, #aaa);
+    font-size: 10px;
+}
+
+/* 村民活动列表 */
+.ct-villager-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ct-villager-row {
+    padding: 6px 8px;
+    background: var(--bg-input, #f5f5f5);
+    border-radius: 6px;
+}
+
+.ct-villager-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.ct-villager-name {
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.ct-villager-trait {
+    font-size: 10px;
+    color: var(--text-muted, #999);
+}
+
+.ct-villager-stats {
+    margin-left: auto;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.ct-action-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.ct-action-tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    background: var(--bg-panel, white);
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 4px;
+    color: var(--text-secondary, #666);
+    white-space: nowrap;
+}
+
+.ct-action-tag.ct-idle {
+    color: var(--text-muted, #aaa);
+    border-style: dashed;
+}
+
+.ct-event-row {
+    font-size: 12px;
+    padding: 2px 0;
+    color: var(--text-secondary, #666);
+}
+
+/* 响应式：窄屏时单列显示 */
+@media (max-width: 700px) {
+    .center-timeline::before {
+        left: 16px;
+    }
+    .ct-item {
+        width: calc(100% - 40px);
+        margin-left: 36px !important;
+        margin-right: 0 !important;
+    }
+    .ct-item .ct-connector {
+        left: -20px !important;
+        right: auto !important;
+    }
+    .ct-node {
+        text-align: left;
+        padding-left: 10px;
+    }
+    .ct-node-dot {
+        margin: 0 0 6px 0;
+    }
+}

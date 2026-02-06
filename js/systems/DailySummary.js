@@ -89,6 +89,7 @@ export class DailySummary {
 
             return {
                 name: v.name,
+                avatar: v.avatar || '👤',
                 traits: v.traits.join('、'),
                 stamina: v.stamina,
                 maxStamina: v.maxStamina,
@@ -110,17 +111,24 @@ export class DailySummary {
         if (changes.wood !== 0) resourceChanges.push(`木材${changes.wood >= 0 ? '+' : ''}${changes.wood}`);
         if (changes.stone !== 0) resourceChanges.push(`石料${changes.stone >= 0 ? '+' : ''}${changes.stone}`);
 
-        // AI 生成总结
+        // AI 生成总结（带重试）
         let aiSummary = '';
         if (this.ai.enabled) {
             const prompt = this.buildSummaryPrompt(villagerSummaries, keyEvents, resourceChanges);
-            const result = await this.ai.chatRaw(prompt, { temperature: 0.7, maxTokens: 300 });
-            if (result) {
-                aiSummary = result;
+            try {
+                const result = await this.ai.chatRaw(prompt, { temperature: 0.8, maxTokens: 500 });
+                // 质量检查：AI 返回的总结至少要有 20 个字才算有效
+                if (result && result.trim().length >= 20) {
+                    aiSummary = result.trim();
+                } else {
+                    console.log('[DailySummary] AI返回内容过短，使用智能降级');
+                }
+            } catch (e) {
+                console.log('[DailySummary] AI调用失败:', e.message);
             }
         }
 
-        // 降级总结
+        // 降级总结（如果 AI 不可用或返回内容质量不够）
         if (!aiSummary) {
             aiSummary = this.buildFallbackSummary(villagerSummaries, keyEvents, resourceChanges);
         }
@@ -157,65 +165,101 @@ export class DailySummary {
         // 更新事件标签页
         this.updateEventsTab();
 
-        console.log(`[DailySummary] 第${dayNum}天总结生成完成`);
+        console.log(`[DailySummary] 第${dayNum}天总结生成完成（${aiSummary.length}字）`);
     }
 
     /** 构建AI总结Prompt */
     buildSummaryPrompt(villagerSummaries, keyEvents, resourceChanges) {
         const villagersText = villagerSummaries.map(v => {
-            const actions = v.actions.length > 0 ? v.actions.join('、') : '空闲一天';
-            return `${v.name}（${v.traits}）：体力${v.stamina}/${v.maxStamina}，心情${v.mood}。今日活动：${actions}`;
+            const actionCount = v.actions.length;
+            const actionSample = v.actions.slice(0, 6).join(' → ');
+            const moodDesc = v.mood >= 80 ? '心情很好' : v.mood >= 60 ? '心情不错' : v.mood >= 40 ? '心情一般' : v.mood >= 20 ? '心情低落' : '情绪很差';
+            const staminaDesc = v.stamina >= 80 ? '精力充沛' : v.stamina >= 50 ? '还有体力' : v.stamina >= 20 ? '有些疲惫' : '筋疲力尽';
+            return `- ${v.name}（性格：${v.traits}）：${moodDesc}，${staminaDesc}。做了${actionCount}件事${actionCount > 0 ? '：' + actionSample : ''}`;
         }).join('\n');
 
-        return `请用2-4句话总结以下村庄今日情况，语气像村庄日志/编年史，简洁生动。
+        const weatherName = this.getCurrentWeatherName();
+        const eventText = keyEvents.length > 0 ? keyEvents.join('\n') : '今天没有特殊事件发生';
+        const resText = resourceChanges.length > 0 ? resourceChanges.join('，') : '无明显变化';
 
-## 今日信息
-- 日期：第${this.state.time.year}年·${this.state.seasonName} 第${this.state.time.day}天
-- 天气：${this.getCurrentWeatherName()}
-- 资源变化：${resourceChanges.join('，') || '无明显变化'}
-- 当前资源：金币${this.state.resources.gold}，粮食${this.state.resources.food}，木材${this.state.resources.wood}，石料${this.state.resources.stone}
+        return `你是一位村庄编年史官，请为桃源村的今天写一段**生动有趣的日记总结**。
 
-## 村民情况
+【今日档案】
+日期：第${this.state.time.year}年·${this.state.seasonName}季 第${this.state.time.day}天
+天气：${weatherName}
+村庄金币：${this.state.resources.gold}，粮食：${this.state.resources.food}，木材：${this.state.resources.wood}，石料：${this.state.resources.stone}
+今日资源变动：${resText}
+
+【村民表现】
 ${villagersText}
 
-## 重要事件
-${keyEvents.join('\n') || '无特殊事件'}
+【今日大事】
+${eventText}
 
-## 要求
-- 2-4句话，简洁生动
-- 突出重点事件和村民表现
-- 不要罗列数据
-- 直接输出文本，不要JSON格式`;
+【写作要求】
+1. 写4-6句话，总计60-120字
+2. 用生动的叙事语言描述今天发生了什么，像在讲故事
+3. 提到至少1位村民的名字和他/她今天做了什么
+4. 如果有特殊天气或重要事件，要突出描述
+5. 评价今天是好的一天还是困难的一天
+6. 语气是温暖的村庄编年史风格，可以带一点幽默
+7. 不要罗列数据，不要用列表格式
+8. 直接输出纯文本，不要JSON、不要标题、不要markdown格式`;
     }
 
-    /** 降级总结 */
+    /** 降级总结（AI 不可用时生成有可读性的总结） */
     buildFallbackSummary(villagerSummaries, keyEvents, resourceChanges) {
-        const parts = [];
         const day = this.state.time.day;
         const season = this.state.seasonName;
+        const weather = this.getCurrentWeatherName();
 
-        parts.push(`${season}第${day}天`);
+        // 开场：天气氛围
+        const weatherOpeners = {
+            '和风': [`${season}的微风轻轻吹过桃源村`, `${season}的暖风让人心旷神怡`],
+            '烈日': ['烈日当空，但村民们的干劲丝毫不减', '骄阳似火的一天'],
+            '爽朗': ['秋高气爽，收获的气息弥漫在村庄', '凉爽的秋风让劳作变得轻松'],
+            '寒冷': ['寒风凛冽，村民们裹紧了衣裳', '冬日的严寒考验着每一个人'],
+        };
+        const weatherKey = Object.keys(weatherOpeners).find(k => weather.includes(k));
+        const openers = weatherOpeners[weatherKey] || [`${season}季第${day}天，桃源村的一天开始了`];
+        const opener = openers[Math.floor(Math.random() * openers.length)];
 
-        if (keyEvents.length > 0) {
-            parts.push(`今日有${keyEvents.length}件事发生`);
-        } else {
-            parts.push('今日风平浪静');
-        }
+        const parts = [opener];
 
-        if (resourceChanges.length > 0) {
-            parts.push(`资源变化：${resourceChanges.join('，')}`);
-        }
-
+        // 村民活动描述
         villagerSummaries.forEach(v => {
             const actionCount = v.actions.length;
-            if (actionCount > 0) {
-                parts.push(`${v.name}完成了${actionCount}项工作`);
+            const moodText = v.mood >= 70 ? '精神不错' : v.mood >= 40 ? '状态尚可' : '有些萎靡';
+            if (actionCount >= 5) {
+                parts.push(`${v.name}今天格外忙碌，完成了${actionCount}项工作，${moodText}`);
+            } else if (actionCount > 0) {
+                parts.push(`${v.name}做了${actionCount}项工作，${moodText}`);
             } else {
-                parts.push(`${v.name}今天比较悠闲`);
+                parts.push(`${v.name}今天比较清闲，在村里休息了一天`);
             }
         });
 
-        return parts.join('。') + '。';
+        // 事件亮点
+        if (keyEvents.length > 0) {
+            parts.push(`今日的重要事件包括${keyEvents.length}件大事`);
+        }
+
+        // 资源总结
+        if (resourceChanges.length > 0) {
+            parts.push(`资源方面：${resourceChanges.join('，')}`);
+        }
+
+        // 收尾
+        const totalMood = villagerSummaries.reduce((s, v) => s + v.mood, 0) / Math.max(villagerSummaries.length, 1);
+        if (totalMood >= 70) {
+            parts.push('总体来看，是充实而愉快的一天。');
+        } else if (totalMood >= 40) {
+            parts.push('平淡而踏实的一天。');
+        } else {
+            parts.push('日子虽不轻松，但村庄仍在坚持。');
+        }
+
+        return parts.join('。');
     }
 
     /** 获取天气名称 */
@@ -231,7 +275,7 @@ ${keyEvents.join('\n') || '无特殊事件'}
 
     // ===== UI: 事件标签页渲染 =====
 
-    /** 更新事件标签页内容（垂直时间线） */
+    /** 更新事件标签页内容（垂直中轴线时间线，交叉分布） */
     updateEventsTab() {
         const container = document.getElementById('events-full-log');
         if (!container) return;
@@ -241,56 +285,76 @@ ${keyEvents.join('\n') || '无特殊事件'}
             return;
         }
 
-        let html = '<div class="daily-timeline">';
+        let html = '<div class="center-timeline">';
 
         this.summaries.forEach((summary, index) => {
             const isLatest = index === 0;
+            const side = index % 2 === 0 ? 'left' : 'right';
 
+            // 日期节点（中轴上的圆点 + 日期标签）
             html += `
-                <div class="timeline-day ${isLatest ? 'timeline-day-latest' : ''}" ${!isLatest ? 'style="opacity:0.85;"' : ''}>
-                    <!-- 日期头 -->
-                    <div class="timeline-date-header" style="
-                        display:flex;align-items:center;gap:8px;margin-bottom:12px;
-                        padding-bottom:8px;border-bottom:2px solid ${isLatest ? 'var(--accent)' : 'var(--border)'};
-                    ">
-                        <span style="font-size:16px;">${isLatest ? '📅' : '📋'}</span>
-                        <span style="font-weight:700;font-size:14px;">${summary.dateLabel}</span>
-                        <span style="font-size:12px;color:var(--text-muted);">${summary.weather}</span>
-                        ${isLatest ? '<span style="font-size:11px;background:var(--accent);color:white;padding:2px 8px;border-radius:10px;">今日</span>' : ''}
-                    </div>
-
-                    <!-- AI 总结 -->
-                    <div style="background:var(--surface);padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13px;line-height:1.7;border-left:3px solid var(--accent);">
-                        ✨ ${summary.aiSummary}
-                    </div>
-
-                    <!-- 资源状态条 -->
-                    <div style="display:flex;gap:12px;margin-bottom:12px;font-size:12px;flex-wrap:wrap;">
-                        <span>💰 ${summary.resources.gold}</span>
-                        <span>🌾 ${summary.resources.food}</span>
-                        <span>🪵 ${summary.resources.wood}</span>
-                        <span>🪨 ${summary.resources.stone}</span>
-                        ${summary.resourceChanges.length > 0 ? `<span style="color:var(--text-muted);">（${summary.resourceChanges.join('，')}）</span>` : ''}
-                    </div>
-
-                    <!-- 村民时间线 -->
-                    ${this.renderVillagerTimelines(summary.villagers)}
-
-                    <!-- 重要事件 -->
-                    ${summary.keyEvents.length > 0 ? `
-                        <div style="margin-top:8px;">
-                            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">📌 重要事件</div>
-                            ${summary.keyEvents.map(e => `
-                                <div style="font-size:12px;padding:3px 0;color:var(--text-secondary);">${e}</div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
+                <div class="ct-node">
+                    <div class="ct-node-dot ${isLatest ? 'ct-node-active' : ''}"></div>
+                    <div class="ct-node-label">${summary.dateLabel} ${summary.weather}${isLatest ? ' <span class="ct-badge-today">今日</span>' : ''}</div>
                 </div>
             `;
 
-            // 日之间的分隔
-            if (index < this.summaries.length - 1) {
-                html += '<div style="border-top:1px dashed var(--border);margin:16px 0;"></div>';
+            // AI 总结卡片
+            html += `
+                <div class="ct-item ct-${side}">
+                    <div class="ct-connector"></div>
+                    <div class="ct-card ${isLatest ? 'ct-card-latest' : ''}">
+                        <div class="ct-card-header">
+                            <span class="ct-card-icon">✨</span>
+                            <span class="ct-card-title">每日总结</span>
+                        </div>
+                        <div class="ct-card-body">${summary.aiSummary}</div>
+                        <div class="ct-card-resources">
+                            <span>💰 ${summary.resources.gold}</span>
+                            <span>🌾 ${summary.resources.food}</span>
+                            <span>🪵 ${summary.resources.wood}</span>
+                            <span>🪨 ${summary.resources.stone}</span>
+                            ${summary.resourceChanges.length > 0 ? `<span class="ct-res-change">${summary.resourceChanges.join(' ')}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 村民活动卡片（交叉到另一侧）
+            const villagerSide = side === 'left' ? 'right' : 'left';
+            if (summary.villagers && summary.villagers.length > 0) {
+                html += `
+                    <div class="ct-item ct-${villagerSide}">
+                        <div class="ct-connector"></div>
+                        <div class="ct-card">
+                            <div class="ct-card-header">
+                                <span class="ct-card-icon">👥</span>
+                                <span class="ct-card-title">村民活动</span>
+                            </div>
+                            <div class="ct-card-body ct-villager-list">
+                                ${this.renderVillagerCards(summary.villagers)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 重要事件卡片（如果有）
+            if (summary.keyEvents.length > 0) {
+                html += `
+                    <div class="ct-item ct-${side}">
+                        <div class="ct-connector"></div>
+                        <div class="ct-card">
+                            <div class="ct-card-header">
+                                <span class="ct-card-icon">📌</span>
+                                <span class="ct-card-title">重要事件</span>
+                            </div>
+                            <div class="ct-card-body">
+                                ${summary.keyEvents.map(e => `<div class="ct-event-row">${e}</div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
         });
 
@@ -298,52 +362,35 @@ ${keyEvents.join('\n') || '无特殊事件'}
         container.innerHTML = html;
     }
 
-    /** 渲染村民时间线（垂直） */
-    renderVillagerTimelines(villagers) {
+    /** 渲染村民活动卡片内容 */
+    renderVillagerCards(villagers) {
         if (!villagers || villagers.length === 0) return '';
 
-        let html = '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">👥 村民活动</div>';
-
-        villagers.forEach(v => {
+        return villagers.map(v => {
             const moodIcon = v.mood >= 70 ? '😊' : v.mood >= 40 ? '😐' : '😟';
             const staminaPercent = Math.round(v.stamina / v.maxStamina * 100);
-            const staminaColor = staminaPercent >= 60 ? 'var(--accent)' : staminaPercent >= 30 ? '#e67e22' : 'var(--color-danger, #e74c3c)';
 
-            html += `
-                <div style="margin-bottom:10px;padding:8px 10px;background:var(--surface);border-radius:8px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                        <span style="font-weight:600;font-size:13px;">👤 ${v.name}</span>
-                        <span style="font-size:11px;color:var(--text-muted);">${v.traits}</span>
-                        <span style="margin-left:auto;font-size:11px;">${moodIcon} ${v.mood}</span>
-                        <span style="font-size:11px;color:${staminaColor};">⚡${staminaPercent}%</span>
-                    </div>
-            `;
-
-            // 垂直时间线
+            let actionsHtml = '';
             if (v.actions.length > 0) {
-                html += '<div class="villager-timeline" style="padding-left:12px;border-left:2px solid var(--border);margin-left:6px;">';
-                // 精简：合并连续相同动作，只显示关键时间节点
                 const simplified = this.simplifyActions(v.actions);
-                simplified.forEach((action, i) => {
-                    const isLast = i === simplified.length - 1;
-                    html += `
-                        <div style="position:relative;padding:3px 0 3px 12px;font-size:12px;${isLast ? '' : ''}">
-                            <span style="position:absolute;left:-5px;top:6px;width:8px;height:8px;
-                                border-radius:50%;background:var(--accent);border:2px solid var(--bg-main, white);"></span>
-                            <span style="color:var(--text-muted);min-width:40px;display:inline-block;">${action.time}</span>
-                            <span>${action.text}</span>
-                        </div>
-                    `;
-                });
-                html += '</div>';
+                actionsHtml = simplified.map(a =>
+                    `<span class="ct-action-tag">${a.time} ${a.text}</span>`
+                ).join('');
             } else {
-                html += '<div style="font-size:11px;color:var(--text-muted);padding-left:20px;">今日无活动记录</div>';
+                actionsHtml = '<span class="ct-action-tag ct-idle">今日无活动</span>';
             }
 
-            html += '</div>';
-        });
-
-        return html;
+            return `
+                <div class="ct-villager-row">
+                    <div class="ct-villager-info">
+                        <span class="ct-villager-name">👤 ${v.name}</span>
+                        <span class="ct-villager-trait">${v.traits}</span>
+                        <span class="ct-villager-stats">${moodIcon}${v.mood} ⚡${staminaPercent}%</span>
+                    </div>
+                    <div class="ct-action-tags">${actionsHtml}</div>
+                </div>
+            `;
+        }).join('');
     }
 
     /** 精简时间线：合并连续相同动作 */

@@ -95,6 +95,8 @@ export class FarmSystem {
 
         this.state.addLog('🌱', `在${plot.name}种下了${cropConfig.icon}${cropConfig.name}`, 'info');
         this.bus.emit('cropPlanted', { plot, crop: cropConfig });
+        this.bus.emit('uiUpdate', {});
+        this.update(); // 立即刷新农场面板
         return { success: true };
     }
 
@@ -106,6 +108,8 @@ export class FarmSystem {
 
         plot.watered = true;
         this.bus.emit('cropWatered', { plot });
+        this.bus.emit('uiUpdate', {});
+        this.update(); // 立即刷新农场面板
         return { success: true };
     }
 
@@ -117,6 +121,8 @@ export class FarmSystem {
 
         plot.fertilized = true;
         this.bus.emit('cropFertilized', { plot });
+        this.bus.emit('uiUpdate', {});
+        this.update(); // 立即刷新农场面板
         return { success: true };
     }
 
@@ -155,6 +161,8 @@ export class FarmSystem {
 
         this.state.addLog('🌾', `从${plot.name}收获了${yield_}个${cropConfig.icon}${cropConfig.name}`, 'success');
         this.bus.emit('cropHarvested', harvestInfo);
+        this.bus.emit('uiUpdate', {});
+        this.update(); // 立即刷新农场面板
         return { success: true, yield: yield_ };
     }
 

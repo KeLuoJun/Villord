@@ -11,10 +11,11 @@ export class SaveSystem {
         this.state = gameState;
         this.bus = eventBus;
 
-        // 自动存档：每季末 + 重要事件
+        // 自动存档：每季末 + 重要事件 + 对话完成
         this.bus.on('seasonChange', () => this.autoSave('季末'));
         this.bus.on('buildingBuilt', () => this.autoSave('建筑'));
         this.bus.on('villagerRecruited', () => this.autoSave('招募'));
+        this.bus.on('dialogueSaved', () => this.autoSave('对话'));
     }
 
     /** 手动存档 */
@@ -128,7 +129,15 @@ export class SaveSystem {
     deserializeState(data) {
         if (data.time) Object.assign(this.state.time, data.time);
         if (data.resources) this.state.resources = data.resources;
-        if (data.villagers) this.state.villagers = data.villagers;
+        if (data.villagers) {
+            this.state.villagers = data.villagers;
+            // 数据迁移：确保每个村民都有必要的字段
+            this.state.villagers.forEach(v => {
+                if (!Array.isArray(v.dialogueHistory)) v.dialogueHistory = [];
+                if (!v.memory) v.memory = { previousSeasons: [], currentSeason: { dialogues: [], events: [] } };
+                if (!v.memory.currentSeason) v.memory.currentSeason = { dialogues: [], events: [] };
+            });
+        }
         if (data.buildings) this.state.buildings = data.buildings;
         if (data.plots) this.state.plots = data.plots;
         if (data.inventory) Object.assign(this.state.inventory, data.inventory);

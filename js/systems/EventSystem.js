@@ -55,34 +55,7 @@ export class EventSystem {
             const price = prices[id];
             if (!price) continue;
 
-            const deviation = (price - config.basePrice) / config.basePrice;
-
-            // 市场异动：偏离基准 > 30%
-            if (deviation > 0.3 && !this.isOnCooldown(`market_high_${id}`)) {
-                this.triggerEvent({
-                    type: 'economic',
-                    title: `📈 ${config.name}价格飙升！`,
-                    description: `${config.icon}${config.name}的价格已超过基准的130%，当前${Math.round(price)}💰。这是卖出的好时机！`,
-                    options: [
-                        { text: '卖出5个', id: 'sell5', effect: () => this.trySell(id, 5) },
-                        { text: '继续观望', id: 'wait', effect: () => {} },
-                    ],
-                });
-                this.setCooldown(`market_high_${id}`, 5);
-            }
-
-            if (deviation < -0.3 && !this.isOnCooldown(`market_low_${id}`)) {
-                this.triggerEvent({
-                    type: 'economic',
-                    title: `📉 ${config.name}价格暴跌！`,
-                    description: `${config.icon}${config.name}的价格已低于基准的70%，当前${Math.round(price)}💰。可能是买入的机会？`,
-                    options: [
-                        { text: '买入5个', id: 'buy5', effect: () => this.tryBuy(id, 5) },
-                        { text: '不理会', id: 'ignore', effect: () => {} },
-                    ],
-                });
-                this.setCooldown(`market_low_${id}`, 5);
-            }
+            // 价格波动不再弹窗提示，交由市场分析师的早晚报统一分析
         }
 
         // F1: 粮价季节波动事件（春播/秋收季节性提醒）

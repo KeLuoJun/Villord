@@ -35,18 +35,25 @@ export class VillagerScheduler {
             }
         }
 
+        // Deadline 检查：如果 8:00 了还在生成中，暂停游戏等待完成
+        if (data.hour === WAKE_HOUR + 1 && this.isScheduling) {
+            this.bus.emit('aiPauseGame', { reason: '村民行动计划仍在生成中，等待完成...' });
+            this.bus.emit('showToast', { message: '⏳ 村民计划尚未生成完毕，暂停等待...', type: 'warning' });
+        }
+
         // 驱动村民执行当前计划
         this.state.villagers.forEach(v => this.executeSchedule(v, data.hour));
     }
 
     // ===== 计划生成 =====
 
-    /** 为所有村民并行生成调度计划 */
+    /** 为所有村民并行生成调度计划（关键任务：超时暂停） */
     async generateSchedules() {
         if (this.isScheduling) return;
         this.isScheduling = true;
 
         console.log('[Scheduler] 开始并行生成村民调度计划...');
+        const startTime = Date.now();
 
         // 并行调用 AI 为每个村民生成计划
         const promises = this.state.villagers.map(async (villager) => {
@@ -70,15 +77,20 @@ export class VillagerScheduler {
 
         await Promise.all(promises);
 
+        const elapsed = Date.now() - startTime;
+        console.log(`[Scheduler] 全部计划生成完毕，耗时 ${elapsed}ms`);
+
         this.isScheduling = false;
         this.state.addLog('📋', '所有村民今日行动计划已生成', 'info');
         this.bus.emit('schedulesGenerated', {});
     }
 
-    /** 为单个村民生成调度计划 */
+    /** 为单个村民生成调度计划（关键调用：失败暂停+重试） */
     async generateScheduleForVillager(villager) {
         const prompt = this.buildSchedulePrompt(villager);
-        const result = await this.ai.chat(prompt, { temperature: 0.7, maxTokens: 600 });
+        const result = await this.ai.criticalChat(prompt, { temperature: 0.7, maxTokens: 600 }, {
+            label: `📋 ${villager.name}的行动计划`,
+        });
 
         if (result && result.schedule && Array.isArray(result.schedule)) {
             const validated = this.validateSchedule(result.schedule, villager);
@@ -110,61 +122,53 @@ export class VillagerScheduler {
             .map(v => `${v.avatar||'👤'}${v.name}: ${v.schedule.slice(0,5).map(s => `${s.startHour}:00${ACTION_ICONS[s.action]||''}`).join('→')}`)
             .join('\n');
 
-        return `# 任务：为村民制定今日行动计划
-## 村民信息
-- 姓名：${villager.name}
-- 头像：${villager.avatar || '👤'}
-- 性格：${villager.traits.join('、')}
-- 特长：${villager.specialty}
-- 当前体力：${villager.stamina}/${villager.maxStamina}
-- 心情：${villager.mood}/100
-- 准确率：${Math.round(villager.accuracy * 100)}%
-- 工作速度：${Math.round(villager.workSpeed * 100)}%
+        // 构建建筑限制提示
+        const hasLumber = this.state.buildings.some(b => b.type === 'lumberYard');
+        const hasQuarry = this.state.buildings.some(b => b.type === 'quarry');
+        const buildingRestrictions = [];
+        if (!hasLumber) buildingRestrictions.push('❌ 没有伐木场，禁止安排 chop');
+        if (!hasQuarry) buildingRestrictions.push('❌ 没有采石场，禁止安排 mine');
 
-## 今日市场早报（6:00）
-📻 ${morningReport}
+        // 性格影响
+        const traitHint = villager.traits.includes('勤劳') ? '你很勤劳，尽量排满工作' :
+                         villager.traits.includes('懒惰') ? '你比较懒，多安排休息和闲逛' : '';
 
-## 昨日市场晚报
-📻 ${eveningReport}
-${eveningComment ? `分析师点评：${eveningComment}` : ''}
+        return `为村民${villager.name}${villager.avatar || '👤'}制定今日计划。
 
-## 村庄状态
-- 季节：${this.state.seasonName}
-- 天气：${this.getCurrentWeatherInfo()}
-- 金币：${this.state.resources.gold}💰
-- 粮食库存：${this.state.resources.food}🌾
-- 木材：${this.state.resources.wood}🪵　石料：${this.state.resources.stone}🪨
-- 农田状态：${pendingTasks.join('；') || '无待处理'}
+【村民】${villager.traits.join('、')}，特长${villager.specialty}
+体力${villager.stamina}/${villager.maxStamina}，心情${villager.mood}/100
+${traitHint}
 
-${otherPlans ? `## 其他村民已有计划（避免重复安排同类任务）\n${otherPlans}` : ''}
+【市场消息】
+今日早报：${morningReport}
+昨日晚报：${eveningReport}
+${eveningComment ? `分析师说：${eveningComment}` : ''}
 
-## 合法行动列表
-${VALID_ACTIONS.map(a => `- ${a}: ${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}小时，消耗${STAMINA_COSTS[a]}体力）`).join('\n')}
+【村庄资源】${this.state.seasonName}，${this.getCurrentWeatherInfo()}
+金币${this.state.resources.gold}💰，粮食${this.state.resources.food}🌾，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨
+农田：${pendingTasks.join('；') || '无待处理'}
 
-## ⚠️ 重要规则
-1. **作息时间**：起床 ${WAKE_HOUR}:00，睡觉 ${SLEEP_HOUR}:00。计划只能安排在 ${WAKE_HOUR}:00-${SLEEP_HOUR-1}:00 之间
-2. 每个行动持续固定时长，不得时间重叠
-3. 体力不够时安排 rest(+15体力) 或 eat(+10体力,消耗1粮食)
-4. **市场交易时间**：只有 ${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00 可以交易(trade)
-   - ⚠️ 市场价格实时变化，选择交易时间要慎重！
-   - 如果早报建议买入某物品，可以在开市后尽快交易
-   - 如果预计价格下午更好，可以安排在 13:00-14:00 交易
-   - 不要在市场关闭时间安排 trade 行动！
-5. 收获(harvest)只在作物成熟时有效，如果无成熟作物不要安排
-6. ${villager.traits.includes('勤劳') ? '勤劳村民排满工作，少安排闲逛' : ''}
-7. ${villager.traits.includes('懒惰') ? '懒惰村民多安排闲逛/休息，工作量减半' : ''}
-8. 一天需要吃 2-3 餐（早饭、午饭、晚饭），安排 eat 行动
+${otherPlans ? `【其他人的计划】（避免重复）\n${otherPlans}` : ''}
 
-# 输出格式（严格JSON）
-\`\`\`json
+【可用行动】
+${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${STAMINA_COSTS[a]}体力）`).join('，')}
+
+【硬性规则】
+• 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划安排在${WAKE_HOUR}-${SLEEP_HOUR - 1}点
+• 吃饭：一天3餐（早7点/午12点/晚18点左右），用eat行动
+• 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时变，选时机要慎重
+• 收获：harvest只在作物成熟时有效，无成熟作物不要安排
+${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
+• 体力不够时安排rest(+15)或eat(+10)
+
+输出JSON：
 {
   "schedule": [
-    { "startHour": 7, "action": "eat", "duration": 1, "target": null, "note": "起床吃早饭" },
-    { "startHour": 8, "action": "water", "duration": 1, "target": "农田A", "note": "浇水" }
+    {"startHour": 7, "action": "eat", "duration": 1, "target": null, "note": "早饭"},
+    {"startHour": 8, "action": "water", "duration": 1, "target": null, "note": "浇水"}
   ],
-  "thought": "今天的打算..."
-}
-\`\`\``;
+  "thought": "今天的想法..."
+}`;
     }
 
     /** 验证计划合法性 */
@@ -364,11 +368,12 @@ ${VALID_ACTIONS.map(a => `- ${a}: ${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}小
             }
             case 'chop': {
                 const hasLumber = this.state.buildings.some(b => b.type === 'lumberYard');
-                // 伐木不强制需要伐木场，但没有的话产出少
+                if (!hasLumber) return { canExecute: false, reason: '没有伐木场，无法伐木' };
                 break;
             }
             case 'mine': {
                 const hasQuarry = this.state.buildings.some(b => b.type === 'quarry');
+                if (!hasQuarry) return { canExecute: false, reason: '没有采石场，无法采石' };
                 break;
             }
         }

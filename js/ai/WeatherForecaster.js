@@ -11,7 +11,8 @@ export class WeatherForecaster {
         this.state = gameState;
         this.bus = eventBus;
         this.weatherSys = weatherSystem;
-        this.lastPredictionDay = 0;
+        this.lastPredictionDay = -100; // 确保游戏启动后首次检查立即触发预测
+        this._initialPredictionDone = false;
 
         // 监听事件
         this.bus.on('tick', (data) => this.onTick(data));
@@ -20,15 +21,21 @@ export class WeatherForecaster {
 
     /** 每 Tick 处理 */
     onTick(data) {
+        // 首次 tick 时立即生成初始天气预测（确保第一季就有天气变化）
+        if (!this._initialPredictionDone) {
+            this._initialPredictionDone = true;
+            this.generatePrediction();
+        }
+
         // 每日 5:00 天气播报
         if (data.hour === 5) {
             this.dailyBroadcast();
         }
 
-        // 每14天或距上次预测>=14天时生成新预测
+        // 每7天检查是否需要生成新预测（9天/季，7天间隔确保每季至少预测1次）
         if (data.hour === 3) {
             const daysSincePred = this.state.totalDays - this.lastPredictionDay;
-            if (daysSincePred >= 14) {
+            if (daysSincePred >= 7) {
                 this.generatePrediction();
             }
         }
@@ -39,7 +46,7 @@ export class WeatherForecaster {
         this.generatePrediction();
     }
 
-    /** AI 生成天气预测 */
+    /** AI 生成天气预测（关键调用：天气预测影响全局决策） */
     async generatePrediction() {
         console.log('[WeatherForecaster] 开始生成天气预测...');
         this.lastPredictionDay = this.state.totalDays;
@@ -52,8 +59,10 @@ export class WeatherForecaster {
 
         const prompt = this.buildPredictionPrompt(seasonEvents);
 
-        // AI LOGIC - 生成预测
-        const result = await this.ai.chat(prompt, { temperature: 0.7, maxTokens: 400 });
+        // 关键调用：失败暂停+重试
+        const result = await this.ai.criticalChat(prompt, { temperature: 0.7, maxTokens: 400 }, {
+            label: '🌤️ 天气预测',
+        });
 
         if (result && result.predictions && Array.isArray(result.predictions)) {
             this.weatherSys.setSchedule(result.predictions.map(p => ({
@@ -76,32 +85,33 @@ export class WeatherForecaster {
             `- ${e.id}: ${e.name}（${e.icon}），持续${e.duration}天，效果：${e.effectSummary}`
         ).join('\n');
 
-        return `# 任务：预测未来14天天气
-你是村庄经营游戏中的天气预报AI。
+        // 计算当季剩余天数
+        const daysLeftInSeason = 9 - this.state.time.day + 1;
+        const daysSinceLastEvent = this.state.totalDays - this.state.weather.lastEventEndDay;
 
-## 当前信息
-- 季节：${this.state.seasonName}
-- 当前日期：第${this.state.time.day}天
-- 上次特殊天气距今：${this.state.totalDays - this.state.weather.lastEventEndDay}天
+        return `你是村庄经营游戏的天气预测AI。为当前季节安排特殊天气事件。
 
-## 本季可触发的特殊天气（只能从这里选）
+【当前状态】
+季节：${this.state.seasonName}，当季第${this.state.time.day}天（每季共9天）
+距上次特殊天气已过${daysSinceLastEvent}天
+
+【本季可用的特殊天气】
 ${evtList}
 
-## 硬约束（必须遵守）
-1. 从中最多选择2个事件
-2. 两个事件间隔至少5天
-3. 距上次特殊天气结束至少5天
-4. dayOffset 范围：1-14
+【规则】
+• 从上面选1-2个事件安排到未来几天
+• dayOffset范围：2~${Math.min(daysLeftInSeason, 8)}（当季剩余${daysLeftInSeason}天内）
+• 两个事件间隔至少3天
+• 距上次特殊天气至少间隔3天（当前已过${daysSinceLastEvent}天，${daysSinceLastEvent >= 3 ? '可以安排' : '需等待'}）
+• 为每个事件提供一个简短的理由（为什么会在这天出现这种天气）
 
-# 输出格式（严格JSON）
-\`\`\`json
+输出JSON：
 {
   "predictions": [
-    { "eventId": "事件ID", "dayOffset": 7, "reason": "理由" }
+    {"eventId": "事件ID", "dayOffset": 3, "reason": "简短理由"}
   ],
-  "reasoning": "预测总体理由"
-}
-\`\`\``;
+  "reasoning": "整体预测思路（2-3句话）"
+}`;
     }
 
     /** 每日天气播报 */
@@ -296,6 +306,40 @@ ${evtList}
             `;
         }
 
+        // 构建付费查看 AI 思考的按钮
+        const hasReasoning = !!this.state.weather.predictionReason;
+        const hasEventReasons = futureEvents.some(s => s.reason);
+        const gold = this.state.resources.gold;
+
+        let insightHTML = `
+            <div style="margin-top:16px;padding:12px;background:var(--surface);border-radius:8px;border:1px dashed var(--border);">
+                <h4 style="margin:0 0 8px;font-size:13px;color:var(--accent);">🧠 AI 预报员的思考</h4>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
+                    花费少量金币查看AI预报员的预测思路，帮助你做出更好的决策。
+                </div>
+                <div id="weather-insight-overall" style="margin-bottom:8px;">
+                    <button class="btn btn-sm" id="btn-reveal-reasoning" style="font-size:12px;" ${gold < 5 ? 'disabled title="金币不足"' : ''}>
+                        🔮 查看整体预测思路（5💰）
+                    </button>
+                </div>
+                ${futureEvents.length > 0 ? `
+                <div id="weather-insight-events">
+                    ${futureEvents.map((s, i) => {
+                        const evt = SPECIAL_WEATHER_EVENTS[s.eventId];
+                        if (!evt) return '';
+                        const daysUntil = s.triggerDay - this.state.totalDays;
+                        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                            <span style="font-size:12px;">${evt.icon} +${daysUntil}天 ${evt.name}</span>
+                            <button class="btn btn-sm btn-event-reason" data-idx="${i}" style="font-size:11px;padding:2px 8px;" ${gold < 3 ? 'disabled title="金币不足"' : ''}>
+                                查看原因（3💰）
+                            </button>
+                            <span class="event-reason-text" data-idx="${i}" style="font-size:12px;color:var(--text-secondary);display:none;"></span>
+                        </div>`;
+                    }).join('')}
+                </div>` : ''}
+            </div>
+        `;
+
         overlay.innerHTML = `
             <div class="modal fade-in" style="max-width:520px;max-height:80vh;overflow-y:auto;">
                 <div class="modal-title">🌤️ 天气预报详情</div>
@@ -308,12 +352,12 @@ ${evtList}
                         ${warning ? `<div style="margin-top:8px;padding:6px 10px;background:rgba(231,76,60,0.1);border-radius:6px;font-size:13px;color:var(--danger, #e74c3c);">${warning}</div>` : ''}
                     </div>
 
-                    <h4 style="margin:0 0 8px;font-size:14px;">📅 未来14天天气预报</h4>
-                    ${this.state.weather.predictionReason ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;font-style:italic;">AI预测说明：${this.state.weather.predictionReason}</div>` : ''}
+                    <h4 style="margin:0 0 8px;font-size:14px;">📅 未来天气预报</h4>
                     <div style="max-height:300px;overflow-y:auto;">
                         ${forecastHTML || '<div style="color:var(--text-muted);font-size:13px;">暂无天气预报数据，AI预报员将在下次预测时更新。</div>'}
                     </div>
 
+                    ${insightHTML}
                     ${seasonEventsHTML}
                 </div>
                 <div class="modal-actions">
@@ -322,8 +366,51 @@ ${evtList}
             </div>
         `;
 
+        // 绑定关闭事件
         overlay.querySelector('.weather-close').addEventListener('click', () => overlay.remove());
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+        // 绑定「查看整体预测思路」按钮
+        const btnReasoning = overlay.querySelector('#btn-reveal-reasoning');
+        if (btnReasoning) {
+            btnReasoning.addEventListener('click', () => {
+                if (this.state.resources.gold < 5) {
+                    this.state.addLog('⚠️', '金币不足，无法查看', 'warning');
+                    return;
+                }
+                this.state.resources.gold -= 5;
+                this.bus.emit('uiUpdate', {});
+                const reason = this.state.weather.predictionReason || '预报员还没有给出分析（等待下次AI预测生成）';
+                btnReasoning.replaceWith(Object.assign(document.createElement('div'), {
+                    style: 'font-size:12px;color:var(--text-primary);padding:8px;background:rgba(52,152,219,0.08);border-radius:6px;border-left:3px solid var(--accent);',
+                    innerHTML: `<strong>🔮 预报员说：</strong>${reason}`,
+                }));
+                this.state.addLog('🧠', `花费5💰查看了天气预测思路`, 'info');
+            });
+        }
+
+        // 绑定「查看单个事件原因」按钮
+        overlay.querySelectorAll('.btn-event-reason').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (this.state.resources.gold < 3) {
+                    this.state.addLog('⚠️', '金币不足，无法查看', 'warning');
+                    return;
+                }
+                this.state.resources.gold -= 3;
+                this.bus.emit('uiUpdate', {});
+                const idx = parseInt(btn.dataset.idx);
+                const evt = futureEvents[idx];
+                const reason = evt?.reason || '暂无具体分析';
+                btn.style.display = 'none';
+                const reasonEl = overlay.querySelector(`.event-reason-text[data-idx="${idx}"]`);
+                if (reasonEl) {
+                    reasonEl.style.display = 'inline';
+                    reasonEl.textContent = `💡 ${reason}`;
+                }
+                this.state.addLog('🧠', `花费3💰查看了天气事件原因`, 'info');
+            });
+        });
+
         document.body.appendChild(overlay);
     }
 }

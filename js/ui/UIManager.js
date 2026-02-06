@@ -54,8 +54,9 @@ export class UIManager {
             if (this.updateCounter % 4 === 0 || this.state.time.hour === 0) {
                 this.updateAll();
             }
-            // 状态栏每 Tick 更新
+            // 状态栏和资源面板每 Tick 更新（进度条需要实时）
             this.updateStatusBar();
+            this.updateResourcePanel();
         });
 
         this.bus.on('newDay', () => this.updateAll());
@@ -63,6 +64,15 @@ export class UIManager {
         this.bus.on('gameResumed', () => this.updatePauseButton());
         this.bus.on('speedChanged', (data) => this.updateSpeedButtons(data.speed));
         this.bus.on('seasonChange', () => this.updateSeasonTheme());
+
+        // 资源变化时立即刷新资源面板和进度条
+        this.bus.on('uiUpdate', () => {
+            this.updateResourcePanel();
+            this.updateEventLog();
+        });
+        this.bus.on('cropHarvested', () => this.updateResourcePanel());
+        this.bus.on('cropPlanted', () => this.updateResourcePanel());
+        this.bus.on('buildingBuilt', () => this.updateResourcePanel());
 
         // 初始渲染
         this.updateAll();
@@ -574,11 +584,11 @@ export class UIManager {
         });
     }
 
-    /** 渲染 NPC 聊天流 */
+    /** 渲染 NPC 聊天流（日期分隔线 + 聊天气泡） */
     renderNPCChatFeed(chatFeed) {
         // 从全局获取 NPC 聊天系统
         const npcChat = window.game?.npcChat;
-        const messages = npcChat ? npcChat.getRecentMessages(30) : [];
+        const messages = npcChat ? npcChat.getRecentMessages(50) : [];
 
         if (messages.length === 0) {
             chatFeed.innerHTML = `
@@ -591,18 +601,66 @@ export class UIManager {
         }
 
         chatFeed.innerHTML = '';
+        let lastDateKey = '';
+
+        // 柔和的气泡背景色组（按 villagerId 取色）
+        const bubbleColors = [
+            'rgba(52,152,219,0.08)',   // 蓝
+            'rgba(46,204,113,0.08)',   // 绿
+            'rgba(155,89,182,0.08)',   // 紫
+            'rgba(241,196,15,0.08)',   // 黄
+            'rgba(231,76,60,0.08)',    // 红
+            'rgba(26,188,156,0.08)',   // 青
+        ];
+
         messages.forEach(msg => {
+            // ---- 日期分隔线 ----
+            const year = msg.year || 1;
+            const seasonName = msg.seasonName || '春';
+            const day = msg.day || 1;
+            const dateKey = `${year}-${seasonName}-${day}`;
+
+            if (dateKey !== lastDateKey) {
+                lastDateKey = dateKey;
+                const dateLine = document.createElement('div');
+                dateLine.style.cssText = `
+                    display: flex; align-items: center; gap: 8px;
+                    margin: 12px 0 8px; padding: 0 4px;
+                `;
+                dateLine.innerHTML = `
+                    <div style="flex:1;height:1px;background:var(--border);"></div>
+                    <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;font-weight:500;">
+                        📅 第${year}年·${seasonName} 第${day}天
+                    </span>
+                    <div style="flex:1;height:1px;background:var(--border);"></div>
+                `;
+                chatFeed.appendChild(dateLine);
+            }
+
+            // ---- 聊天气泡 ----
+            const colorIdx = typeof msg.villagerId === 'number' ? msg.villagerId % bubbleColors.length : 0;
+            const bgColor = bubbleColors[colorIdx];
+
             const bubble = document.createElement('div');
-            bubble.style.cssText = 'display:flex;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border);align-items:flex-start;';
+            bubble.style.cssText = `
+                display: flex; gap: 8px; padding: 6px 8px; margin-bottom: 6px;
+                align-items: flex-start;
+            `;
             bubble.innerHTML = `
-                <span style="font-size:20px;flex-shrink:0;">${msg.avatar}</span>
+                <span style="font-size:22px;flex-shrink:0;margin-top:2px;">${msg.avatar}</span>
                 <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-                        <span style="font-size:12px;font-weight:600;">${msg.name}</span>
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                        <span style="font-size:12px;font-weight:600;color:var(--text-primary);">${msg.name}</span>
                         <span style="font-size:10px;color:var(--text-muted);">${String(msg.hour).padStart(2,'0')}:00</span>
                         <span style="font-size:12px;">${msg.mood}</span>
                     </div>
-                    <div style="font-size:13px;line-height:1.4;color:var(--text-primary);word-break:break-word;">${msg.text}</div>
+                    <div style="
+                        font-size:13px; line-height:1.5; color:var(--text-primary);
+                        word-break:break-word; padding: 8px 12px;
+                        background: ${bgColor}; border-radius: 2px 12px 12px 12px;
+                        border: 1px solid rgba(0,0,0,0.04);
+                        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+                    ">${msg.text}</div>
                 </div>
             `;
             chatFeed.appendChild(bubble);

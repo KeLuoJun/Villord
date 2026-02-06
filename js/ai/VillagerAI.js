@@ -56,6 +56,61 @@ export class VillagerAI {
     }
 
     /**
+     * 将系统 currentAction 字符串清洗为自然口语
+     * 例如 "⚠️ 无需浇水的农田" → "闲着没事做"
+     *      "💤 睡觉" → "睡觉"
+     *      "🌾 种植" → "种地"
+     */
+    cleanAction(rawAction) {
+        if (!rawAction) return '闲着';
+        // 先去掉所有 emoji（Unicode emoji ranges）
+        let text = rawAction.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}⚠️✅❌🚶💤💧🌾🪵🪨💬😤😮‍💨🤔💊🎉💪⚡💫🏠]/gu, '').trim();
+        // 系统状态映射为自然语言
+        const statusMap = {
+            '无需浇水': '闲着没什么事',
+            '无需浇水的农田': '闲着没什么事',
+            '睡觉': '睡觉',
+            '空闲': '闲着',
+            '休息恢复体力中': '休息恢复体力',
+            '体力不足，休息中...': '在休息',
+            '强制休息': '在休息',
+            '在磨洋工...': '在偷懒',
+            '拒绝干活': '闹脾气不想干活',
+            '累瘫了': '累得不行在休息',
+            '主动浇水': '在浇水',
+            '在村里闲逛': '在村里逛逛',
+            '在抱怨': '在发牢骚',
+            '在思考': '在想事情',
+            '自行休息': '在休息',
+            '放假中': '在休息',
+            '养病中': '在养病',
+        };
+        // 查找映射
+        for (const [key, val] of Object.entries(statusMap)) {
+            if (text.includes(key)) return val;
+        }
+        // 如果是正常行动名，直接返回清洗后文本
+        return text || '闲着';
+    }
+
+    /**
+     * 判断玩家输入的情感倾向
+     * @returns {number} 正面 +3~+8, 负面 -3~-5, 中性 0
+     */
+    detectPlayerSentiment(playerInput) {
+        const input = playerInput.toLowerCase();
+        // 正面情感关键词
+        if (/加油|辛苦了|厉害|棒|真好|谢谢|感谢|不错|干得好|好样的|太强了|你真棒|鼓励|喜欢你|相信你|做得好|继续努力|最棒|优秀|了不起|开心|快乐|高兴/.test(input)) {
+            return Math.floor(Math.random() * 6) + 3; // +3 ~ +8
+        }
+        // 负面情感关键词
+        if (/笨蛋|废物|没用|讨厌|滚|烦死|差劲|太慢|不行|垃圾|蠢/.test(input)) {
+            return -(Math.floor(Math.random() * 3) + 3); // -3 ~ -5
+        }
+        return 0;
+    }
+
+    /**
      * 处理玩家对话（模式B）
      * @param {object} villager - 村民对象
      * @param {string} playerInput - 玩家输入
@@ -100,7 +155,16 @@ export class VillagerAI {
 
         // AI 降级：使用预设对话
         console.log(`[VillagerAI] AI 降级，使用预设对话`);
-        return this.getFallbackResponse(villager, playerInput);
+        const fallback = this.getFallbackResponse(villager, playerInput);
+
+        // 降级响应也要应用心情变化
+        if (fallback.moodChange) {
+            villager.mood = Math.max(0, Math.min(100, villager.mood + fallback.moodChange));
+        }
+
+        // 降级响应也要保存对话历史
+        this.saveDialogue(villager, playerInput, fallback.reply);
+        return fallback;
     }
 
     /** 构建对话上下文（D1: 包含所有策划要求的字段） */
@@ -133,7 +197,7 @@ export class VillagerAI {
             accuracy: villager.accuracy ?? 1,
             workSpeed: villager.workSpeed ?? 1,
             currentTask: villager.currentTask,
-            currentAction: villager.currentAction,
+            currentAction: this.cleanAction(villager.currentAction),
             currentScheduleDisplay,
             previousMemory,
             upcomingWeather,
@@ -154,116 +218,188 @@ export class VillagerAI {
     /** 生成村民对话 Prompt */
     generateVillagerPrompt(ctx) {
         const traitGuides = {
-            '勤劳': '你热爱工作，主动寻找事情做，执行任务积极迅速',
-            '懒惰': '你不太喜欢干活，接到任务会拖延找借口',
-            '聪明': '你理解力强，能准确执行指令，还会给村长提建议',
-            '愚笨': '你理解力差，可能误解指令（比如让你浇水你跑去施肥）',
-            '听话': '你很尊重村长，几乎不会拒绝指令',
-            '叛逆': '觉得不合理的指令会反驳或拒绝',
-            '乐观': '总是开开心心的，即使辛苦也笑着面对',
-            '悲观': '容易抱怨，动不动发牢骚，但该干的活最终还是会干',
-            '健壮': '体力充沛，干重活也不觉得累',
-            '体弱': '体力有限，容易疲劳，干一会儿就要休息',
+            '勤劳': '热爱劳动，做事积极主动，提到工作时兴奋',
+            '懒惰': '能偷懒就偷懒，接到任务先叹气再说，经常找借口拖延',
+            '聪明': '思维敏捷，分析问题到位，经常提出独到见解和建议',
+            '愚笨': '有点迷糊，理解力差，有时候会答非所问或者理解歪了',
+            '听话': '非常尊敬村长，有求必应，态度恭敬',
+            '叛逆': '有主见，觉得不对的会据理力争，偶尔顶嘴',
+            '乐观': '永远积极向上，苦中作乐，爱开玩笑',
+            '悲观': '容易焦虑担忧，说话带负面情绪，但内心善良',
+            '健壮': '精力旺盛，干啥都不累，喜欢体力活',
+            '体弱': '动不动就喊累，需要经常休息，羡慕体力好的人',
         };
 
-        return `# 角色设定
-你是村庄经营游戏《治村物语》中的村民。
+        // 根据心情生成状态描述
+        const moodDesc = ctx.mood >= 80 ? '心情很好' :
+                         ctx.mood >= 60 ? '心情不错' :
+                         ctx.mood >= 40 ? '心情一般' :
+                         ctx.mood >= 20 ? '心情不太好' : '心情很糟糕';
+        const staminaDesc = ctx.stamina >= 80 ? '精力充沛' :
+                           ctx.stamina >= 50 ? '体力还行' :
+                           ctx.stamina >= 20 ? '有点累了' : '快没力气了';
 
-## 基本信息
-- 姓名：${ctx.name}　头像：${ctx.avatar}
-- 性格：${ctx.traits.join('、')}
-- 特长：${ctx.specialty}
-- 口癖：经常说"${ctx.quirk}"
+        return `你是《治村物语》里的村民「${ctx.name}」${ctx.avatar}。你是一个有血有肉、性格鲜明的角色。
 
-## 当前状态
-- 体力：${ctx.stamina}/${ctx.maxStamina}
-- 心情：${ctx.mood}/100
-- 准确率：${Math.round((ctx.accuracy || 1) * 100)}%
-- 工作速度：${Math.round((ctx.workSpeed || 1) * 100)}%
-- 当前任务：${ctx.currentAction || '空闲'}
-${ctx.currentScheduleDisplay ? `- 今日安排：${ctx.currentScheduleDisplay}` : ''}
-${ctx.previousMemory ? `- 往季记忆摘要：${ctx.previousMemory}` : ''}
+【你的人设】
+性格：${ctx.traits.join('、')}
+特长：${ctx.specialty}
+口癖：你说话时经常带上"${ctx.quirk}"
+${ctx.traits.map(t => traitGuides[t] ? `• ${t}：${traitGuides[t]}` : '').filter(Boolean).join('\n')}
 
-## 性格行为指南
-${ctx.traits.map(t => `- ${t}：${traitGuides[t] || ''}`).join('\n')}
+【你现在的状态】
+${staminaDesc}（体力${ctx.stamina}/${ctx.maxStamina}），${moodDesc}（心情${ctx.mood}/100）
+正在做：${ctx.currentAction || '闲着没事'}
+${ctx.currentScheduleDisplay ? `今日安排：${ctx.currentScheduleDisplay}` : ''}
+${ctx.previousMemory ? `你还记得：${ctx.previousMemory}` : ''}
 
-## 环境
-- 季节：${ctx.season}
-- 天气：${ctx.weather}
-${ctx.upcomingWeather ? `- 近期天气预警：${ctx.upcomingWeather}` : ''}
-- 市场：${ctx.market}
-- 粮食库存：${ctx.foodStock}🌾
-- 待处理农活：${ctx.pendingTasks.join('、') || '无'}
-- 成熟作物：${ctx.matureCrops || '无'}
+【村庄环境】
+${ctx.season}，${ctx.weather}
+${ctx.upcomingWeather ? `天气预警：${ctx.upcomingWeather}` : ''}
+市场消息：${ctx.market}
+村里粮食还有${ctx.foodStock}🌾，金币${ctx.gold}💰
+${ctx.pendingTasks.length > 0 ? `待处理：${ctx.pendingTasks.join('、')}` : ''}
+${ctx.matureCrops ? `成熟可收：${ctx.matureCrops}` : ''}
 
-## 近期对话
-${ctx.recentDialogue || '（首次对话）'}
+${ctx.recentDialogue ? `【之前的对话】\n${ctx.recentDialogue}` : ''}
 
----
-# 村长说
-"${ctx.playerInput}"
+━━━━━━━━━━━━━━
+村长对你说："${ctx.playerInput}"
+━━━━━━━━━━━━━━
 
----
-# 回复要求
-- 回复1-3句话，自然口语化，符合性格
-- 行动只能从以下选择：${VALID_ACTIONS.join(', ')}
-${ctx.isNearScheduleTime ? '- ⚠️ 当前是凌晨(0-4点)，即将到调度时间。如果村长安排了任务，请在 tomorrowSchedule 中给出明日行动计划。' : ''}
+【最重要的规则】
+1. 你必须**直接回应**村长说的话！如果村长问问题，你要回答那个问题；如果村长打招呼，你要打招呼回去；如果村长安排任务，你要回应那个任务。绝对不能答非所问。
+2. 用你的性格和口癖来说话，让对话生动有趣。回复2-4句话，自然口语化。
+3. 你可以结合当前状态（体力、心情、天气、市场等）来丰富回答。
+4. 回复中**禁止**使用 ⚠️、✅、❌、📈、📉 等系统图标符号，只用纯文字说话，最多用1个表情符号（如😊😅💪之类）。
+5. moodChange 很重要：如果村长在鼓励你、夸你、关心你，moodChange 应该是正数（+3到+8）；如果村长在骂你、批评你，moodChange 应该是负数（-3到-5）；普通聊天是0。
+6. options 是给村长的回复选项建议，要和当前话题相关。
+${ctx.isNearScheduleTime ? '7. 现在是凌晨(0-4点)，如果村长安排任务，在 tomorrowSchedule 中规划明日。' : ''}
 
-# 输出格式（严格JSON）
-\`\`\`json
+请直接输出JSON：
 {
-  "reply": "村民回复",
-  "emotion": "happy|neutral|tired|reluctant|angry|sad",
-  "scheduleChange": { "type": "none", "reason": "", "newActions": [] },
+  "reply": "你对村长说的话（2-4句，必须回应村长的内容，不要用系统图标）",
+  "emotion": "happy/neutral/tired/reluctant/angry/sad 之一",
+  "scheduleChange": {"type": "none"},
   "moodChange": 0,
   "options": [
-    {"text": "选项1", "tone": "positive"},
-    {"text": "选项2", "tone": "neutral"}
+    {"text": "和当前话题相关的回复选项1", "tone": "positive"},
+    {"text": "和当前话题相关的回复选项2", "tone": "neutral"}
   ]${ctx.isNearScheduleTime ? `,
-  "tomorrowSchedule": [
-    {"startHour": 6, "action": "eat", "duration": 1, "note": ""}
-  ]` : ''}
-}
-\`\`\``;
+  "tomorrowSchedule": [{"startHour": 7, "action": "eat", "duration": 1, "note": ""}]` : ''}
+}`;
     }
 
-    /** 降级响应 */
+    /** 降级响应（尽量匹配玩家输入的意图） */
     getFallbackResponse(villager, playerInput) {
-        // 根据性格选择预设对话
-        let pool = this.presetDialogues['default'];
-        for (const trait of villager.traits) {
-            if (this.presetDialogues[trait]) {
-                pool = this.presetDialogues[trait];
-                break;
-            }
+        const input = playerInput.toLowerCase();
+        const action = this.cleanAction(villager.currentAction);
+        const sentiment = this.detectPlayerSentiment(playerInput);
+
+        // 鼓励/夸赞类（优先检测，因为可以和其他话题叠加）
+        if (sentiment > 0) {
+            const traitReply = villager.traits.includes('乐观') ? '哈哈，村长这么说我好开心！' :
+                              villager.traits.includes('悲观') ? '真...真的吗？谢谢村长...我会继续努力的。' :
+                              villager.traits.includes('懒惰') ? '嘿嘿，被夸了就更有动力了~' :
+                              villager.traits.includes('叛逆') ? '哼...虽然不太好意思，但还是谢谢啦。' :
+                              '谢谢村长！听你这么说我很开心，会继续加油的！';
+            return this._buildFallback(villager, playerInput, [traitReply], 'happy',
+                [{ text: '一起加油！', tone: 'positive' }, { text: '你做得很好', tone: 'positive' }]);
         }
 
-        const preset = pool[Math.floor(Math.random() * pool.length)];
+        // 批评/负面类
+        if (sentiment < 0) {
+            const traitReply = villager.traits.includes('听话') ? '对不起村长...我会改进的...' :
+                              villager.traits.includes('叛逆') ? '哼，我已经尽力了好吗！' :
+                              villager.traits.includes('悲观') ? '唉...我就知道会被说...我真没用...' :
+                              '我...知道了，会尽力做好的。';
+            return this._buildFallback(villager, playerInput, [traitReply], 'sad',
+                [{ text: '别灰心，再接再厉', tone: 'positive' }, { text: '我相信你能行', tone: 'positive' }]);
+        }
 
+        // 问候类
+        if (/你好|嗨|早上好|下午好|晚上好|在吗|hi|hello/.test(input)) {
+            return this._buildFallback(villager, playerInput, [
+                `村长好呀！今天${villager.mood >= 50 ? '心情不错' : '有点累'}~`,
+                `哟，村长！我正${action}呢~`,
+                `嘿，村长来啦！有什么事吗？`,
+            ], 'happy', [{ text: '最近怎么样？', tone: 'positive' }, { text: '你在忙什么？', tone: 'neutral' }]);
+        }
+
+        // 询问状态/计划类
+        if (/计划|打算|安排|在做|忙什么|干什么|干嘛|任务/.test(input)) {
+            return this._buildFallback(villager, playerInput, [
+                `我现在在${action}。${villager.stamina > 50 ? '体力还充足，还能接着干！' : '不过有点累了...'}`,
+                `今天安排得挺满的，正在${action}呢。`,
+                `我吗？在${action}呀~${villager.mood >= 60 ? '干得挺开心的！' : '还行吧...'}`,
+            ], 'neutral', [{ text: '辛苦了，注意休息', tone: 'positive' }, { text: '还有什么想做的？', tone: 'neutral' }]);
+        }
+
+        // 关于心情
+        if (/心情|开心|难过|高兴|怎么了|还好吗/.test(input)) {
+            const moodReply = villager.mood >= 70 ? '挺好的！谢谢村长关心~' :
+                             villager.mood >= 40 ? '还行吧，一般般。' : '说实话...有点不太开心...';
+            return this._buildFallback(villager, playerInput, [moodReply], 'neutral',
+                [{ text: '有什么我能帮忙的？', tone: 'positive' }, { text: '加油！', tone: 'positive' }]);
+        }
+
+        // 关于市场/交易
+        if (/市场|买|卖|价格|物价|交易/.test(input)) {
+            return this._buildFallback(villager, playerInput, [
+                `市场的事啊...我觉得还是看看今天的行情再说吧。`,
+                `嗯，今天市场好像没什么特别动静。`,
+            ], 'neutral', [{ text: '你觉得什么值得买？', tone: 'neutral' }, { text: '好的，我去看看', tone: 'neutral' }]);
+        }
+
+        // 关于天气
+        if (/天气|下雨|太阳|热|冷|风/.test(input)) {
+            return this._buildFallback(villager, playerInput, [
+                `今天天气还行，${villager.traits.includes('乐观') ? '不管怎样都要加油！' : '就是干活有点累。'}`,
+            ], 'neutral', [{ text: '注意保暖', tone: 'positive' }, { text: '天气对种地有影响吗？', tone: 'neutral' }]);
+        }
+
+        // 通用回复（兜底）
+        return this._buildFallback(villager, playerInput, [
+            `嗯...村长说的我记住了！${villager.traits.includes('勤劳') ? '我会努力干活的！' : ''}`,
+            `好的村长，我${villager.mood >= 50 ? '知道了~' : '尽量吧...'}`,
+            `收到！${action !== '闲着' ? `我先把手头的事做完哈。` : '有什么需要帮忙的吗？'}`,
+        ], 'neutral', [{ text: '好的，辛苦了', tone: 'positive' }, { text: '继续加油', tone: 'neutral' }]);
+    }
+
+    /** 构建降级回复对象（含情感检测的心情变化） */
+    _buildFallback(villager, playerInput, replies, emotion, options) {
+        const reply = replies[Math.floor(Math.random() * replies.length)];
+        const sentiment = this.detectPlayerSentiment(playerInput);
         return {
-            reply: preset.reply,
-            emotion: preset.emotion,
+            reply,
+            emotion,
             scheduleChange: { type: 'none' },
-            moodChange: 0,
-            options: [
-                { text: '好的，辛苦了', tone: 'positive' },
-                { text: '继续加油', tone: 'neutral' },
-            ],
+            moodChange: sentiment, // 正面鼓励提升心情，负面批评降低心情
+            options: options || [{ text: '好的', tone: 'neutral' }, { text: '继续加油', tone: 'neutral' }],
         };
     }
 
     /** 保存对话历史 */
     saveDialogue(villager, playerInput, reply) {
+        // 安全初始化：确保 dialogueHistory 存在
+        if (!Array.isArray(villager.dialogueHistory)) {
+            villager.dialogueHistory = [];
+        }
+
         villager.dialogueHistory.push({
             player: playerInput,
             villager: reply,
-            time: `第${this.state.time.day}天 ${this.state.time.hour}:00`,
+            time: `第${this.state.time.day}天 ${String(this.state.time.hour).padStart(2, '0')}:00`,
+            dateLabel: `第${this.state.time.year}年·${this.state.seasonName} 第${this.state.time.day}天`,
         });
 
-        // 只保留最近10条
-        if (villager.dialogueHistory.length > 10) {
+        // 保留最近30条（增加容量以保证聊天记录可回溯）
+        if (villager.dialogueHistory.length > 30) {
             villager.dialogueHistory.shift();
         }
+
+        // 通知系统对话已保存（用于自动存档）
+        this.bus.emit('dialogueSaved', { villagerId: villager.id });
 
         // 记忆系统
         if (villager.memory?.currentSeason) {

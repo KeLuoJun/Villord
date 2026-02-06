@@ -61,6 +61,7 @@ try {
 
 // ===== 初始化 AI 服务 =====
 const aiService = new AIService(config);
+aiService.setEventBus(eventBus); // 允许关键调用暂停/恢复游戏
 
 // ===== 初始化游戏系统 =====
 const weatherSystem = new WeatherSystem(gameState, eventBus, aiService);
@@ -105,6 +106,26 @@ eventBus.on('autoPause', (data) => {
         uiManager.showToast(`⏸ ${data.reason}`, 'info');
     }
 });
+
+// ===== AI 关键调用：暂停/恢复/警告 =====
+eventBus.on('aiPauseGame', (data) => {
+    if (!gameState.time.isPaused) {
+        timeSystem.pause();
+        console.log(`[AI] 关键调用暂停游戏: ${data.reason}`);
+    }
+});
+eventBus.on('aiResumeGame', () => {
+    if (gameState.time.isPaused) {
+        timeSystem.resume();
+        console.log('[AI] 关键调用完成，恢复游戏');
+    }
+});
+eventBus.on('aiWarningModal', (data) => {
+    uiManager.showModal(data.title, `<div style="white-space:pre-line;font-size:14px;line-height:1.6;">${data.message}</div>`, [
+        { text: '知道了', class: 'btn-primary', action: () => {} },
+    ]);
+});
+
 const dialogueManager = new DialogueManager(gameState, eventBus, villagerAI, uiManager);
 dialogueManager.setTimeSystem(timeSystem);
 const recruitReveal = new RecruitReveal(gameState, eventBus, uiManager);

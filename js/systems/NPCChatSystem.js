@@ -135,47 +135,39 @@ export class NPCChatSystem {
 
         const otherVillagers = this.state.villagers
             .filter(v => v.id !== villager.id)
-            .map(v => `${v.avatar||'👤'}${v.name}(${v.traits.join('·')})`)
-            .join('、');
+            .map(v => `${v.avatar||'👤'}${v.name}（性格：${v.traits.join('·')}，在做：${v.currentAction || '闲着'}）`)
+            .join('\n');
 
-        const prompt = `你是村庄经营游戏《治村物语》中的村民${villager.name}。
-现在是 ${currentHour}:00，你想和村里的其他人闲聊一句。
+        // 根据时间段生成话题建议
+        const timeTopic = currentHour < 10 ? '刚起床、吃早饭、今天的计划' :
+                         currentHour < 13 ? '上午的工作、天气、市场' :
+                         currentHour < 17 ? '下午的活、累不累、今天的收获' :
+                         '快下班了、今天总结、晚上打算';
 
-## 你的信息
-- 姓名：${villager.name}
-- 性格：${villager.traits.join('、')}
-- 口癖：经常说"${villager.quirk}"
-- 当前在做：${villager.currentAction || '空闲'}
-- 心情：${villager.mood}/100
-- 体力：${villager.stamina}/${villager.maxStamina}
+        const moodDesc = villager.mood >= 70 ? '心情不错' :
+                        villager.mood >= 40 ? '心情一般' : '心情不好';
 
-## 村里的其他人
-${otherVillagers || '暂时只有你一个人'}
+        const prompt = `你是${villager.name}${villager.avatar}，《治村物语》的村民。现在${currentHour}:00。
 
-## 今天的聊天记录
+【你的性格】${villager.traits.join('、')}
+【口癖】说话爱带"${villager.quirk}"
+【当前状态】${moodDesc}，体力${villager.stamina}/${villager.maxStamina}，正在${villager.currentAction || '闲逛'}
+
+【村里的人】
+${otherVillagers || '只有你一个人'}
+
+【之前的聊天】
 ${recentChats}
 
-## 环境
-- 季节：${this.state.seasonName}
-- 天气：${this.getCurrentWeatherInfo()}
-- 市场简报：${this.state.market.morningReport?.broadcast || '暂无'}
+【环境】${this.state.seasonName}，${this.getCurrentWeatherInfo()}
+市场：${this.state.market.morningReport?.broadcast || '暂无消息'}
 
-## 要求
-- 说一句话（15-40字），自然口语化，符合你的性格
-- 内容可以是：闲聊、吐槽天气/工作、评论其他人、感慨、互相鼓励、讨论市场等
-- 偶尔使用你的口癖
-- 不要重复前面说过的话
-- 如果之前有人说了什么，你可以接话或回应
+现在你想说一句话。话题参考：${timeTopic}
+规则：20-50字，自然口语化，体现性格特点。如果前面有人说了话，优先接话或回应。不要重复别人说过的。
 
-# 输出格式（严格JSON）
-\`\`\`json
-{
-  "text": "你说的话",
-  "mood": "happy|neutral|tired|grumpy|excited"
-}
-\`\`\``;
+输出JSON：{"text": "你说的话", "mood": "happy/neutral/tired/grumpy/excited"}`;
 
-        const result = await this.ai.chat(prompt, { temperature: 0.95, maxTokens: 100 });
+        const result = await this.ai.chat(prompt, { temperature: 0.95, maxTokens: 150 });
 
         if (result && result.text) {
             this.addChatMessage(villager, result.text, result.mood || 'neutral');
@@ -200,6 +192,9 @@ ${recentChats}
             mood: moodEmoji[mood] || '💬',
             hour: this.state.time.hour,
             day: this.state.time.day,
+            year: this.state.time.year,
+            month: this.state.time.month,
+            seasonName: this.state.seasonName,
             timestamp: Date.now(),
         };
 

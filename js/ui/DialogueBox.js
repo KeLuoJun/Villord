@@ -28,6 +28,22 @@ export class DialogueManager {
 
     /** 关闭对话框并恢复游戏 */
     closeDialogue(overlay) {
+        // 如果有待处理的消息（AI还在回复中），先保存玩家消息到历史
+        if (this._pendingPlayerMessage && this.currentVillager) {
+            if (!Array.isArray(this.currentVillager.dialogueHistory)) {
+                this.currentVillager.dialogueHistory = [];
+            }
+            this.currentVillager.dialogueHistory.push({
+                player: this._pendingPlayerMessage,
+                villager: '（等待回复中被关闭）',
+                time: `第${this.state.time.day}天 ${String(this.state.time.hour).padStart(2, '0')}:00`,
+                dateLabel: `第${this.state.time.year}年·${this.state.seasonName} 第${this.state.time.day}天`,
+            });
+            this._pendingPlayerMessage = null;
+            // 触发自动存档
+            this.bus.emit('dialogueSaved', { villagerId: this.currentVillager.id });
+        }
+
         if (overlay && overlay.parentNode) overlay.remove();
         this.currentVillager = null;
         // 只有对话前游戏不是暂停状态时才自动恢复
@@ -121,22 +137,47 @@ export class DialogueManager {
         `;
     }
 
-    /** 渲染历史消息 */
+    /** 渲染历史消息（含日期分隔线） */
     renderHistory(villager, overlay) {
         const container = overlay.querySelector('#dialogue-messages');
-        const recent = villager.dialogueHistory.slice(-5);
+
+        // 安全检查：确保 dialogueHistory 存在
+        if (!Array.isArray(villager.dialogueHistory)) {
+            villager.dialogueHistory = [];
+        }
+
+        const recent = villager.dialogueHistory.slice(-20);
 
         if (recent.length === 0) {
             this.addSystemMessage(container, `这是你第一次与${villager.name}对话`);
             return;
         }
 
+        let lastDateLabel = '';
         recent.forEach(d => {
+            // 插入日期分隔线（当日期变化时）
+            const dateLabel = d.dateLabel || d.time?.split(' ')[0] || '';
+            if (dateLabel && dateLabel !== lastDateLabel) {
+                this.addDateSeparator(container, dateLabel);
+                lastDateLabel = dateLabel;
+            }
             this.addMessageBubble(container, d.player, 'player');
             this.addMessageBubble(container, d.villager, 'villager', villager.name);
         });
 
         container.scrollTop = container.scrollHeight;
+    }
+
+    /** 添加日期分隔线 */
+    addDateSeparator(container, dateText) {
+        const sep = document.createElement('div');
+        sep.className = 'message-date-separator';
+        sep.innerHTML = `<span>${dateText}</span>`;
+        sep.style.cssText = 'display:flex;align-items:center;justify-content:center;margin:12px 0 8px;gap:8px;font-size:11px;color:var(--text-muted, #999);';
+        // 左右横线
+        const line = 'flex:1;height:1px;background:var(--border, #ddd);';
+        sep.innerHTML = `<span style="${line}"></span><span style="padding:0 10px;white-space:nowrap;">${dateText}</span><span style="${line}"></span>`;
+        container.appendChild(sep);
     }
 
     /** 发送消息并获取 AI 回复 */
@@ -149,43 +190,65 @@ export class DialogueManager {
         // 添加玩家消息
         this.addMessageBubble(container, text, 'player');
 
+        // 记录待发送消息（防止关闭对话框时丢失）
+        this._pendingPlayerMessage = text;
+
         // 显示加载
         this.isLoading = true;
         const loadingMsg = this.addMessageBubble(container, '正在思考...', 'loading', villager.name);
         container.scrollTop = container.scrollHeight;
 
-        // AI LOGIC - 调用村民 AI
-        const response = await this.villagerAI.handlePlayerChat(villager, text);
+        try {
+            // AI LOGIC - 调用村民 AI
+            const response = await this.villagerAI.handlePlayerChat(villager, text);
 
-        // 移除加载消息
-        loadingMsg.remove();
-        this.isLoading = false;
+            // 清除待发送标记
+            this._pendingPlayerMessage = null;
 
-        // 添加村民回复（流式逐字显示）
-        const replyMsg = this.addMessageBubble(container, '', 'villager', villager.name);
-        await this.typewriterEffect(replyMsg.querySelector('.message-bubble'), response.reply);
-        container.scrollTop = container.scrollHeight;
+            // 移除加载消息（如果对话框仍存在）
+            if (loadingMsg.parentNode) loadingMsg.remove();
+            this.isLoading = false;
 
-        // 更新快捷选项
-        optionsContainer.innerHTML = '';
-        if (response.options && response.options.length > 0) {
-            response.options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = 'option-btn';
-                btn.textContent = `💬 "${opt.text}"`;
-                btn.addEventListener('click', () => {
-                    optionsContainer.innerHTML = '';
-                    this.sendMessage(villager, opt.text, overlay);
+            // 如果对话框已被关闭，跳过 UI 更新（消息已通过 VillagerAI.saveDialogue 保存）
+            if (!overlay.parentNode) return;
+
+            // 添加村民回复（流式逐字显示）
+            const replyMsg = this.addMessageBubble(container, '', 'villager', villager.name);
+            await this.typewriterEffect(replyMsg.querySelector('.message-bubble'), response.reply);
+            container.scrollTop = container.scrollHeight;
+
+            // 更新快捷选项
+            optionsContainer.innerHTML = '';
+            if (response.options && response.options.length > 0) {
+                response.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.textContent = `💬 "${opt.text}"`;
+                    btn.addEventListener('click', () => {
+                        optionsContainer.innerHTML = '';
+                        this.sendMessage(villager, opt.text, overlay);
+                    });
+                    optionsContainer.appendChild(btn);
                 });
-                optionsContainer.appendChild(btn);
-            });
+            }
+
+            // 更新状态显示
+            this.updateDialogueStatus(villager, overlay);
+
+            // 通知 UI 更新
+            this.bus.emit('uiUpdate', {});
+        } catch (err) {
+            console.error('[DialogueBox] 发送消息失败:', err);
+            this._pendingPlayerMessage = null;
+            if (loadingMsg.parentNode) loadingMsg.remove();
+            this.isLoading = false;
+
+            // 如果对话框仍存在，显示错误提示
+            if (overlay.parentNode) {
+                this.addSystemMessage(container, '⚠️ 回复失败，请重试');
+                container.scrollTop = container.scrollHeight;
+            }
         }
-
-        // 更新状态显示
-        this.updateDialogueStatus(villager, overlay);
-
-        // 通知 UI 更新
-        this.bus.emit('uiUpdate', {});
     }
 
     /** 添加消息气泡 */
