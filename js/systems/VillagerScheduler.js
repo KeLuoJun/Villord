@@ -1,13 +1,14 @@
 /**
  * VillagerScheduler - 村民调度系统
- * 每日 7:00 AI 为每个村民并行生成当日行动计划（在市场早报6:00之后）
+ * 每日 7:00 AI 为每个村民并行生成当日行动计划（在市场早报5:00之后）
  * 每 Tick 驱动村民按计划执行行动（含现实检查）
- * 村民 7:00 起床，22:00 睡觉
+ * 村民 7:00 起床，8:00 开始执行计划，22:00 睡觉
  */
 import { VALID_ACTIONS, ACTION_DURATIONS, ACTION_NAMES, ACTION_ICONS, STAMINA_COSTS } from '../config/villagers.js';
 import { MARKET_OPEN_HOUR, MARKET_CLOSE_HOUR } from '../market/MarketEngine.js';
 
-const WAKE_HOUR = 7;
+const WAKE_HOUR = 7;            // 起床 & 计划生成触发时间
+const SCHEDULE_START_HOUR = 8;  // 计划执行起始时间（8:00开始安排行动）
 const SLEEP_HOUR = 22;
 
 export class VillagerScheduler {
@@ -26,7 +27,7 @@ export class VillagerScheduler {
 
     /** 每 Tick 处理 */
     onTick(data) {
-        // 每日 7:00 触发调度（在市场早报6:00之后）
+        // 每日 7:00 触发调度（在市场早报5:00之后）
         if (data.hour === WAKE_HOUR) {
             const today = this.state.totalDays;
             if (today !== this.lastScheduleDay) {
@@ -186,8 +187,8 @@ ${otherPlans ? `【其他人的计划】（避免重复）\n${otherPlans}` : ''}
 ${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${STAMINA_COSTS[a]}体力）`).join('，')}
 
 【硬性规则】
-• 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划安排在${WAKE_HOUR}-${SLEEP_HOUR - 1}点
-• 吃饭：一天3餐（早7点/午12点/晚18点左右），用eat行动
+• 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划从${SCHEDULE_START_HOUR}:00开始安排行动（${WAKE_HOUR}:00-${SCHEDULE_START_HOUR}:00为起床准备时间）
+• 吃饭：一天3餐（早8点/午12点/晚18点左右），用eat行动
 • 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时变，选时机要慎重
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
 ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
@@ -196,8 +197,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
 输出JSON：
 {
   "schedule": [
-    {"startHour": 7, "action": "eat", "duration": 1, "target": null, "note": "早饭"},
-    {"startHour": 8, "action": "water", "duration": 1, "target": null, "note": "浇水"}
+    {"startHour": 8, "action": "eat", "duration": 1, "target": null, "note": "早饭"},
+    {"startHour": 9, "action": "water", "duration": 1, "target": null, "note": "浇水"}
   ],
   "thought": "今天的想法..."
 }`;
@@ -213,7 +214,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             if (startHour === undefined) continue;
 
             if (!VALID_ACTIONS.includes(item.action)) continue;
-            if (startHour < WAKE_HOUR || startHour >= SLEEP_HOUR) continue;
+            if (startHour < SCHEDULE_START_HOUR || startHour >= SLEEP_HOUR) continue;
 
             // 市场交易时间检查
             if (item.action === 'trade' && (startHour < MARKET_OPEN_HOUR || startHour >= MARKET_CLOSE_HOUR)) {
@@ -246,14 +247,14 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
     getDefaultSchedule(villager) {
         const isLazy = villager.traits.includes('懒惰');
         const schedule = [
-            { startHour: 7, action: 'eat', target: null, duration: 1, note: '早饭' },
+            { startHour: 8, action: 'eat', target: null, duration: 1, note: '早饭' },
         ];
 
         if (isLazy) {
             schedule.push(
-                { startHour: 8, action: 'idle', target: null, duration: 1, note: '' },
-                { startHour: 9, action: 'water', target: null, duration: 1, note: '' },
-                { startHour: 10, action: 'rest', target: null, duration: 2, note: '' },
+                { startHour: 9, action: 'idle', target: null, duration: 1, note: '' },
+                { startHour: 10, action: 'water', target: null, duration: 1, note: '' },
+                { startHour: 11, action: 'rest', target: null, duration: 1, note: '' },
                 { startHour: 12, action: 'eat', target: null, duration: 1, note: '午饭' },
                 { startHour: 13, action: 'idle', target: null, duration: 2, note: '' },
                 { startHour: 15, action: 'water', target: null, duration: 1, note: '' },
@@ -265,11 +266,11 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             const plots = this.state.plots;
             const hasPlots = plots.length > 0;
             schedule.push(
-                { startHour: 8, action: hasPlots ? 'water' : 'chop', target: hasPlots ? plots[0]?.name : null, duration: 1, note: '' },
-                { startHour: 9, action: hasPlots ? 'plant' : 'mine', target: null, duration: 2, note: '' },
-                { startHour: 11, action: 'harvest', target: null, duration: 1, note: '' },
+                { startHour: 9, action: hasPlots ? 'water' : 'chop', target: hasPlots ? plots[0]?.name : null, duration: 1, note: '' },
+                { startHour: 10, action: hasPlots ? 'plant' : 'mine', target: null, duration: 2, note: '' },
                 { startHour: 12, action: 'eat', target: null, duration: 1, note: '午饭' },
-                { startHour: 13, action: 'rest', target: null, duration: 2, note: '' },
+                { startHour: 13, action: 'harvest', target: null, duration: 1, note: '' },
+                { startHour: 14, action: 'rest', target: null, duration: 1, note: '' },
                 { startHour: 15, action: hasPlots ? 'water' : 'chop', target: null, duration: 1, note: '' },
                 { startHour: 16, action: 'chop', target: null, duration: 2, note: '' },
                 { startHour: 18, action: 'eat', target: null, duration: 1, note: '晚饭' },
@@ -287,6 +288,13 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         // 睡觉时间
         if (currentHour >= SLEEP_HOUR || currentHour < WAKE_HOUR) {
             villager.currentAction = '💤 睡觉';
+            villager.currentTask = null;
+            return;
+        }
+
+        // 起床准备时间（7:00-8:00）
+        if (currentHour >= WAKE_HOUR && currentHour < SCHEDULE_START_HOUR) {
+            villager.currentAction = '🌅 起床准备中';
             villager.currentTask = null;
             return;
         }

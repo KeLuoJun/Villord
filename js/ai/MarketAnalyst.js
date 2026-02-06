@@ -1,6 +1,6 @@
 /**
  * MarketAnalyst - AI 市场分析师
- * 6:00 早报：今日物价走势预测与买卖建议
+ * 5:00 早报：今日物价走势预测与买卖建议
  * 19:00 晚报：今日交易回顾与玩家操作点评（表扬/嘲讽）
  */
 import { MARKET_ITEMS } from '../config/marketItems.js';
@@ -18,7 +18,7 @@ export class MarketAnalyst {
 
         // 监听 tick
         this.bus.on('tick', (data) => {
-            if (data.hour === 6) {
+            if (data.hour === 5) {
                 this._isGeneratingMorning = true;
                 this.generateMorningReport().finally(() => { this._isGeneratingMorning = false; });
             }
@@ -33,7 +33,7 @@ export class MarketAnalyst {
         });
     }
 
-    // ===== 早报（6:00）：走势预测 =====
+    // ===== 早报（5:00）：走势预测 =====
 
     /** 生成早报（关键调用：07:00 前生成村民计划需要依赖早报） */
     async generateMorningReport() {
@@ -92,7 +92,7 @@ export class MarketAnalyst {
 
         return `你是村庄经营游戏《治村物语》的市场分析师。你专业、风趣、说话有分析师范儿。
 
-现在是早上6:00，市场将在${MARKET_OPEN_HOUR}:00开门，${MARKET_CLOSE_HOUR}:00关门。请根据以下数据生成今日早间市场简报。
+现在是早上5:00，市场将在${MARKET_OPEN_HOUR}:00开门，${MARKET_CLOSE_HOUR}:00关门。请根据以下数据生成今日早间市场简报。
 
 【今日数据】
 季节：${this.state.seasonName}
