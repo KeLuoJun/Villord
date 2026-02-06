@@ -188,8 +188,7 @@ export class FarmSystem {
                 plot.stage = 'ready';
                 this.state.addLog('✨', `${plot.name}的${plot.cropName}成熟了！`, 'success');
                 this.bus.emit('cropMature', { plot });
-                // 自动暂停
-                this.bus.emit('autoPause', { reason: `[农场] ${plot.name}的${plot.cropName}成熟了` });
+                this.bus.emit('showToast', { message: `🌾 ${plot.name}的${plot.cropName}成熟了！`, type: 'success' });
             } else if (plot.progress >= 0.75) {
                 plot.stage = 'mature';
             } else if (plot.progress >= 0.5) {

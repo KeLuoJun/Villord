@@ -33,9 +33,9 @@ export class EconomySystem {
             this.state.addLog('⚠️', `粮食不足！缺少${deficit}🌾，村民心情大幅下降`, 'danger');
             this.bus.emit('foodShortage', { deficit });
 
-            // 检查是否严重饥荒
+            // 粮食告急：记录日志提醒，不暂停游戏
             if (this.state.resources.food === 0) {
-                this.bus.emit('autoPause', { reason: '[经济] 粮食告急！请立即解决粮食问题' });
+                this.bus.emit('showToast', { message: '⚠️ 粮食告急！请尽快解决粮食问题', type: 'warning' });
             }
         }
 

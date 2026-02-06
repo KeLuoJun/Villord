@@ -73,47 +73,38 @@ export class EventSystem {
             this.setCooldown('grain_spring', 30);
         }
 
-        // F1: 丰收庆典事件
+        // F1: 丰收庆典事件（直接生效，无需弹窗选择）
         if (this.state.season === 'autumn' && this.state.time.day === 15
             && !this.isOnCooldown('harvest_festival')) {
             const foodBonus = Math.min(20, Math.floor(this.state.plots.length * 3));
+            // 直接应用效果
+            this.state.modifyResource('food', foodBonus);
+            this.state.villagers.forEach(v => {
+                v.mood = Math.min(100, v.mood + 15);
+            });
             this.triggerEvent({
                 type: 'economic',
                 title: '🎉 丰收庆典！',
                 description: `秋天是丰收的季节！全村举办庆典，村民心情大涨！额外获得${foodBonus}🌾粮食。`,
-                options: [
-                    { text: '太棒了！', id: 'celebrate', effect: () => {
-                        this.state.modifyResource('food', foodBonus);
-                        this.state.villagers.forEach(v => {
-                            v.mood = Math.min(100, v.mood + 15);
-                        });
-                        this.state.addLog('🎉', `丰收庆典：获得${foodBonus}🌾，全员心情+15`, 'success');
-                    }},
-                ],
+                options: [],
             });
             this.setCooldown('harvest_festival', 30);
         }
 
-        // F1: 村民失误交易事件
+        // F1: 村民失误交易事件（直接生效，无需弹窗选择）
         if (!this.isOnCooldown('bad_trade')) {
             const stupidVillager = this.state.villagers.find(v =>
                 v.traits.includes('愚笨') && v.currentTask?.action === 'trade'
             );
             if (stupidVillager && Math.random() < 0.15) {
                 const goldLoss = Math.floor(Math.random() * 10) + 5;
+                // 直接应用金币损失
+                this.state.resources.gold = Math.max(0, this.state.resources.gold - goldLoss);
                 this.triggerEvent({
                     type: 'economic',
                     title: `💸 ${stupidVillager.name}做了笔亏本买卖`,
                     description: `${stupidVillager.name}在市场上搞混了价格，"${stupidVillager.quirk}"... 损失了${goldLoss}💰。`,
-                    options: [
-                        { text: '算了...', id: 'forgive', effect: () => {
-                            this.state.resources.gold = Math.max(0, this.state.resources.gold - goldLoss);
-                        }},
-                        { text: '严厉批评（心情-10）', id: 'scold', effect: () => {
-                            this.state.resources.gold = Math.max(0, this.state.resources.gold - goldLoss);
-                            stupidVillager.mood = Math.max(0, stupidVillager.mood - 10);
-                        }},
-                    ],
+                    options: [],
                 });
                 this.setCooldown('bad_trade', 7);
             }
@@ -296,11 +287,17 @@ export class EventSystem {
         this.state.addLog(event.type === 'economic' ? '📊' : event.type === 'villager' ? '👤' : '⚠️',
             event.title, event.type === 'crisis' ? 'danger' : 'warning');
 
-        const tagMap = { economic: '[经济事件]', villager: '[村民事件]', crisis: '[危机]' };
+        // 经济事件只记录日志和Toast提示，不弹窗、不暂停
+        if (event.type === 'economic') {
+            this.bus.emit('showToast', { message: `📊 ${event.title}`, type: 'info' });
+            return;
+        }
+
+        const tagMap = { villager: '[村民事件]', crisis: '[危机]' };
         const tag = tagMap[event.type] || '[事件]';
         this.bus.emit('autoPause', { reason: `${tag} ${event.title}` });
 
-        // 弹窗显示
+        // 弹窗显示（仅非经济事件）
         this.showEventPopup(event);
     }
 
