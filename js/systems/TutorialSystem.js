@@ -55,11 +55,11 @@ export class TutorialSystem {
                 id: 'time_control',
                 title: '⏰ 时间与操作',
                 content: `
-                    <p>游戏以 <b>Tick</b> 为单位推进时间，1 Tick = 1 游戏小时，1天 = 24小时。</p>
+                    <p>游戏以 <b>Tick</b> 为单位推进时间，1 Tick = 1 游戏小时 = 现实 3 秒（1倍速），1天 = 24小时。</p>
                     <p><b>1季 = 9天</b>，春→夏→秋→冬循环，<b>1年 = 4季 = 36天</b>。</p>
                     <hr class="divider">
                     <p>⏸ <b>空格键</b> — 暂停/恢复游戏</p>
-                    <p>⏩ <b>右上角按钮</b> — 调整速度（0.5x ~ 10x）</p>
+                    <p>⏩ <b>右上角按钮</b> — 调整速度（0.5x / 1x / 1.2x）</p>
                     <p>💾 <b>Ctrl+S</b> 存档　<b>Ctrl+L</b> 读档</p>
                     <hr class="divider">
                     <p>⚡ 重要事件会<b>自动暂停</b>游戏，让你有时间做决策。</p>

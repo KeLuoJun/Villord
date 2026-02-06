@@ -1,17 +1,16 @@
 /**
  * TimeSystem - 时间系统
  * 管理游戏时间推进（Tick循环）、速度控制、日/季/年事件
- * 1 Tick = 游戏内 1 小时
+ * 1 Tick = 游戏内 1 小时 = 现实 3 秒（1倍速）
  * 24 Tick = 1 天, 9 天 = 1 季, 4 季 = 1 年 (36天/年)
+ * 倍速选项：0.5x / 1x / 1.2x
  */
 
-// 速度配置：speed -> 毫秒间隔（1x = 2秒/Tick）
+// 速度配置：speed -> 毫秒间隔（1x = 3秒/Tick）
 const SPEED_INTERVALS = {
-    0.5: 4000,
-    1: 2000,
-    2: 1000,
-    5: 400,
-    10: 200,
+    0.5: 6000,    // 0.5倍速：6秒/Tick
+    1: 3000,      // 1倍速：3秒/Tick（默认）
+    1.2: 2500,    // 1.2倍速：2.5秒/Tick
 };
 
 export const DAYS_PER_SEASON = 9;
@@ -29,7 +28,7 @@ export class TimeSystem {
         this.state = gameState;
         this.bus = eventBus;
         this.timer = null;
-        this.BASE_INTERVAL = 2000; // 1x 速度下 2秒 = 1游戏小时
+        this.BASE_INTERVAL = 3000; // 1x 速度下 3秒 = 1游戏小时
     }
 
     /** 启动时间循环 */
@@ -133,7 +132,7 @@ export class TimeSystem {
 
     /**
      * 设置游戏速度
-     * @param {number} speed - 速度倍率（0.5/1/2/5/10）
+     * @param {number} speed - 速度倍率（0.5/1/1.2）
      */
     setSpeed(speed) {
         if (!SPEED_INTERVALS[speed]) {

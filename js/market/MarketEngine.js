@@ -437,10 +437,11 @@ export class MarketEngine {
 
         // 计算最大可交易数量（买入时受仓库容量限制）
         let maxQty;
+        // storageType 需在 if 块外声明，模板字符串中也要用
+        let storageType = itemId;
         if (isBuy) {
             const maxByGold = Math.floor(this.state.resources.gold / price);
             // 根据物品类型获取对应的仓库剩余空间
-            let storageType = itemId;
             if (itemId.startsWith('seed_')) storageType = 'seeds';
             else if (['radish', 'wheat', 'potato'].includes(itemId)) storageType = 'food';
             const storageSpace = this.state.getStorageSpace(storageType);

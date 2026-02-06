@@ -1,8 +1,9 @@
 /**
  * ProsperitySystem - 繁荣度系统
- * 繁荣度为累计制（只增不减），无上限
+ * 繁荣度为累计制，可增可减，无上限（最低为0）
  * 分10个等级区间，达到相应等级可领取金币奖励
- * 每日根据村庄状态获得繁荣度增长
+ * 每日根据村庄状态获得繁荣度增长，同时负面状态会导致繁荣度衰减
+ * 衰减力度相对增长力度较小
  */
 
 // 繁荣度等级配置：10级
@@ -31,21 +32,31 @@ export class ProsperitySystem {
             this.state.prosperityData = {
                 total: 0,               // 累计繁荣度
                 claimedLevels: [],       // 已领取奖励的等级列表
-                todayGain: 0,            // 今日获得
+                todayGain: 0,            // 今日获得（增长量）
+                todayDecay: 0,           // 今日衰减量
+                todayNet: 0,             // 今日净变化
             };
         }
 
-        this.bus.on('newDay', () => this.dailyProsperityGain());
+        this.bus.on('newDay', () => this.dailyProsperityUpdate());
         this.bus.on('seasonChange', () => this.seasonReview());
 
         // 特殊事件加成
         this.bus.on('buildingBuilt', () => this.addBonus(5, '建造新建筑'));
         this.bus.on('villagerRecruited', () => this.addBonus(10, '招募新村民'));
         this.bus.on('cropHarvested', () => this.addBonus(2, '收获作物'));
+
+        // 特殊事件扣减
+        this.bus.on('villagerLeft', () => this.addPenalty(5, '村民离开'));
+        this.bus.on('cropWithered', () => this.addPenalty(1, '作物枯萎'));
     }
 
-    /** 每日繁荣度增长 */
-    dailyProsperityGain() {
+    /** 每日繁荣度更新（增长 + 衰减） */
+    dailyProsperityUpdate() {
+        const data = this.state.prosperityData;
+        const oldLevel = this.getCurrentLevel().level;
+
+        // ===== 增长部分 =====
         let gain = 0;
 
         // 1. 基础增长：每个村民每天贡献 1 点
@@ -59,11 +70,9 @@ export class ProsperitySystem {
         gain += Math.floor(activePlots * 0.5);
 
         // 4. 幸福度加成：平均心情 > 60 +1，> 80 +2
-        if (this.state.villagers.length > 0) {
-            const avgMood = this.state.villagers.reduce((s, v) => s + v.mood, 0) / this.state.villagers.length;
-            if (avgMood >= 80) gain += 2;
-            else if (avgMood >= 60) gain += 1;
-        }
+        const avgMood = this.getAverageMood();
+        if (avgMood >= 80) gain += 2;
+        else if (avgMood >= 60) gain += 1;
 
         // 5. 资源充裕加成：金币>200 +1，粮食>20 +1
         if (this.state.resources.gold >= 200) gain += 1;
@@ -74,16 +83,75 @@ export class ProsperitySystem {
             gain = Math.max(1, gain);
         }
 
-        if (gain > 0) {
-            this.state.prosperityData.total += gain;
-            this.state.prosperityData.todayGain = gain;
+        // ===== 衰减部分（力度较小） =====
+        let decay = 0;
+        const decayReasons = [];
+
+        // 1. 村民心情低迷：平均心情 < 30 → -1/天，< 15 → -2/天
+        if (this.state.villagers.length > 0) {
+            if (avgMood < 15) {
+                decay += 2;
+                decayReasons.push('民怨沸腾(心情极低)');
+            } else if (avgMood < 30) {
+                decay += 1;
+                decayReasons.push('士气低落(心情偏低)');
+            }
         }
 
-        // 更新兼容字段（用于UI等旧引用）
-        this.state.prosperity = this.state.prosperityData.total;
+        // 2. 饥荒：粮食为 0 → -2/天
+        if (this.state.resources.food <= 0 && this.state.villagers.length > 0) {
+            decay += 2;
+            decayReasons.push('饥荒(粮食耗尽)');
+        }
+
+        // 3. 财政困难：金币为 0 → -1/天
+        if (this.state.resources.gold <= 0) {
+            decay += 1;
+            decayReasons.push('财政困难(金币耗尽)');
+        }
+
+        // 4. 人口流失：无村民 → -1/天
+        if (this.state.villagers.length === 0) {
+            decay += 1;
+            decayReasons.push('人口空虚(无村民)');
+        }
+
+        // 5. 农田荒废：有农田但全部空闲 → -1/天
+        if (this.state.plots.length > 0 && activePlots === 0) {
+            decay += 1;
+            decayReasons.push('田地荒废(无作物)');
+        }
+
+        // ===== 计算净变化 =====
+        const net = gain - decay;
+        data.total = Math.max(0, data.total + net); // 繁荣度最低为 0
+        data.todayGain = gain;
+        data.todayDecay = decay;
+        data.todayNet = net;
+
+        // 更新兼容字段
+        this.state.prosperity = data.total;
+
+        // 衰减日志（仅在有衰减时提示）
+        if (decay > 0) {
+            const reasonText = decayReasons.join('、');
+            this.state.addLog('📉', `繁荣度衰减 -${decay}（${reasonText}），今日净变化 ${net >= 0 ? '+' : ''}${net}`, 'warning');
+        }
 
         // 检查是否达到新等级
         this.checkLevelUp();
+
+        // 检查是否降级
+        const newLevel = this.getCurrentLevel().level;
+        if (newLevel < oldLevel) {
+            this.state.addLog('⚠️', `繁荣度降至 ${data.total}，等级降为「${this.getCurrentLevel().icon} ${this.getCurrentLevel().name}」`, 'warning');
+        }
+    }
+
+    /** 获取村民平均心情 */
+    getAverageMood() {
+        if (this.state.villagers.length === 0) return 50; // 无村民时返回中性值
+        return this.state.villagers.reduce((s, v) => s + v.mood, 0) / this.state.villagers.length;
     }
 
     /** 增加繁荣度（事件触发） */
@@ -91,6 +159,14 @@ export class ProsperitySystem {
         this.state.prosperityData.total += amount;
         this.state.prosperity = this.state.prosperityData.total;
         // 不需要log每次小加成，避免刷屏
+    }
+
+    /** 扣减繁荣度（负面事件触发） */
+    addPenalty(amount, reason) {
+        const data = this.state.prosperityData;
+        data.total = Math.max(0, data.total - amount);
+        this.state.prosperity = data.total;
+        this.state.addLog('📉', `繁荣度 -${amount}（${reason}）`, 'warning');
     }
 
     /** 检查是否达到新等级并提示 */
@@ -232,10 +308,10 @@ export class ProsperitySystem {
             progressHtml = `<div style="text-align:center;color:var(--accent);font-size:14px;margin:12px 0;">👑 已达最高等级！</div>`;
         }
 
-        // 增长明细
+        // 增长与衰减明细
         const gainDetail = `
             <div style="background:var(--bg-input);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12px;color:var(--text-secondary);line-height:1.8;">
-                <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">📊 每日繁荣度来源</div>
+                <div style="font-weight:600;color:#2e7d32;margin-bottom:4px;">📈 每日增长来源</div>
                 <div>👥 每名村民：+1/天</div>
                 <div>🏗️ 每座建筑：+0.5/天</div>
                 <div>🌾 每块活跃农田：+0.5/天</div>
@@ -243,6 +319,18 @@ export class ProsperitySystem {
                 <div>💰 金币≥200：+1/天　🌾 粮食≥20：+1/天</div>
                 <div style="margin-top:4px;border-top:1px dashed var(--border);padding-top:4px;">
                     🏗️ 建造建筑：+5　👥 招募村民：+10　🌾 收获作物：+2
+                </div>
+            </div>
+            <div style="background:var(--bg-input);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12px;color:var(--text-secondary);line-height:1.8;">
+                <div style="font-weight:600;color:#c62828;margin-bottom:4px;">📉 每日衰减因素（力度较小）</div>
+                <div>😞 村民平均心情＜30：-1/天</div>
+                <div>😡 村民平均心情＜15：-2/天</div>
+                <div>🍚 粮食耗尽(饥荒)：-2/天</div>
+                <div>💸 金币耗尽(财政困难)：-1/天</div>
+                <div>👻 无村民(人口空虚)：-1/天</div>
+                <div>🏜️ 农田全部荒废：-1/天</div>
+                <div style="margin-top:4px;border-top:1px dashed var(--border);padding-top:4px;">
+                    💔 村民离开：-5　🥀 作物枯萎：-1
                 </div>
             </div>
         `;
@@ -254,7 +342,7 @@ export class ProsperitySystem {
                 <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
                     <span>⭐ 繁荣度</span>
                     <span style="font-size:22px;font-weight:700;color:var(--accent);">${data.total}</span>
-                    <span style="font-size:12px;color:var(--text-secondary);">今日 +${data.todayGain || 0}</span>
+                    <span style="font-size:12px;color:var(--text-secondary);">今日 ${(data.todayNet || 0) >= 0 ? '+' : ''}${data.todayNet || 0}（↑${data.todayGain || 0} ↓${data.todayDecay || 0}）</span>
                 </div>
                 <div class="modal-body">
                     ${progressHtml}
