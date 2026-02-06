@@ -312,7 +312,30 @@ export class UIManager {
         this.setTextContent('overview-villagers', `${this.state.villagers.length}/${this.state.settings.maxVillagers}`);
         this.setTextContent('overview-housing', `${this.state.housingCapacity}`);
         this.setTextContent('overview-plots', this.state.plots.length);
-        this.setTextContent('overview-prosperity', `${this.state.prosperity}/100`);
+        // 繁荣度显示（累计制 + 等级名）
+        const prosEl = document.getElementById('overview-prosperity');
+        if (prosEl) {
+            const pd = this.state.prosperityData;
+            const total = pd?.total || this.state.prosperity || 0;
+            // 获取当前等级名称
+            const levels = [
+                { threshold: 0, name: '荒芜村落', icon: '🏚️' },
+                { threshold: 20, name: '初建小村', icon: '🏠' },
+                { threshold: 60, name: '安宁村庄', icon: '🏡' },
+                { threshold: 120, name: '朝气小镇', icon: '🌱' },
+                { threshold: 200, name: '繁忙集市', icon: '🛒' },
+                { threshold: 300, name: '富饶之地', icon: '🌾' },
+                { threshold: 450, name: '兴旺村镇', icon: '🏘️' },
+                { threshold: 650, name: '锦绣乡里', icon: '🌸' },
+                { threshold: 900, name: '四海升平', icon: '🏛️' },
+                { threshold: 1200, name: '传说桃源', icon: '👑' },
+            ];
+            let currentName = levels[0].icon + ' ' + levels[0].name;
+            for (const lv of levels) {
+                if (total >= lv.threshold) currentName = lv.icon + ' ' + lv.name;
+            }
+            prosEl.innerHTML = `${total} <span style="font-size:11px;font-weight:400;color:var(--text-secondary);">${currentName}</span>`;
+        }
     }
 
     /** 更新事件日志 */

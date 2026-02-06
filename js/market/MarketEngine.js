@@ -5,6 +5,10 @@
 import { MARKET_ITEMS, SEASON_MARKET_MODS } from '../config/marketItems.js';
 import { SPECIAL_WEATHER_EVENTS } from '../config/weather.js';
 
+// 市场开放时间
+export const MARKET_OPEN_HOUR = 9;
+export const MARKET_CLOSE_HOUR = 15;
+
 export class MarketEngine {
     constructor(gameState, eventBus) {
         this.state = gameState;
@@ -16,6 +20,12 @@ export class MarketEngine {
 
         // 监听事件
         this.bus.on('tick', () => this.updatePrices());
+    }
+
+    /** 市场是否开放 */
+    isMarketOpen() {
+        const hour = this.state.time.hour;
+        return hour >= MARKET_OPEN_HOUR && hour < MARKET_CLOSE_HOUR;
     }
 
     /** 注入 AI 服务 */
@@ -311,6 +321,22 @@ export class MarketEngine {
         if (!container) return;
 
         container.innerHTML = '';
+
+        // 市场状态指示器
+        const isOpen = this.isMarketOpen();
+        const statusDiv = document.createElement('div');
+        statusDiv.style.cssText = 'font-size:11px;margin-bottom:6px;padding:2px 6px;border-radius:4px;text-align:center;';
+        if (isOpen) {
+            statusDiv.style.background = 'rgba(46,125,50,0.1)';
+            statusDiv.style.color = '#2e7d32';
+            statusDiv.textContent = `🟢 营业中 (${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00)`;
+        } else {
+            statusDiv.style.background = 'rgba(198,40,40,0.1)';
+            statusDiv.style.color = '#c62828';
+            statusDiv.textContent = `🔴 已关闭 (${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00)`;
+        }
+        container.appendChild(statusDiv);
+
         const mainItems = ['radish', 'wheat', 'potato', 'flour', 'bread'];
 
         mainItems.forEach(id => {
@@ -338,7 +364,29 @@ export class MarketEngine {
         const content = document.getElementById('market-content');
         if (!content) return;
 
-        let html = '<table class="market-table"><thead><tr>';
+        const isOpen = this.isMarketOpen();
+        const hour = this.state.time.hour;
+
+        // 市场状态栏
+        let statusHtml = '';
+        if (isOpen) {
+            const remaining = MARKET_CLOSE_HOUR - hour;
+            statusHtml = `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-input);border-radius:8px;margin-bottom:12px;">
+                <span style="color:#2e7d32;font-weight:600;">🟢 市场开放中</span>
+                <span style="font-size:12px;color:var(--text-secondary);">⏰ 营业时间 ${MARKET_OPEN_HOUR}:00 - ${MARKET_CLOSE_HOUR}:00　剩余 ${remaining} 小时</span>
+            </div>`;
+        } else {
+            const nextOpen = hour >= MARKET_CLOSE_HOUR
+                ? `明天 ${MARKET_OPEN_HOUR}:00`
+                : `今天 ${MARKET_OPEN_HOUR}:00`;
+            statusHtml = `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-input);border-radius:8px;margin-bottom:12px;opacity:0.7;">
+                <span style="color:#c62828;font-weight:600;">🔴 市场已关闭</span>
+                <span style="font-size:12px;color:var(--text-secondary);">⏰ 营业时间 ${MARKET_OPEN_HOUR}:00 - ${MARKET_CLOSE_HOUR}:00　下次开放：${nextOpen}</span>
+            </div>`;
+        }
+
+        let html = statusHtml;
+        html += '<table class="market-table"><thead><tr>';
         html += '<th>商品</th><th>当前价</th><th>基准价</th><th>涨跌</th><th>操作</th>';
         html += '</tr></thead><tbody>';
 
@@ -349,14 +397,16 @@ export class MarketEngine {
                               trend < -0.02 ? `📉${Math.round(trend * 100)}%` : '→';
             const trendClass = trend > 0.02 ? 'text-up' : trend < -0.02 ? 'text-down' : '';
 
+            const disabledAttr = isOpen ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;"';
+
             html += `<tr>
                 <td>${config.icon} ${config.name}</td>
                 <td>${price}💰</td>
                 <td style="color:var(--text-muted)">${config.basePrice}💰</td>
                 <td class="${trendClass}">${trendText}</td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="game.market.showTradeDialog('${id}',true)">买入</button>
-                    <button class="btn btn-sm btn-secondary" onclick="game.market.showTradeDialog('${id}',false)">卖出</button>
+                    <button class="btn btn-sm btn-primary" onclick="game.market.showTradeDialog('${id}',true)" ${disabledAttr}>买入</button>
+                    <button class="btn btn-sm btn-secondary" onclick="game.market.showTradeDialog('${id}',false)" ${disabledAttr}>卖出</button>
                 </td>
             </tr>`;
         });
@@ -367,6 +417,17 @@ export class MarketEngine {
 
     /** 显示交易数量选择弹窗 */
     showTradeDialog(itemId, isBuy) {
+        // 检查市场是否开放
+        if (!this.isMarketOpen()) {
+            const hour = this.state.time.hour;
+            const msg = hour < MARKET_OPEN_HOUR
+                ? `市场还未开放，开放时间 ${MARKET_OPEN_HOUR}:00 - ${MARKET_CLOSE_HOUR}:00`
+                : `市场已关闭，明天 ${MARKET_OPEN_HOUR}:00 再来吧`;
+            // 简单 toast 提示
+            this.bus.emit('showToast', { message: `🚫 ${msg}`, type: 'warning' });
+            return;
+        }
+
         const config = MARKET_ITEMS[itemId];
         if (!config) return;
 

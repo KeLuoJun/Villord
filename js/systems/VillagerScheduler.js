@@ -62,7 +62,6 @@ export class VillagerScheduler {
         this.isScheduling = false;
         this.state.addLog('📋', '村民行动计划已安排', 'info');
         this.bus.emit('schedulesGenerated', {});
-        this.bus.emit('autoPause', { reason: '[调度] 村民行动计划已安排完毕' });
     }
 
     /**

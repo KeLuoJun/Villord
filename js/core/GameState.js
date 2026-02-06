@@ -103,8 +103,13 @@ export const GameState = {
         maxVillagers: 4,
     },
 
-    // ===== 繁荣度 =====
+    // ===== 繁荣度（累计制） =====
     prosperity: 0,
+    prosperityData: {
+        total: 0,               // 累计繁荣度
+        claimedLevels: [],      // 已领取奖励的等级
+        todayGain: 0,           // 今日获得
+    },
 
     // ===== 每日资源变化追踪 =====
     dailyChanges: {

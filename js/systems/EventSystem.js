@@ -379,12 +379,20 @@ export class EventSystem {
 
     trySell(itemId, qty) {
         if (window.game?.market) {
+            if (!window.game.market.isMarketOpen()) {
+                this.state.addLog('🚫', '市场已关闭，无法交易', 'warning');
+                return;
+            }
             window.game.market.executeTrade(itemId, qty, false);
         }
     }
 
     tryBuy(itemId, qty) {
         if (window.game?.market) {
+            if (!window.game.market.isMarketOpen()) {
+                this.state.addLog('🚫', '市场已关闭，无法交易', 'warning');
+                return;
+            }
             window.game.market.executeTrade(itemId, qty, true);
         }
     }

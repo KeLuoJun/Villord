@@ -195,6 +195,11 @@
     font-weight: 500;
 }
 
+/* 繁荣度可点击 */
+#prosperity-clickable:hover {
+    background: var(--bg-input);
+}
+
 /* 事件日志 */
 .event-log-list {
     display: flex;

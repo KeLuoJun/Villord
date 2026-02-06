@@ -143,10 +143,8 @@ ${evtList}
         // 天气播报日志
         this.state.addLog('🌤️', `${broadcastText}${warning ? ' ' + warning : ''}`, 'info');
 
-        // 只在有天气预警时自动暂停，日常播报不暂停
-        if (warning) {
-            this.bus.emit('autoPause', { reason: `[天气] ${warning}` });
-        }
+        // 天气预警不再自动暂停，仅作为日志通知
+        // （只有玩家主动发起对话时才暂停游戏）
     }
 
     /** 更新天气面板 */

@@ -116,6 +116,12 @@ uiManager.registerPanel('farm', farmSystem);
 uiManager.registerPanel('market', marketEngine);
 uiManager.registerPanel('events', dailySummary);
 
+// ===== 繁荣度点击事件 =====
+const prosperityClickable = document.getElementById('prosperity-clickable');
+if (prosperityClickable) {
+    prosperityClickable.addEventListener('click', () => prosperitySystem.showProsperityModal());
+}
+
 // ===== 标签页切换事件 =====
 eventBus.on('switchTab', (data) => {
     uiManager.switchTab(data.tab);
@@ -142,17 +148,17 @@ eventBus.on('uiUpdate', () => {
 });
 
 // ===== 通关事件 =====
-eventBus.on('gameWin', () => {
+eventBus.on('gameWin', (data) => {
     uiManager.showModal('🏆 恭喜通关！', `
-        <p style="font-size:18px;text-align:center;margin-bottom:16px;">你成功将桃源村建设成了繁荣的村庄！</p>
+        <p style="font-size:18px;text-align:center;margin-bottom:16px;">👑 桃源村已成为传说中的桃源！</p>
         <div style="text-align:center;">
             <p>🏘️ 村民：${gameState.villagers.length}人</p>
             <p>🏗️ 建筑：${gameState.buildings.length}座</p>
             <p>🌾 农田：${gameState.plots.length}块</p>
             <p>💰 金币：${gameState.resources.gold}</p>
-            <p>⭐ 繁荣度：${gameState.prosperity}/100</p>
+            <p>⭐ 繁荣度：${gameState.prosperityData.total}（传说桃源）</p>
         </div>
-        <p style="text-align:center;margin-top:16px;color:var(--text-secondary);">你可以继续游戏，或存档留念~</p>
+        <p style="text-align:center;margin-top:16px;color:var(--text-secondary);">你可以继续游戏，繁荣度会继续增长~</p>
     `, [
         { id: 'continue', text: '继续游戏', class: 'btn-primary', onClick: () => {} },
         { id: 'save', text: '💾 存档', class: 'btn-gold', onClick: () => saveSystem.save('win') },
@@ -392,7 +398,7 @@ function showGameRulesModal() {
             <div class="modal-title">📖 游戏规则与玩法介绍</div>
             <div class="modal-body" style="line-height:1.9;text-align:left;">
                 <h4 style="margin:0 0 8px;">🎯 游戏目标</h4>
-                <p>你是桃源村的新村长，目标是将小村庄建设成繁荣的社区。当<b>繁荣度达到 100</b> 即为通关！</p>
+                <p>你是桃源村的新村长，目标是将小村庄建设成繁荣的社区。提升<b>繁荣度</b>，达到最高等级「👑 传说桃源」即为通关！</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">⏰ 时间系统</h4>
@@ -417,8 +423,10 @@ function showGameRulesModal() {
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">🛒 市场经济</h4>
+                <p>• <b>市场开放时间：9:00 - 15:00</b>，非营业时间无法交易</p>
                 <p>• 市场价格实时波动，受供需、季节、天气影响</p>
-                <p>• 每天早上 6:00 AI 分析师会发布市场简报</p>
+                <p>• ☀️ 每天 6:00 AI 分析师发布早报（走势预测）</p>
+                <p>• 🌙 每天 16:00 发布晚报（交易回顾 + 毒舌点评）</p>
                 <p>• 低买高卖，把握天气和季节变化带来的商机</p>
 
                 <hr class="divider">
@@ -433,6 +441,14 @@ function showGameRulesModal() {
                 <p>• 扩建农田 → 种植更多作物</p>
                 <p>• 建造伐木场/采石场 → 获取建筑材料</p>
                 <p>• 建造加工坊 → 将原料加工为高价值商品</p>
+
+                <hr class="divider">
+                <h4 style="margin:0 0 8px;">⭐ 繁荣度系统</h4>
+                <p>• 繁荣度为<b>累计制</b>，只增不减，无上限</p>
+                <p>• 每天根据村民数、建筑、农田、幸福度、资源状况自动增长</p>
+                <p>• 建造建筑(+5)、招募村民(+10)、收获作物(+2) 额外加分</p>
+                <p>• 共 <b>10 个等级</b>，每达到新等级可<b>领取金币奖励</b></p>
+                <p>• 点击右侧面板「⭐ 繁荣度」查看等级详情与领取奖励</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">⌨️ 快捷键</h4>
