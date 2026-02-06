@@ -546,6 +546,16 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
      */
     executeAction(villager, task) {
         let success = true;
+        const moodCostMap = {
+            plant: -1,
+            water: -1,
+            fertilize: -1,
+            harvest: -1,
+            pest_control: -1,
+            chop: -1,
+            mine: -1,
+            process: -1,
+        };
 
         switch (task.action) {
             case 'water': {
@@ -637,6 +647,12 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             case 'pest_control':
             default:
                 break;
+        }
+
+        // 劳动消耗心情（仅成功执行时）
+        const moodDelta = moodCostMap[task.action] || 0;
+        if (success && moodDelta !== 0) {
+            villager.mood = Math.max(0, Math.min(MAX_MOOD, villager.mood + moodDelta));
         }
 
         if (success) {

@@ -5,6 +5,7 @@
  * 每日根据村庄状态获得繁荣度增长，同时负面状态会导致繁荣度衰减
  * 衰减力度相对增长力度较小
  */
+import { MAX_MOOD } from '../config/villagers.js';
 
 // 繁荣度等级配置：10级
 const PROSPERITY_LEVELS = [
@@ -21,6 +22,11 @@ const PROSPERITY_LEVELS = [
 ];
 
 export { PROSPERITY_LEVELS };
+
+const MOOD_BONUS_THRESHOLD_1 = Math.round(MAX_MOOD * 0.6); // 20 -> 12
+const MOOD_BONUS_THRESHOLD_2 = Math.round(MAX_MOOD * 0.8); // 20 -> 16
+const MOOD_DECAY_THRESHOLD_1 = Math.round(MAX_MOOD * 0.3); // 20 -> 6
+const MOOD_DECAY_THRESHOLD_2 = Math.max(1, Math.round(MAX_MOOD * 0.15)); // 20 -> 3
 
 export class ProsperitySystem {
     constructor(gameState, eventBus) {
@@ -69,10 +75,10 @@ export class ProsperitySystem {
         const activePlots = this.state.plots.filter(p => p.crop).length;
         gain += Math.floor(activePlots * 0.5);
 
-        // 4. 幸福度加成：平均心情 > 60 +1，> 80 +2
+        // 4. 幸福度加成：平均心情 > 0.6 +1，> 0.8 +2
         const avgMood = this.getAverageMood();
-        if (avgMood >= 80) gain += 2;
-        else if (avgMood >= 60) gain += 1;
+        if (avgMood >= MOOD_BONUS_THRESHOLD_2) gain += 2;
+        else if (avgMood >= MOOD_BONUS_THRESHOLD_1) gain += 1;
 
         // 5. 资源充裕加成：金币>200 +1，粮食>20 +1
         if (this.state.resources.gold >= 200) gain += 1;
@@ -87,12 +93,12 @@ export class ProsperitySystem {
         let decay = 0;
         const decayReasons = [];
 
-        // 1. 村民心情低迷：平均心情 < 30 → -1/天，< 15 → -2/天
+        // 1. 村民心情低迷：平均心情 < 0.3 → -1/天，< 0.15 → -2/天
         if (this.state.villagers.length > 0) {
-            if (avgMood < 15) {
+            if (avgMood < MOOD_DECAY_THRESHOLD_2) {
                 decay += 2;
                 decayReasons.push('民怨沸腾(心情极低)');
-            } else if (avgMood < 30) {
+            } else if (avgMood < MOOD_DECAY_THRESHOLD_1) {
                 decay += 1;
                 decayReasons.push('士气低落(心情偏低)');
             }
@@ -150,7 +156,7 @@ export class ProsperitySystem {
 
     /** 获取村民平均心情 */
     getAverageMood() {
-        if (this.state.villagers.length === 0) return 50; // 无村民时返回中性值
+        if (this.state.villagers.length === 0) return Math.round(MAX_MOOD * 0.5); // 无村民时返回中性值
         return this.state.villagers.reduce((s, v) => s + v.mood, 0) / this.state.villagers.length;
     }
 
