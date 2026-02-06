@@ -94,7 +94,7 @@ export class DialogueManager {
         return `
             <div class="dialogue-box fade-in">
                 <div class="dialogue-header">
-                    <span class="dialogue-title">💬 与 ${villager.name} 对话</span>
+                    <span class="dialogue-title">${villager.avatar || '👤'} 与 ${villager.name} 对话</span>
                     <button class="close-btn">✕</button>
                 </div>
                 <div class="dialogue-status">
@@ -193,8 +193,9 @@ export class DialogueManager {
         const msg = document.createElement('div');
         msg.className = `message ${type}`;
 
+        const villagerAvatar = this.currentVillager?.avatar || '👤';
         const avatar = type === 'player' ? '🏠' :
-                       type === 'loading' ? '💭' : '👤';
+                       type === 'loading' ? '💭' : villagerAvatar;
 
         msg.innerHTML = `
             <span class="message-avatar">${avatar}</span>

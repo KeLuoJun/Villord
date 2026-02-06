@@ -462,10 +462,34 @@ export class UIManager {
         const container = document.getElementById('villager-detail-area');
         if (!container) return;
 
-        container.innerHTML = '';
+        // 创建左右分栏布局（60:40）
+        container.innerHTML = `
+            <div style="display:flex;gap:var(--spacing-md);height:100%;">
+                <div id="villager-left-panel" style="flex:6;overflow-y:auto;min-height:0;"></div>
+                <div id="villager-chat-panel" style="flex:4;display:flex;flex-direction:column;min-height:0;
+                    border-left:1px solid var(--border);padding-left:var(--spacing-md);">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text-secondary);flex-shrink:0;">
+                        💬 村民实时发言
+                    </div>
+                    <div id="npc-chat-feed" style="flex:1;overflow-y:auto;min-height:0;"></div>
+                </div>
+            </div>
+        `;
 
+        const leftPanel = container.querySelector('#villager-left-panel');
+        const chatFeed = container.querySelector('#npc-chat-feed');
+
+        // 左侧：村民信息列表
+        this.renderVillagerCards(leftPanel);
+
+        // 右侧：NPC 聊天流
+        this.renderNPCChatFeed(chatFeed);
+    }
+
+    /** 渲染村民卡片列表 */
+    renderVillagerCards(leftPanel) {
         if (this.state.villagers.length === 0) {
-            container.innerHTML = '<p class="text-muted">尚无村民，请先建造房屋再招募</p>';
+            leftPanel.innerHTML = '<p class="text-muted">尚无村民，请先建造房屋再招募</p>';
             return;
         }
 
@@ -481,16 +505,18 @@ export class UIManager {
                 `<span class="trait-tag ${isPositive(t) ? 'positive' : 'negative'}">${t}</span>`
             ).join('');
 
-            const scheduleHTML = v.schedule ? v.schedule.slice(0, 8).map(s => {
+            const scheduleHTML = v.schedule ? v.schedule.slice(0, 10).map(s => {
                 const icons = { plant:'🌱', water:'💧', fertilize:'🧪', harvest:'🌾', chop:'🪓', mine:'⛏️', process:'🏭', trade:'🛒', rest:'💤', eat:'🍽️', idle:'🚶', chat:'💬', pest_control:'🐛' };
                 const names = { plant:'种植', water:'浇水', fertilize:'施肥', harvest:'收获', chop:'伐木', mine:'采石', process:'加工', trade:'交易', rest:'休息', eat:'吃饭', idle:'闲逛', chat:'聊天', pest_control:'除虫' };
                 const sh = s.startHour ?? s.hour;
                 const isCurrent = this.state.time.hour >= sh && this.state.time.hour < sh + (s.duration || 1);
+                const statusIcon = v._scheduleStatus?.[`${sh}_${s.action}`] === 'skipped' ? '⚠️' :
+                                   v._scheduleStatus?.[`${sh}_${s.action}`] === 'done' ? '✅' : '';
                 return `<div class="schedule-item ${isCurrent ? 'current' : ''}">
                     <span class="schedule-time">${String(sh).padStart(2,'0')}:00</span>
                     <span class="schedule-icon">${icons[s.action] || '📋'}</span>
                     <span class="schedule-action">${names[s.action] || s.action}</span>
-                    ${s.target ? `<span class="schedule-target">${s.target}</span>` : ''}
+                    ${statusIcon ? `<span style="font-size:10px;">${statusIcon}</span>` : ''}
                 </div>`;
             }).join('') : '<div class="text-muted" style="font-size:12px;">暂无今日计划</div>';
 
@@ -499,7 +525,7 @@ export class UIManager {
             card.style.marginBottom = 'var(--spacing-md)';
             card.innerHTML = `
                 <div class="detail-header">
-                    <div class="detail-avatar">👤</div>
+                    <div class="detail-avatar">${v.avatar || '👤'}</div>
                     <div class="detail-info">
                         <h3>${v.name}</h3>
                         <div class="trait-tags">${traitTags}</div>
@@ -544,8 +570,46 @@ export class UIManager {
                 this.bus.emit('dismissRequest', { villagerId: v.id });
             });
 
-            container.appendChild(card);
+            leftPanel.appendChild(card);
         });
+    }
+
+    /** 渲染 NPC 聊天流 */
+    renderNPCChatFeed(chatFeed) {
+        // 从全局获取 NPC 聊天系统
+        const npcChat = window.game?.npcChat;
+        const messages = npcChat ? npcChat.getRecentMessages(30) : [];
+
+        if (messages.length === 0) {
+            chatFeed.innerHTML = `
+                <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">
+                    <div style="font-size:24px;margin-bottom:8px;">🤫</div>
+                    今天还没人说话呢...<br>
+                </div>
+            `;
+            return;
+        }
+
+        chatFeed.innerHTML = '';
+        messages.forEach(msg => {
+            const bubble = document.createElement('div');
+            bubble.style.cssText = 'display:flex;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border);align-items:flex-start;';
+            bubble.innerHTML = `
+                <span style="font-size:20px;flex-shrink:0;">${msg.avatar}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                        <span style="font-size:12px;font-weight:600;">${msg.name}</span>
+                        <span style="font-size:10px;color:var(--text-muted);">${String(msg.hour).padStart(2,'0')}:00</span>
+                        <span style="font-size:12px;">${msg.mood}</span>
+                    </div>
+                    <div style="font-size:13px;line-height:1.4;color:var(--text-primary);word-break:break-word;">${msg.text}</div>
+                </div>
+            `;
+            chatFeed.appendChild(bubble);
+        });
+
+        // 自动滚动到底部
+        chatFeed.scrollTop = chatFeed.scrollHeight;
     }
 
     /** 更新底部对话栏的村民选择下拉 */
@@ -559,7 +623,7 @@ export class UIManager {
         this.state.villagers.forEach(v => {
             const opt = document.createElement('option');
             opt.value = v.id;
-            opt.textContent = v.name;
+            opt.textContent = `${v.avatar || '👤'} ${v.name}`;
             select.appendChild(opt);
         });
 

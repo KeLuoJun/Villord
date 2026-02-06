@@ -21,6 +21,7 @@ import { PersonalitySystem } from './systems/PersonalitySystem.js';
 import { TutorialSystem } from './systems/TutorialSystem.js';
 import { ProsperitySystem } from './systems/ProsperitySystem.js';
 import { DailySummary } from './systems/DailySummary.js';
+import { NPCChatSystem } from './systems/NPCChatSystem.js';
 import { MarketEngine } from './market/MarketEngine.js';
 
 // AI 模块
@@ -91,6 +92,7 @@ priceChart.init(marketEngine);
 const personalitySystem = new PersonalitySystem(gameState, eventBus);
 const prosperitySystem = new ProsperitySystem(gameState, eventBus);
 const dailySummary = new DailySummary(aiService, gameState, eventBus);
+const npcChatSystem = new NPCChatSystem(aiService, gameState, eventBus);
 
 // ===== 初始化 UI =====
 const uiManager = new UIManager(gameState, eventBus, timeSystem);
@@ -487,6 +489,7 @@ window.game = {
     market: marketEngine,
     scheduler: villagerScheduler,
     dailySummary,
+    npcChat: npcChatSystem,
     priceChart,
 };
 

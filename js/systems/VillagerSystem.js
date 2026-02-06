@@ -5,7 +5,7 @@
 import {
     TRAIT_POOL, EXCLUSIVE_TRAITS, SPECIALTY_POOL, QUIRK_POOL,
     TRAIT_EFFECTS, RECRUIT_COST, DISMISS_COST, DAILY_FOOD_COST,
-    STAMINA_COSTS, generateRandomName,
+    STAMINA_COSTS, AVATAR_POOL, generateRandomName,
 } from '../config/villagers.js';
 
 export class VillagerSystem {
@@ -19,11 +19,21 @@ export class VillagerSystem {
         this.bus.on('recruitRequest', () => this.recruit());
     }
 
+    /** 获取未使用的头像 */
+    getAvailableAvatar() {
+        const usedAvatars = this.state.villagers.map(v => v.avatar);
+        const available = AVATAR_POOL.filter(a => !usedAvatars.includes(a));
+        return available.length > 0
+            ? available[Math.floor(Math.random() * available.length)]
+            : AVATAR_POOL[Math.floor(Math.random() * AVATAR_POOL.length)];
+    }
+
     /** 添加初始村民（系统赠送，固定属性） */
     addInitialVillager() {
         const villager = {
             id: 'villager_initial',
             name: '小青',
+            avatar: '👩‍🌾',
             traits: ['勤劳', '乐观'],
             specialty: '种植能手',
             quirk: '没问题！',
@@ -95,6 +105,7 @@ export class VillagerSystem {
         return {
             id: 'villager_' + Date.now() + Math.random().toString(36).substr(2, 4),
             name,
+            avatar: this.getAvailableAvatar(),
             traits,
             specialty,
             quirk,

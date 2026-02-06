@@ -123,6 +123,7 @@ export class VillagerAI {
 
         return {
             name: villager.name,
+            avatar: villager.avatar || '👤',
             traits: villager.traits,
             specialty: villager.specialty,
             quirk: villager.quirk,
@@ -169,7 +170,7 @@ export class VillagerAI {
 你是村庄经营游戏《治村物语》中的村民。
 
 ## 基本信息
-- 姓名：${ctx.name}
+- 姓名：${ctx.name}　头像：${ctx.avatar}
 - 性格：${ctx.traits.join('、')}
 - 特长：${ctx.specialty}
 - 口癖：经常说"${ctx.quirk}"
