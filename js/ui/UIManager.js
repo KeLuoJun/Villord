@@ -153,9 +153,11 @@ export class UIManager {
         const container = document.getElementById('resource-list');
         if (!container) return;
 
-        // 定义资源配置
+        // 更新顶部金币显示
+        this._updateTopbarGold(r.gold, d.gold);
+
+        // 定义资源配置（金币已移至顶部栏）
         const resources = [
-            { key: 'gold', icon: '💰', name: '金币', value: r.gold, change: d.gold },
             { key: 'food', icon: '🌾', name: '粮食', value: r.food, change: d.food },
             { key: 'wood', icon: '🪵', name: '木材', value: r.wood, change: d.wood },
             { key: 'stone', icon: '🪨', name: '石料', value: r.stone, change: d.stone },
@@ -183,7 +185,6 @@ export class UIManager {
 
         container.innerHTML = resources.map(res => {
             const limit = s.getStorageLimit(res.key);
-            const noLimit = !isFinite(limit); // 金币无上限
 
             let changeHtml = '';
             if (res.change !== null && res.change !== undefined) {
@@ -192,21 +193,6 @@ export class UIManager {
                 } else if (res.change < 0) {
                     changeHtml = `<span class="resource-change text-down">${res.change}</span>`;
                 }
-            }
-
-            if (noLimit) {
-                // 金币：不显示容量条
-                return `
-                    <div class="resource-row-with-bar">
-                        <div class="resource-row-top">
-                            <span class="resource-name">${res.icon} ${res.name}</span>
-                            <span>
-                                <span class="resource-value">${res.value}</span>
-                                ${changeHtml}
-                            </span>
-                        </div>
-                    </div>
-                `;
             }
 
             const pct = limit > 0 ? Math.min(100, Math.round((res.value / limit) * 100)) : 0;
@@ -232,6 +218,25 @@ export class UIManager {
             `;
         }).join('');
 
+    }
+
+    /** 更新顶部栏金币显示 */
+    _updateTopbarGold(gold, dailyChange) {
+        const valEl = document.getElementById('topbar-gold-value');
+        const changeEl = document.getElementById('topbar-gold-change');
+        if (valEl) valEl.textContent = gold;
+        if (changeEl) {
+            if (dailyChange > 0) {
+                changeEl.textContent = `+${dailyChange}`;
+                changeEl.className = 'topbar-gold-change topbar-gold-up';
+            } else if (dailyChange < 0) {
+                changeEl.textContent = `${dailyChange}`;
+                changeEl.className = 'topbar-gold-change topbar-gold-down';
+            } else {
+                changeEl.textContent = '';
+                changeEl.className = 'topbar-gold-change';
+            }
+        }
     }
 
     /** 更新村民列表（左侧） */

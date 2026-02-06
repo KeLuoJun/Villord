@@ -57,6 +57,45 @@
     text-align: center;
 }
 
+/* 顶部金币显示 */
+.topbar-gold {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.topbar-gold-icon {
+    font-size: 16px;
+}
+
+.topbar-gold-value {
+    font-family: var(--font-number);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-gold-light, #F2D477);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    min-width: 30px;
+}
+
+.topbar-gold-change {
+    font-family: var(--font-number);
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 2px;
+}
+
+.topbar-gold-up {
+    color: #7dff7d;
+}
+
+.topbar-gold-down {
+    color: #ff8a8a;
+}
+
 #top-bar .speed-controls {
     display: flex;
     align-items: center;
