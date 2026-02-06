@@ -1,0 +1,95 @@
+/* ===== 清爽田园主题 CSS 变量 ===== */
+:root {
+    /* ── 底色 ── */
+    --bg-page: #F5F0E8;
+    --bg-panel: #FFFFFF;
+    --bg-topbar: #4A7C59;
+    --bg-input: #E8EFE3;
+    --bg-hover: #F0EBE0;
+    --bg-selected: #E8F2E0;
+
+    /* ── 主色 ── */
+    --color-primary: #6B9E4F;
+    --color-primary-light: #8FBF72;
+    --color-primary-dark: #3D7A2A;
+    --color-gold: #D4A843;
+    --color-gold-light: #F2D477;
+    --color-sky: #5B9BD5;
+
+    /* ── 辅助色 ── */
+    --color-brown: #8B6F47;
+    --color-brown-light: #C4A87A;
+    --color-pink: #E8A0BF;
+    --color-orange: #E07B4C;
+    --color-divider: #E2DDD4;
+
+    /* ── 语义色 ── */
+    --color-success: #52A852;
+    --color-warning: #E5B94E;
+    --color-danger: #D04848;
+    --color-up: #52A852;
+    --color-down: #D04848;
+    --color-neutral: #999999;
+
+    /* ── 文字 ── */
+    --text-primary: #3D3326;
+    --text-secondary: #7A6E5D;
+    --text-muted: #A69E8E;
+    --text-inverse: #FFFFFF;
+
+    /* ── 卡片/面板 ── */
+    --card-radius: 12px;
+    --card-shadow: 0 2px 8px rgba(61, 51, 38, 0.08);
+    --card-shadow-hover: 0 4px 16px rgba(61, 51, 38, 0.12);
+    --panel-border: 1px solid #E2DDD4;
+
+    /* ── 字体 ── */
+    --font-main: 'Noto Sans SC', '思源黑体', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --font-number: 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
+    --font-size-sm: 12px;
+    --font-size-base: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 20px;
+    --font-size-title: 24px;
+
+    /* ── 间距 ── */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
+    --spacing-xxl: 24px;
+
+    /* ── 季节色（通过 JS 动态切换） ── */
+    --season-tint: #F5F0E8;
+    --season-accent: #6B9E4F;
+    --season-decoration: #6B9E4F;
+}
+
+/* 春季 */
+.season-spring {
+    --season-tint: #F8F0F5;
+    --season-accent: #E8A0BF;
+    --season-decoration: #E8A0BF;
+}
+
+/* 夏季 */
+.season-summer {
+    --season-tint: #F0F5E8;
+    --season-accent: #4A9E4F;
+    --season-decoration: #4A9E4F;
+}
+
+/* 秋季 */
+.season-autumn {
+    --season-tint: #F8F3E5;
+    --season-accent: #D4A843;
+    --season-decoration: #D4A843;
+}
+
+/* 冬季 */
+.season-winter {
+    --season-tint: #EEF2F8;
+    --season-accent: #8BB5D5;
+    --season-decoration: #8BB5D5;
+}

@@ -1,0 +1,196 @@
+/* ===== 响应式适配 ===== */
+
+/* 平板端（768-1279px）：左右面板可折叠 */
+@media screen and (max-width: 1279px) {
+    #left-panel {
+        width: 200px;
+        min-width: 180px;
+    }
+
+    #right-panel {
+        width: 200px;
+        min-width: 180px;
+    }
+
+    .building-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+
+    .farm-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+/* 小平板端（768-1023px） */
+@media screen and (max-width: 1023px) {
+    #left-panel {
+        position: fixed;
+        left: -220px;
+        top: 48px;
+        height: calc(100vh - 48px - 48px);
+        z-index: 200;
+        box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+        transition: left 0.3s ease;
+    }
+
+    #left-panel.open {
+        left: 0;
+    }
+
+    #right-panel {
+        position: fixed;
+        right: -240px;
+        top: 48px;
+        height: calc(100vh - 48px - 48px);
+        z-index: 200;
+        box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+        transition: right 0.3s ease;
+    }
+
+    #right-panel.open {
+        right: 0;
+    }
+
+    #main-content {
+        overflow: visible;
+    }
+
+    #center-panel {
+        width: 100%;
+    }
+
+    /* 面板切换按钮 */
+    .panel-toggle {
+        display: flex !important;
+    }
+}
+
+/* 移动端（<768px）：单栏 + 底部标签 */
+@media screen and (max-width: 767px) {
+    #top-bar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: var(--spacing-sm);
+        gap: var(--spacing-sm);
+    }
+
+    #top-bar .game-title {
+        font-size: var(--font-size-base);
+    }
+
+    #top-bar .resource-quick {
+        font-size: var(--font-size-sm);
+        gap: var(--spacing-sm);
+    }
+
+    #top-bar .speed-controls {
+        flex-wrap: wrap;
+    }
+
+    #main-content {
+        flex-direction: column;
+    }
+
+    #left-panel, #right-panel {
+        display: none;
+    }
+
+    #center-panel {
+        width: 100%;
+        height: 100%;
+    }
+
+    #tab-nav {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    #tab-nav .tab-btn {
+        padding: 4px 10px;
+        font-size: var(--font-size-sm);
+    }
+
+    #tab-content {
+        padding: var(--spacing-md);
+    }
+
+    .building-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .farm-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .trade-section {
+        grid-template-columns: 1fr;
+    }
+
+    #bottom-bar {
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    #bottom-bar .chat-input {
+        min-width: 0;
+    }
+
+    .dialogue-box {
+        width: 95vw;
+        max-height: 90vh;
+    }
+
+    .modal {
+        width: 95vw;
+    }
+
+    .market-table {
+        font-size: var(--font-size-sm);
+    }
+
+    .market-table th,
+    .market-table td {
+        padding: 4px;
+    }
+}
+
+/* 面板切换按钮（默认隐藏，平板/移动显示） */
+.panel-toggle {
+    display: none;
+    position: fixed;
+    top: 56px;
+    z-index: 210;
+    background: var(--bg-panel);
+    border: var(--panel-border);
+    border-radius: 0 8px 8px 0;
+    padding: 6px 8px;
+    cursor: pointer;
+    box-shadow: var(--card-shadow);
+    font-size: 16px;
+}
+
+.panel-toggle.left {
+    left: 0;
+}
+
+.panel-toggle.right {
+    right: 0;
+    border-radius: 8px 0 0 8px;
+}
+
+/* 遮罩层（面板展开时） */
+.panel-overlay {
+    display: none;
+    position: fixed;
+    top: 48px;
+    left: 0;
+    right: 0;
+    bottom: 48px;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 190;
+}
+
+.panel-overlay.visible {
+    display: block;
+}

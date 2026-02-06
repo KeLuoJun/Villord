@@ -1,0 +1,386 @@
+/* ===== 全局基础样式 ===== */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-main);
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    background-color: var(--bg-page);
+    line-height: 1.5;
+}
+
+/* ===== 滚动条美化 ===== */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-divider);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-brown-light);
+}
+
+/* ===== 通用工具类 ===== */
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-danger { color: var(--color-danger); }
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+.text-up { color: var(--color-up); }
+.text-down { color: var(--color-down); }
+
+.font-number { font-family: var(--font-number); }
+
+.hidden { display: none !important; }
+
+/* ===== 按钮样式 ===== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font-main);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: var(--text-inverse);
+}
+
+.btn-primary:hover { background-color: var(--color-primary-dark); }
+
+.btn-gold {
+    background-color: var(--color-gold);
+    color: var(--text-inverse);
+}
+
+.btn-danger {
+    background-color: var(--color-danger);
+    color: var(--text-inverse);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px dashed var(--border);
+}
+.btn-ghost:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border-style: solid;
+}
+
+.btn-secondary {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    border: var(--panel-border);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-hover);
+}
+
+.btn-sm {
+    padding: 3px 8px;
+    font-size: var(--font-size-sm);
+    border-radius: 6px;
+}
+
+/* ===== 进度条 ===== */
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--bg-input);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar .fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-bar .fill.high { background-color: var(--color-success); }
+.progress-bar .fill.medium { background-color: var(--color-warning); }
+.progress-bar .fill.low { background-color: var(--color-danger); }
+
+/* ===== 卡片 ===== */
+.card {
+    background: var(--bg-panel);
+    border: var(--panel-border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    padding: var(--spacing-lg);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: var(--card-shadow-hover);
+}
+
+/* ===== 分隔线 ===== */
+.divider {
+    border: none;
+    border-top: 1px solid var(--color-divider);
+    margin: var(--spacing-md) 0;
+}
+
+/* ===== 徽标/数值变化标识 ===== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-number);
+}
+
+.badge-up {
+    color: var(--color-up);
+    background: rgba(82, 168, 82, 0.1);
+}
+
+.badge-down {
+    color: var(--color-down);
+    background: rgba(208, 72, 72, 0.1);
+}
+
+.badge-neutral {
+    color: var(--color-neutral);
+    background: rgba(153, 153, 153, 0.1);
+}
+
+/* ===== 加载指示器 ===== */
+.loading-dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+}
+
+/* ===== 淡入动画 ===== */
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 模态框 ===== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: var(--bg-panel);
+    border-radius: var(--card-radius);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    padding: var(--spacing-xl);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-title {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+    margin-top: var(--spacing-lg);
+}
+
+/* ===== Toast 提示 ===== */
+.toast-container {
+    position: fixed;
+    top: 60px;
+    right: 16px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast {
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: var(--bg-panel);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: var(--font-size-base);
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 3s forwards;
+    max-width: 320px;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; transform: translateY(-10px); }
+}
+
+/* ===== AI 交易分析师弹窗 ===== */
+.trade-commentary-popup {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 1500;
+    pointer-events: auto;
+}
+
+.trade-commentary-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    width: 320px;
+    overflow: hidden;
+    animation: slideUpFade 0.35s ease;
+}
+
+@keyframes slideUpFade {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.commentary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--bg-input);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+}
+
+.commentary-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding: 0 4px;
+}
+.commentary-close:hover { color: var(--text-primary); }
+
+.commentary-body {
+    padding: 12px 14px;
+}
+
+.commentary-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.commentary-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.commentary-verdict {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 14px;
+}
+.commentary-verdict.good { color: #2e7d32; }
+.commentary-verdict.neutral { color: #e08800; }
+.commentary-verdict.bad { color: #c62828; }
+
+.verdict-emoji { font-size: 20px; }
+
+.commentary-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.commentary-tip {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-input);
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-top: 4px;
+}

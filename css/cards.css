@@ -1,0 +1,227 @@
+/* ===== 卡片与组件特殊样式 ===== */
+
+/* 村民详情面板 */
+.villager-detail {
+    padding: var(--spacing-lg);
+}
+
+.villager-detail .detail-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.villager-detail .detail-avatar {
+    font-size: 48px;
+}
+
+.villager-detail .detail-info h3 {
+    font-size: var(--font-size-xl);
+    margin-bottom: 4px;
+}
+
+.villager-detail .detail-info .trait-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.trait-tag {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.trait-tag.positive {
+    background: rgba(107, 158, 79, 0.15);
+    color: var(--color-primary);
+}
+
+.trait-tag.negative {
+    background: rgba(208, 72, 72, 0.12);
+    color: var(--color-danger);
+}
+
+.trait-tag.neutral {
+    background: rgba(139, 111, 71, 0.12);
+    color: var(--color-brown);
+}
+
+/* 招募揭晓卡片 */
+.recruit-reveal {
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.recruit-reveal .reveal-title {
+    font-size: var(--font-size-title);
+    margin-bottom: var(--spacing-lg);
+}
+
+.recruit-reveal .reveal-avatar {
+    font-size: 64px;
+    margin-bottom: var(--spacing-md);
+}
+
+.recruit-reveal .reveal-name {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+}
+
+.recruit-reveal .reveal-traits {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-md);
+}
+
+.recruit-reveal .reveal-specialty {
+    font-size: var(--font-size-lg);
+    color: var(--color-gold);
+    margin-bottom: var(--spacing-md);
+}
+
+.recruit-reveal .reveal-stamina {
+    font-family: var(--font-number);
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.recruit-reveal .reveal-tip {
+    padding: var(--spacing-md);
+    background: var(--bg-input);
+    border-radius: 8px;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* 村民行动计划时间线 */
+.schedule-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.schedule-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 4px var(--spacing-sm);
+    border-radius: 6px;
+    font-size: var(--font-size-sm);
+    transition: background 0.15s;
+}
+
+.schedule-item:hover {
+    background: var(--bg-hover);
+}
+
+.schedule-item.current {
+    background: var(--bg-selected);
+    border-left: 3px solid var(--color-primary);
+}
+
+.schedule-item .schedule-time {
+    font-family: var(--font-number);
+    width: 45px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.schedule-item .schedule-icon {
+    width: 20px;
+    text-align: center;
+}
+
+.schedule-item .schedule-action {
+    flex: 1;
+}
+
+.schedule-item .schedule-target {
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+/* 事件弹窗 */
+.event-popup {
+    text-align: center;
+}
+
+.event-popup .event-title {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+}
+
+.event-popup .event-desc {
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.6;
+}
+
+.event-popup .event-options {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.event-popup .event-option {
+    padding: var(--spacing-md);
+    border: var(--panel-border);
+    border-radius: var(--card-radius);
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 120px;
+}
+
+.event-popup .event-option:hover {
+    box-shadow: var(--card-shadow-hover);
+    border-color: var(--color-primary-light);
+}
+
+.event-popup .event-option .option-cost {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* 价格走势图容器 */
+.chart-container {
+    background: var(--bg-panel);
+    border: var(--panel-border);
+    border-radius: var(--card-radius);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.chart-container canvas {
+    width: 100%;
+    height: 200px;
+}
+
+.chart-controls {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.chart-controls .chart-btn {
+    padding: 3px 10px;
+    border: var(--panel-border);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    transition: all 0.15s;
+}
+
+.chart-controls .chart-btn.active {
+    background: var(--color-primary);
+    color: var(--text-inverse);
+    border-color: var(--color-primary);
+}
