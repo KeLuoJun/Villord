@@ -211,9 +211,9 @@ export class UIManager {
 
             const pct = limit > 0 ? Math.min(100, Math.round((res.value / limit) * 100)) : 0;
             const isFull = res.value >= limit;
-            const barColor = pct >= 90 ? 'var(--danger, #c62828)' :
-                             pct >= 70 ? 'var(--warning, #e08800)' :
-                             'var(--accent)';
+            const barColor = pct >= 90 ? 'var(--color-danger, #c62828)' :
+                             pct >= 70 ? 'var(--color-warning, #e5b94e)' :
+                             'var(--color-primary, #6B9E4F)';
 
             return `
                 <div class="resource-row-with-bar">
