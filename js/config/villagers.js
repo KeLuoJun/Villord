@@ -44,7 +44,7 @@ const FULL_NAMES = [
 
 /** 固定费用 */
 export const RECRUIT_COST = 50;
-export const DISMISS_COST = 20;
+export const DISMISS_REFUND = 20;  // 解雇返还金币
 
 /** 每日食物消耗（每个村民） */
 export const DAILY_FOOD_COST = 1;

@@ -195,7 +195,7 @@ eventBus.on('switchTab', (data) => {
 // ===== 解雇事件 =====
 eventBus.on('dismissRequest', (data) => {
     uiManager.showModal('👋 确认解雇？', `
-        <p>解雇需支付 20💰 遣散费，且其他村民心情 -1。</p>
+        <p>解雇将返还 20💰，但其他村民心情 -1。</p>
         <p>确定要解雇吗？</p>
     `, [
         { id: 'cancel', text: '取消', class: 'btn-secondary', onClick: () => {} },

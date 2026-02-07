@@ -4,7 +4,7 @@
  */
 import {
     TRAIT_POOL, EXCLUSIVE_TRAITS, SPECIALTY_POOL, QUIRK_POOL,
-    TRAIT_EFFECTS, RECRUIT_COST, DISMISS_COST, DAILY_FOOD_COST,
+    TRAIT_EFFECTS, RECRUIT_COST, DISMISS_REFUND, DAILY_FOOD_COST,
     STAMINA_COSTS, AVATAR_POOL, generateRandomName, MAX_MOOD,
 } from '../config/villagers.js';
 
@@ -153,25 +153,22 @@ export class VillagerSystem {
         return { success: true, villager };
     }
 
-    /** 解雇村民 */
+    /** 解雇村民（返还部分金币） */
     dismiss(villagerId) {
-        if (this.state.resources.gold < DISMISS_COST) {
-            return { success: false, reason: '金币不足以支付遣散费' };
-        }
-
         const index = this.state.villagers.findIndex(v => v.id === villagerId);
         if (index === -1) return { success: false, reason: '村民不存在' };
 
-        // 使用统一资源修改以同步日变化显示
-        this.state.modifyResource('gold', -DISMISS_COST);
         const dismissed = this.state.villagers.splice(index, 1)[0];
+
+        // 返还金币
+        this.state.modifyResource('gold', DISMISS_REFUND);
 
         // 其他村民心情 -1
         this.state.villagers.forEach(v => {
             v.mood = Math.max(0, v.mood - 1);
         });
 
-        this.state.addLog('👋', `${dismissed.name}离开了村庄`, 'warning');
+        this.state.addLog('👋', `${dismissed.name}离开了村庄，返还 ${DISMISS_REFUND}💰`, 'warning');
         this.bus.emit('villagerRemoved', { villager: dismissed });
         return { success: true, dismissed };
     }

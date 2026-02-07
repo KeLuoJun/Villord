@@ -604,7 +604,7 @@ export class UIManager {
                 </div>
                 <div style="margin-top:var(--spacing-md);display:flex;gap:var(--spacing-sm);">
                     <button class="btn btn-primary btn-sm" data-chat="${v.id}">💬 对话</button>
-                    <button class="btn btn-danger btn-sm" data-dismiss="${v.id}">👋 解雇 (20💰)</button>
+                    <button class="btn btn-danger btn-sm" data-dismiss="${v.id}">👋 解雇 (+20💰)</button>
                 </div>
             `;
 
