@@ -137,14 +137,15 @@ export class FarmSystem {
         // 施肥加成 +30%
         if (plot.fertilized) yield_ = Math.ceil(yield_ * 1.3);
 
-        // 加入库存
+        // 加入库存（受总容量限制）
         if (this.state.inventory[plot.crop] !== undefined) {
-            this.state.inventory[plot.crop] += yield_;
+            const canAddInv = Math.min(yield_, this.state.getStorageSpace(plot.crop));
+            this.state.inventory[plot.crop] += canAddInv;
         }
 
-        // 粮食特殊处理（食物资源）
+        // 粮食特殊处理（食物资源，受总容量限制）
         if (['wheat', 'radish', 'potato'].includes(plot.crop)) {
-            this.state.resources.food += yield_;
+            this.state.modifyResource('food', yield_);
         }
 
         const harvestInfo = { plot, crop: cropConfig, yield: yield_ };

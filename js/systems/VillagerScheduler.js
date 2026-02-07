@@ -728,7 +728,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 const sellQty = Math.min(chosen.qty, Math.max(1, Math.ceil(chosen.qty * 0.3)));
                 const result = market.executeTrade(chosen.id, sellQty, false);
                 if (result.success) {
-                    tradeResult = { isBuy: false, item: chosen, qty: sellQty, totalPrice: result.totalPrice };
+                    const actualQty = result.quantity ?? sellQty;
+                    tradeResult = { isBuy: false, item: chosen, qty: actualQty, totalPrice: result.totalPrice };
                 }
             }
         }
@@ -749,7 +750,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                     if (buyQty > 0) {
                         const result = market.executeTrade(chosen.id, buyQty, true);
                         if (result.success) {
-                            tradeResult = { isBuy: true, item: chosen, qty: buyQty, totalPrice: result.totalPrice };
+                            const actualQty = result.quantity ?? buyQty;
+                            tradeResult = { isBuy: true, item: chosen, qty: actualQty, totalPrice: result.totalPrice };
                         }
                     }
                 }

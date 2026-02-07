@@ -356,30 +356,39 @@ function showStartScreen() {
 
 // ===== 初始化新游戏 =====
 function fillInitialStorageToCapacity() {
-    const limitOf = (type) => gameState.getStorageLimit(type);
+    const addResource = (type, amount) => {
+        const canAdd = Math.min(amount, gameState.getStorageSpace(type));
+        gameState.resources[type] += canAdd;
+        return canAdd;
+    };
+    const addSeed = (seedType, amount) => {
+        if (!gameState.resources.seeds || gameState.resources.seeds[seedType] === undefined) return 0;
+        const canAdd = Math.min(amount, gameState.getStorageSpace('seeds'));
+        gameState.resources.seeds[seedType] += canAdd;
+        return canAdd;
+    };
 
-    // 主资源
-    gameState.resources.food = limitOf('food');
-    gameState.resources.wood = limitOf('wood');
-    gameState.resources.stone = limitOf('stone');
-
-    // 种子总量按容量平均分配
-    const seedTypes = Object.keys(gameState.resources.seeds || {});
-    const seedLimit = limitOf('seeds');
-    if (seedTypes.length > 0) {
-        const per = Math.floor(seedLimit / seedTypes.length);
-        let remain = seedLimit - per * seedTypes.length;
-        seedTypes.forEach(type => {
-            const extra = remain > 0 ? 1 : 0;
-            if (remain > 0) remain -= 1;
-            gameState.resources.seeds[type] = per + extra;
-        });
-    }
-
-    // 仓库物品
-    Object.keys(gameState.inventory || {}).forEach(type => {
-        gameState.inventory[type] = limitOf(type);
+    // 清空库存与资源（金币不变）
+    gameState.resources.food = 0;
+    gameState.resources.wood = 0;
+    gameState.resources.stone = 0;
+    Object.keys(gameState.resources.seeds || {}).forEach(type => {
+        gameState.resources.seeds[type] = 0;
     });
+    Object.keys(gameState.inventory || {}).forEach(type => {
+        gameState.inventory[type] = 0;
+    });
+
+    // 基础物资（不包含高级作物与加工品）
+    addResource('food', 20);
+    addResource('wood', 30);
+    addResource('stone', 15);
+    addSeed('radish', 5);
+    addSeed('wheat', 3);
+
+    // 余量补给到粮食，确保总量不超过仓库容量
+    const remaining = gameState.getStorageRemaining();
+    if (remaining > 0) addResource('food', remaining);
 
     gameState.resetDailyChanges();
 }
@@ -393,7 +402,7 @@ function initNewGame() {
     // 赠送初始建筑：2块农田 + 1座茅草屋
     buildingSystem.buildInitial();
 
-    // 初始资源按仓库容量填满
+    // 初始资源按仓库总容量分配
     fillInitialStorageToCapacity();
 
     // 赠送初始村民："小青"（勤劳·乐观）

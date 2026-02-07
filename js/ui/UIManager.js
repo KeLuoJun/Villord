@@ -143,17 +143,19 @@ export class UIManager {
 
     }
 
-    /** 更新资源面板（左侧，含仓库容量进度条） */
+    /** 更新资源面板（左侧，仓库堆叠展示） */
     updateResourcePanel() {
         const r = this.state.resources;
         const d = this.state.dailyChanges;
         const s = this.state;
 
-        // 仓库等级显示
+        const usedCapacity = typeof s.getStorageUsed === 'function' ? s.getStorageUsed() : 0;
+        const remainingCapacity = Math.max(0, s.warehouseCapacity - usedCapacity);
+
+        // 仓库容量显示
         const whLevel = document.getElementById('warehouse-level');
         if (whLevel) {
-            const upgrades = s.buildings.filter(b => b.id === 'warehouse').length;
-            whLevel.textContent = `仓库容量: ${s.warehouseCapacity}`;
+            whLevel.textContent = `仓库容量: ${usedCapacity}/${s.warehouseCapacity}`;
         }
 
         const container = document.getElementById('resource-list');
@@ -189,40 +191,50 @@ export class UIManager {
             }
         });
 
-        container.innerHTML = resources.map(res => {
-            const limit = s.getStorageLimit(res.key);
+        const stackColors = {
+            food: 'var(--color-warning, #e5b94e)',
+            wood: '#8d6e63',
+            stone: '#90a4ae',
+            seeds: '#6b9e4f',
+            radish: '#ff8a65',
+            wheat: '#f2c94c',
+            potato: '#d4a373',
+            pumpkin: '#ffb74d',
+            cotton: '#cfd8dc',
+            grape: '#9575cd',
+            flour: '#f6d9b1',
+            bread: '#f0b37e',
+        };
 
+        const stackItems = resources.filter(res => res.value > 0);
+        const stackHtml = stackItems.map(res => {
             let changeHtml = '';
             if (res.change !== null && res.change !== undefined) {
-                if (res.change > 0) {
-                    changeHtml = `<span class="resource-change text-up">+${res.change}</span>`;
-                } else if (res.change < 0) {
-                    changeHtml = `<span class="resource-change text-down">${res.change}</span>`;
-                }
+                if (res.change > 0) changeHtml = `<span class="stack-change up">+${res.change}</span>`;
+                else if (res.change < 0) changeHtml = `<span class="stack-change down">${res.change}</span>`;
             }
-
-            const pct = limit > 0 ? Math.min(100, Math.round((res.value / limit) * 100)) : 0;
-            const isFull = res.value >= limit;
-            const barColor = pct >= 90 ? 'var(--color-danger, #c62828)' :
-                             pct >= 70 ? 'var(--color-warning, #e5b94e)' :
-                             'var(--color-primary, #6B9E4F)';
-
+            const denom = Math.max(s.warehouseCapacity, usedCapacity || 1);
+            const heightPct = denom > 0 ? Math.max(0, (res.value / denom) * 100) : 0;
+            const color = stackColors[res.key] || 'var(--color-primary, #6B9E4F)';
             return `
-                <div class="resource-row-with-bar">
-                    <div class="resource-row-top">
-                        <span class="resource-name">${res.icon} ${res.name}</span>
-                        <span>
-                            <span class="resource-value ${isFull ? 'text-danger' : ''}">${res.value}</span>
-                            <span class="resource-limit">/${limit}</span>
-                            ${changeHtml}
-                        </span>
-                    </div>
-                    <div class="resource-bar-track">
-                        <div class="resource-bar-fill" style="width:${pct}%;background:${barColor};"></div>
-                    </div>
+                <div class="resource-stack-item" style="height:${heightPct}%;background:${color};">
+                    <span class="stack-name">${res.icon} ${res.name}</span>
+                    <span class="stack-value">${res.value}${changeHtml}</span>
                 </div>
             `;
         }).join('');
+
+        container.innerHTML = `
+            <div class="resource-barrel-wrap">
+                <div class="resource-barrel">
+                    <div class="resource-barrel-inner">
+                        ${stackHtml || ''}
+                    </div>
+                    ${stackItems.length === 0 ? '<div class="resource-barrel-empty">空</div>' : ''}
+                </div>
+                <div class="resource-barrel-summary">已用 ${usedCapacity}/${s.warehouseCapacity} · 剩余 ${remainingCapacity}</div>
+            </div>
+        `;
 
     }
 

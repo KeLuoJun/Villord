@@ -206,28 +206,37 @@ export class MarketEngine {
         const config = MARKET_ITEMS[itemId];
         if (!config) return { success: false, reason: '未知商品' };
 
-        const price = Math.round(this.prices[itemId]);
-        const totalPrice = price * quantity;
+        const price = Math.round(this.prices[itemId] || config.basePrice || 0);
+        if (price <= 0) return { success: false, reason: '价格异常' };
+        let qty = Math.max(0, Math.floor(quantity));
+        if (qty <= 0) return { success: false, reason: '数量为0' };
+        let totalPrice = price * qty;
 
         if (isBuy) {
-            if (this.state.resources.gold < totalPrice) {
-                return { success: false, reason: '金币不足' };
+            const maxByGold = Math.floor(this.state.resources.gold / price);
+            const maxByStorage = this.getMaxBuyQtyByStorage(itemId);
+            const maxQty = Math.min(maxByGold, maxByStorage);
+            if (maxQty <= 0) {
+                return { success: false, reason: maxByGold <= 0 ? '金币不足' : '仓库已满' };
             }
+            if (qty > maxQty) qty = maxQty;
+            totalPrice = price * qty;
             this.state.resources.gold -= totalPrice;
 
             // 根据商品类型加入对应库存
-            this.addToInventory(itemId, quantity);
+            this.addToInventory(itemId, qty);
         } else {
             // 检查库存
-            if (!this.removeFromInventory(itemId, quantity)) {
+            if (!this.removeFromInventory(itemId, qty)) {
                 return { success: false, reason: '库存不足' };
             }
+            totalPrice = price * qty;
             this.state.resources.gold += totalPrice;
         }
 
         // C2: 交易影响价格（2-5%随机浮动）
         const impactRate = 0.02 + Math.random() * 0.03;
-        const impact = (quantity / 10) * impactRate * (isBuy ? 1 : -1);
+        const impact = (qty / 10) * impactRate * (isBuy ? 1 : -1);
         this.prices[itemId] *= (1 + impact);
         this.prices[itemId] = Math.max(
             config.basePrice * 0.3,
@@ -237,12 +246,12 @@ export class MarketEngine {
         this.state.market.prices = { ...this.prices };
 
         const action = isBuy ? '买入' : '卖出';
-        this.state.addLog('🛒', `${action}了${quantity}个${config.icon}${config.name}，${isBuy ? '花费' : '获得'}${totalPrice}💰`, 'info');
+        this.state.addLog('🛒', `${action}了${qty}个${config.icon}${config.name}，${isBuy ? '花费' : '获得'}${totalPrice}💰`, 'info');
 
         // 记录交易用于AI分析
         const tradeRecord = {
             itemId, itemName: config.name, itemIcon: config.icon,
-            quantity, price, totalPrice, isBuy,
+            quantity: qty, price, totalPrice, isBuy,
             basePrice: config.basePrice,
             trend: this.getTrend(itemId, 24),
             deviation: (price - config.basePrice) / config.basePrice,
@@ -252,7 +261,7 @@ export class MarketEngine {
         this.recentTrades.push(tradeRecord);
         if (this.recentTrades.length > 20) this.recentTrades.shift();
 
-        return { success: true, totalPrice, newPrice: this.prices[itemId], tradeRecord };
+        return { success: true, totalPrice, newPrice: this.prices[itemId], tradeRecord, quantity: qty };
     }
 
     /** 添加物品到库存（受仓库容量限制） */
@@ -262,30 +271,23 @@ export class MarketEngine {
             const cropMap = { seed_r: 'radish', seed_w: 'wheat', seed_p: 'potato', seed_pk: 'pumpkin', seed_c: 'cotton', seed_g: 'grape' };
             const cropId = cropMap[itemId];
             if (cropId && this.state.resources.seeds[cropId] !== undefined) {
-                // 种子容量限制
-                const seedLimit = this.state.getStorageLimit('seeds');
-                const currentSeeds = Object.values(this.state.resources.seeds).reduce((a, b) => a + b, 0);
-                const canAdd = Math.min(quantity, Math.max(0, seedLimit - currentSeeds));
+                // 种子容量限制（总容量）
+                const canAdd = Math.min(quantity, this.state.getStorageSpace('seeds'));
                 this.state.resources.seeds[cropId] += canAdd;
             }
         } else if (['wood', 'stone'].includes(itemId)) {
-            const limit = this.state.getStorageLimit(itemId);
             const current = this.state.resources[itemId] || 0;
-            const canAdd = Math.min(quantity, Math.max(0, limit - current));
+            const canAdd = Math.min(quantity, this.state.getStorageSpace(itemId));
             this.state.resources[itemId] = current + canAdd;
         } else if (itemId === 'radish' || itemId === 'wheat' || itemId === 'potato') {
-            // 粮食容量限制
-            const foodLimit = this.state.getStorageLimit('food');
-            const canAddFood = Math.min(quantity, Math.max(0, foodLimit - this.state.resources.food));
+            // 粮食容量限制（先加食物，再加库存）
+            const canAddFood = Math.min(quantity, this.state.getStorageSpace('food'));
             this.state.resources.food += canAddFood;
-            // 库存物品容量限制
-            const invLimit = this.state.getStorageLimit(itemId);
-            const canAddInv = Math.min(quantity, Math.max(0, invLimit - (this.state.inventory[itemId] || 0)));
+            const canAddInv = Math.min(quantity, this.state.getStorageSpace(itemId));
             this.state.inventory[itemId] = (this.state.inventory[itemId] || 0) + canAddInv;
         } else {
-            const limit = this.state.getStorageLimit(itemId);
             const current = this.state.inventory[itemId] || 0;
-            const canAdd = Math.min(quantity, Math.max(0, limit - current));
+            const canAdd = Math.min(quantity, this.state.getStorageSpace(itemId));
             this.state.inventory[itemId] = current + canAdd;
         }
     }
@@ -310,6 +312,34 @@ export class MarketEngine {
     /** 获取某商品当前价格（取整） */
     getPrice(itemId) {
         return Math.round(this.prices[itemId] || MARKET_ITEMS[itemId]?.basePrice || 0);
+    }
+
+    /** 计算买入时的仓库占用信息 */
+    getBuyStorageImpact(itemId) {
+        if (itemId.startsWith('seed_')) {
+            return { footprint: 1, types: ['seeds'] };
+        }
+        if (['radish', 'wheat', 'potato'].includes(itemId)) {
+            // 粮食作物：既进入库存，也计入粮食资源
+            return { footprint: 2, types: ['food', itemId] };
+        }
+        if (['wood', 'stone'].includes(itemId)) {
+            return { footprint: 1, types: [itemId] };
+        }
+        return { footprint: 1, types: [itemId] };
+    }
+
+    /** 买入时最大可存数量（受总容量与单项容量限制） */
+    getMaxBuyQtyByStorage(itemId) {
+        const impact = this.getBuyStorageImpact(itemId);
+        const remainingTotal = this.state.getStorageRemaining();
+        if (remainingTotal <= 0) return 0;
+        const maxByTotal = Math.floor(remainingTotal / Math.max(1, impact.footprint));
+        let maxByType = Infinity;
+        impact.types.forEach(type => {
+            maxByType = Math.min(maxByType, this.state.getStorageSpace(type));
+        });
+        return Math.max(0, Math.min(maxByTotal, maxByType));
     }
 
     // ===== UI =====
@@ -438,24 +468,20 @@ export class MarketEngine {
 
         // 计算最大可交易数量（买入时受仓库容量限制）
         let maxQty;
-        // storageType 需在 if 块外声明，模板字符串中也要用
-        let storageType = itemId;
         let maxByGold = Infinity;
-        let storageSpace = Infinity;
+        let maxByStorage = Infinity;
+        const storageRemaining = this.state.getStorageRemaining();
         if (isBuy) {
             maxByGold = Math.floor(this.state.resources.gold / price);
-            // 根据物品类型获取对应的仓库剩余空间
-            if (itemId.startsWith('seed_')) storageType = 'seeds';
-            else if (['radish', 'wheat', 'potato'].includes(itemId)) storageType = 'food';
-            storageSpace = this.state.getStorageSpace(storageType);
-            maxQty = Math.min(maxByGold, storageSpace);
+            maxByStorage = this.getMaxBuyQtyByStorage(itemId);
+            maxQty = Math.min(maxByGold, maxByStorage);
         } else {
             maxQty = this.getInventoryCount(itemId);
         }
         maxQty = Math.max(0, maxQty);
         const initialQty = maxQty > 0 ? 1 : 0;
         const buyLimitReason = isBuy
-            ? (maxByGold <= 0 ? '金币不足' : storageSpace <= 0 ? '仓库已满' : '')
+            ? (maxByGold <= 0 ? '金币不足' : maxByStorage <= 0 ? '仓库已满' : '')
             : '';
 
         // 移除已有弹窗
@@ -490,7 +516,7 @@ export class MarketEngine {
                     </div>
                     <div style="font-size:13px;color:var(--text-secondary);margin-top:8px;">
                         ${isBuy ?
-                            `当前金币: ${this.state.resources.gold}💰　仓库余量: ${storageSpace}　可买: ${maxQty}个${buyLimitReason ? `（${buyLimitReason}）` : ''}` :
+                            `当前金币: ${this.state.resources.gold}💰　仓库余量: ${storageRemaining}　可买: ${maxQty}个${buyLimitReason ? `（${buyLimitReason}）` : ''}` :
                             `当前库存: ${maxQty}个`
                         }
                     </div>

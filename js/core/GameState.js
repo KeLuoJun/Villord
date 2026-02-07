@@ -76,25 +76,10 @@ export const GameState = {
     // ===== 事件日志 =====
     eventLog: [],
 
-    // ===== 仓库容量系统 =====
+    // ===== 仓库容量系统（自由存储 + 总量上限）=====
     storage: {
         baseCapacity: 80,          // 基础仓库容量
         upgradeBonus: 50,          // 每次升级增加的容量
-        // 重要系数：基础且重要的资源系数高（gold 不占仓库容量）
-        importanceFactors: {
-            food: 1.5,             // 粮食 - 生存必需
-            wood: 1.0,             // 木材 - 建设基础
-            stone: 0.8,            // 石料 - 建设辅助
-            seeds: 0.6,            // 种子 - 农业储备
-            radish: 0.4,           // 萝卜 - 初级农产品
-            wheat: 0.4,            // 小麦 - 初级农产品
-            potato: 0.4,           // 土豆 - 初级农产品
-            pumpkin: 0.3,          // 南瓜 - 中级农产品
-            cotton: 0.3,           // 棉花 - 中级农产品
-            grape: 0.3,            // 葡萄 - 中级农产品
-            flour: 0.3,            // 面粉 - 加工品
-            bread: 0.3,            // 面包 - 高级加工品
-        },
     },
 
     // ===== 游戏设置 =====
@@ -145,17 +130,10 @@ export const GameState = {
         return this.storage.baseCapacity + upgradeCount * this.storage.upgradeBonus;
     },
 
-    /** 获取某资源的容量上限（金币无上限，容量按权重分配） */
+    /** 获取某资源的容量上限（金币无上限，其他资源=仓库容量） */
     getStorageLimit(resourceType) {
         if (resourceType === 'gold') return Infinity;
-        const factors = this.storage.importanceFactors;
-        const total = Object.values(factors).reduce((sum, value) => sum + value, 0);
-        const factor = factors[resourceType];
-        if (!factor || total <= 0) {
-            const fallback = 0.3;
-            return Math.floor((fallback / Math.max(1, total + fallback)) * this.warehouseCapacity);
-        }
-        return Math.floor((factor / total) * this.warehouseCapacity);
+        return this.warehouseCapacity;
     },
 
     /** 获取某资源的当前数量 */
@@ -175,16 +153,37 @@ export const GameState = {
         return 0;
     },
 
-    /** 检查资源是否已满 */
-    isStorageFull(resourceType) {
-        return this.getResourceAmount(resourceType) >= this.getStorageLimit(resourceType);
+    /** 当前仓库已占用容量（金币不占用） */
+    getStorageUsed() {
+        let total = 0;
+        total += Math.max(0, this.resources.food || 0);
+        total += Math.max(0, this.resources.wood || 0);
+        total += Math.max(0, this.resources.stone || 0);
+        const seedTotal = Object.values(this.resources.seeds || {}).reduce((sum, v) => sum + (v || 0), 0);
+        total += seedTotal;
+        if (this.inventory) {
+            total += Object.values(this.inventory).reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
+        }
+        return total;
     },
 
-    /** 获取可存入的最大数量 */
+    /** 当前仓库剩余容量 */
+    getStorageRemaining() {
+        return Math.max(0, this.warehouseCapacity - this.getStorageUsed());
+    },
+
+    /** 检查资源是否已满 */
+    isStorageFull(resourceType) {
+        return this.getStorageSpace(resourceType) <= 0;
+    },
+
+    /** 获取可存入的最大数量（受总容量限制） */
     getStorageSpace(resourceType) {
         const limit = this.getStorageLimit(resourceType);
         const current = this.getResourceAmount(resourceType);
-        return Math.max(0, limit - current);
+        const remainingByType = Math.max(0, limit - current);
+        const remainingTotal = this.getStorageRemaining();
+        return Math.min(remainingByType, remainingTotal);
     },
 
     /** 是否可以招募 */
@@ -213,20 +212,20 @@ export const GameState = {
      */
     modifyResource(type, amount) {
         if (this.resources[type] === undefined) return false;
-        let newVal = this.resources[type] + amount;
-        if (newVal < 0) return false;
+        const current = this.resources[type];
+        let delta = amount;
 
         // 增加时检查仓库容量上限（金币无上限）
         if (amount > 0 && type !== 'gold') {
-            const limit = this.getStorageLimit(type);
-            if (newVal > limit) {
-                newVal = limit; // 超出部分丢弃
-            }
+            delta = Math.min(amount, this.getStorageSpace(type));
         }
+
+        const newVal = current + delta;
+        if (newVal < 0) return false;
 
         this.resources[type] = newVal;
         if (this.dailyChanges[type] !== undefined) {
-            this.dailyChanges[type] += amount;
+            this.dailyChanges[type] += delta;
         }
         return true;
     },
