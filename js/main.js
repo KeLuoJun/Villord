@@ -985,7 +985,7 @@ const bgm = (() => {
     audio.loop = true;
 
     // 默认值
-    const DEFAULT_VOLUME = 35; // 0-100
+    const DEFAULT_VOLUME = 8; // 0-100
 
     // 从 localStorage 读取偏好
     const savedMuted = localStorage.getItem('villord_bgm_muted');

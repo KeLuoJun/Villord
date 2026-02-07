@@ -6,12 +6,12 @@
 export class SoundManager {
     /**
      * @param {object} options
-     * @param {number} [options.volume=50]  - 初始音量 0-100
+     * @param {number} [options.volume=60]  - 初始音量 0-100
      * @param {boolean} [options.muted=false] - 是否静音
      * @param {number} [options.poolSize=4]  - 每个音效的对象池大小
      */
     constructor(options = {}) {
-        this.volume = options.volume ?? 50;
+        this.volume = options.volume ?? 60;
         this.muted = options.muted ?? false;
         this.poolSize = options.poolSize ?? 4;
 
