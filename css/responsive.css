@@ -29,8 +29,8 @@
         top: 48px;
         height: calc(100vh - 48px - 48px);
         z-index: 200;
-        box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
-        transition: left 0.3s ease;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.18);
+        transition: left 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     #left-panel.open {
@@ -43,8 +43,8 @@
         top: 48px;
         height: calc(100vh - 48px - 48px);
         z-index: 200;
-        box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
-        transition: right 0.3s ease;
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.18);
+        transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     #right-panel.open {
@@ -189,8 +189,16 @@
     bottom: 48px;
     background: rgba(0, 0, 0, 0.3);
     z-index: 190;
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
 }
 
 .panel-overlay.visible {
     display: block;
+    animation: overlayFadeIn 0.25s ease;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }

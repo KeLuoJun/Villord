@@ -68,10 +68,12 @@ html, body {
 .btn:hover {
     transform: translateY(-1px);
     box-shadow: var(--card-shadow-hover);
+    filter: brightness(1.05);
 }
 
 .btn:active {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.97);
+    transition-duration: 0.08s;
 }
 
 .btn:disabled {
@@ -137,7 +139,7 @@ html, body {
 .progress-bar .fill {
     height: 100%;
     border-radius: 4px;
-    transition: width 0.3s ease;
+    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .progress-bar .fill.high { background-color: var(--color-success); }
@@ -151,11 +153,12 @@ html, body {
     border-radius: var(--card-radius);
     box-shadow: var(--card-shadow);
     padding: var(--spacing-lg);
-    transition: box-shadow 0.2s ease;
+    transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
 }
 
 .card:hover {
     box-shadow: var(--card-shadow-hover);
+    transform: translateY(-2px);
 }
 
 /* ===== 分隔线 ===== */
@@ -204,12 +207,12 @@ html, body {
 
 /* ===== 淡入动画 ===== */
 .fade-in {
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ===== 模态框 ===== */
@@ -224,12 +227,20 @@ html, body {
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    animation: overlayFadeIn 0.25s ease;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .modal {
     background: var(--bg-panel);
     border-radius: var(--card-radius);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
     padding: var(--spacing-xl);
     max-width: 500px;
     width: 90%;
@@ -266,21 +277,26 @@ html, body {
 
 .toast {
     padding: 10px 16px;
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--bg-panel);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0,0,0,0.06);
     font-size: var(--font-size-base);
-    animation: slideIn 0.3s ease, fadeOut 0.3s ease 3s forwards;
+    animation: toastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1), toastFadeOut 0.4s ease 3s forwards;
     max-width: 320px;
+    border-left: 3px solid var(--color-primary);
 }
 
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+.toast-success { border-left-color: var(--color-success); }
+.toast-warning { border-left-color: var(--color-warning); }
+.toast-danger  { border-left-color: var(--color-danger); }
+
+@keyframes toastSlideIn {
+    from { transform: translateX(120%) scale(0.9); opacity: 0; }
+    to { transform: translateX(0) scale(1); opacity: 1; }
 }
 
-@keyframes fadeOut {
-    to { opacity: 0; transform: translateY(-10px); }
+@keyframes toastFadeOut {
+    to { opacity: 0; transform: translateX(30px) scale(0.95); }
 }
 
 /* ===== AI 交易分析师弹窗 ===== */
@@ -303,8 +319,8 @@ html, body {
 }
 
 @keyframes slideUpFade {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from { transform: translateY(20px) scale(0.95); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .commentary-header {
@@ -345,10 +361,10 @@ html, body {
     display: inline-block;
     width: 14px;
     height: 14px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
+    border: 2px solid var(--color-divider, #e0e0e0);
+    border-top-color: var(--color-primary, #6B9E4F);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.7s cubic-bezier(0.5, 0, 0.5, 1) infinite;
 }
 
 @keyframes spin {

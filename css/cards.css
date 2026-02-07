@@ -32,6 +32,11 @@
     border-radius: 12px;
     font-size: var(--font-size-sm);
     font-weight: 500;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.trait-tag:hover {
+    transform: scale(1.05);
 }
 
 .trait-tag.positive {
@@ -53,16 +58,36 @@
 .recruit-reveal {
     text-align: center;
     padding: var(--spacing-xl);
+    animation: revealIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes revealIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1); }
 }
 
 .recruit-reveal .reveal-title {
     font-size: var(--font-size-title);
     margin-bottom: var(--spacing-lg);
+    animation: revealTitleIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes revealTitleIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .recruit-reveal .reveal-avatar {
     font-size: 64px;
     margin-bottom: var(--spacing-md);
+    animation: revealAvatarIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: inline-block;
+}
+
+@keyframes revealAvatarIn {
+    from { opacity: 0; transform: scale(0) rotate(-15deg); }
+    50%  { transform: scale(1.15) rotate(5deg); }
+    to   { opacity: 1; transform: scale(1) rotate(0); }
 }
 
 .recruit-reveal .reveal-name {
@@ -114,16 +139,24 @@
     padding: 4px var(--spacing-sm);
     border-radius: 6px;
     font-size: var(--font-size-sm);
-    transition: background 0.15s;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
 }
 
 .schedule-item:hover {
     background: var(--bg-hover);
+    padding-left: calc(var(--spacing-sm) + 2px);
 }
 
 .schedule-item.current {
     background: var(--bg-selected);
-    border-left: 3px solid var(--color-primary);
+    border-left-color: var(--color-primary);
+    animation: scheduleHighlight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scheduleHighlight {
+    from { background: rgba(107, 158, 79, 0.2); }
+    to   { background: var(--bg-selected); }
 }
 
 .schedule-item .schedule-time {
@@ -175,13 +208,18 @@
     border: var(--panel-border);
     border-radius: var(--card-radius);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     min-width: 120px;
 }
 
 .event-popup .event-option:hover {
     box-shadow: var(--card-shadow-hover);
     border-color: var(--color-primary-light);
+    transform: translateY(-2px) scale(1.02);
+}
+
+.event-popup .event-option:active {
+    transform: scale(0.97);
 }
 
 .event-popup .event-option .option-cost {
@@ -213,15 +251,21 @@
 .chart-controls .chart-btn {
     padding: 3px 10px;
     border: var(--panel-border);
-    border-radius: 4px;
+    border-radius: 6px;
     background: transparent;
     cursor: pointer;
     font-size: var(--font-size-sm);
-    transition: all 0.15s;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chart-controls .chart-btn:hover {
+    background: var(--bg-hover);
+    transform: translateY(-1px);
 }
 
 .chart-controls .chart-btn.active {
     background: var(--color-primary);
     color: var(--text-inverse);
     border-color: var(--color-primary);
+    box-shadow: 0 2px 6px rgba(107, 158, 79, 0.25);
 }

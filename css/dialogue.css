@@ -12,18 +12,32 @@
     align-items: center;
     justify-content: center;
     z-index: 500;
+    animation: dialogueOverlayIn 0.25s ease;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+@keyframes dialogueOverlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .dialogue-box {
     background: var(--bg-panel);
     border-radius: var(--card-radius);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
     width: 520px;
     max-width: 95vw;
     max-height: 80vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: dialogueBoxIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dialogueBoxIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* 对话框头部 */
@@ -50,13 +64,19 @@
     cursor: pointer;
     color: var(--text-muted);
     padding: 4px;
-    border-radius: 4px;
-    transition: all 0.15s;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
 }
 
 .dialogue-header .close-btn:hover {
-    background: var(--bg-hover);
+    background: rgba(0,0,0,0.08);
     color: var(--text-primary);
+    transform: rotate(90deg);
 }
 
 /* 村民状态条 */
@@ -98,7 +118,12 @@
     display: flex;
     gap: var(--spacing-sm);
     align-items: flex-start;
-    animation: fadeIn 0.2s ease;
+    animation: messageIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes messageIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .message .message-avatar {
@@ -129,6 +154,7 @@
     background: var(--color-primary);
     color: var(--text-inverse);
     border-bottom-right-radius: 4px;
+    box-shadow: 0 1px 4px rgba(107, 158, 79, 0.2);
 }
 
 /* 村民消息（左侧） */
@@ -136,6 +162,7 @@
     background: var(--bg-input);
     color: var(--text-primary);
     border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 /* AI 加载中 */
@@ -162,13 +189,19 @@
     font-size: var(--font-size-sm);
     font-family: var(--font-main);
     color: var(--text-primary);
-    transition: all 0.15s;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .option-btn:hover {
     background: var(--bg-selected);
     border-color: var(--color-primary-light);
     color: var(--color-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(107, 158, 79, 0.12);
+}
+
+.option-btn:active {
+    transform: scale(0.95);
 }
 
 /* 对话输入区域 */
@@ -203,11 +236,17 @@
     border-radius: 8px;
     cursor: pointer;
     font-family: var(--font-main);
-    transition: background 0.15s;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dialogue-input .send-btn:hover {
     background: var(--color-primary-dark);
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(107, 158, 79, 0.3);
+}
+
+.dialogue-input .send-btn:active {
+    transform: scale(0.95);
 }
 
 /* 系统消息 */
