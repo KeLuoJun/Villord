@@ -61,7 +61,7 @@ export const GameState = {
         current: 'spring_default',      // 当前天气ID
         activeEvent: null,              // 当前特殊天气事件ID
         activeEventRemaining: 0,        // 特殊天气剩余天数
-        schedule: [],                   // AI预测的14天时间表
+        schedule: [],                   // AI预测的5天时间表
         predictionReason: '',           // AI预测理由
         lastEventEndDay: -5,            // 上次特殊天气结束日
     },

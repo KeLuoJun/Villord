@@ -1,6 +1,6 @@
 /**
  * WeatherForecaster - AI 天气预报员
- * 每14天/季初由 AI 预测未来天气
+ * 每5天/季初由 AI 预测未来天气
  * 每日 5:00 进行天气播报
  */
 import { getSeasonEvents, SEASON_DEFAULT, SPECIAL_WEATHER_EVENTS } from '../config/weather.js';
@@ -24,7 +24,9 @@ export class WeatherForecaster {
         // 首次 tick 时立即生成初始天气预测（确保第一季就有天气变化）
         if (!this._initialPredictionDone) {
             this._initialPredictionDone = true;
-            this.generatePrediction();
+            if (!this.state.weather.schedule || this.state.weather.schedule.length === 0) {
+                this.generatePrediction();
+            }
         }
 
         // 每日 5:00 天气播报
@@ -32,13 +34,7 @@ export class WeatherForecaster {
             this.dailyBroadcast();
         }
 
-        // 每4天检查是否需要生成新预测（5天/季，确保每季至少预测1次）
-        if (data.hour === 3) {
-            const daysSincePred = this.state.totalDays - this.lastPredictionDay;
-            if (daysSincePred >= 4) {
-                this.generatePrediction();
-            }
-        }
+        // 预测频率由季初触发（每季/5天一次）
     }
 
     /** 季初预测 */
@@ -50,6 +46,12 @@ export class WeatherForecaster {
     async generatePrediction() {
         console.log('[WeatherForecaster] 开始生成天气预测...');
         this.lastPredictionDay = this.state.totalDays;
+
+        const daysLeftInSeason = 5 - this.state.time.day + 1;
+        if (daysLeftInSeason <= 1) {
+            console.log('[WeatherForecaster] 当季剩余天数不足，跳过本次预测');
+            return;
+        }
 
         const seasonEvents = getSeasonEvents(this.state.season);
         if (seasonEvents.length === 0) {
@@ -85,8 +87,9 @@ export class WeatherForecaster {
             `- ${e.id}: ${e.name}（${e.icon}），持续${e.duration}天，效果：${e.effectSummary}`
         ).join('\n');
 
-        // 计算当季剩余天数
+        // 计算当季剩余天数（含今天）
         const daysLeftInSeason = 5 - this.state.time.day + 1;
+        const maxOffset = Math.max(1, Math.min(daysLeftInSeason - 1, 5));
         const daysSinceLastEvent = this.state.totalDays - this.state.weather.lastEventEndDay;
 
         return `你是村庄经营游戏的天气预测AI。为当前季节安排特殊天气事件。
@@ -100,7 +103,7 @@ ${evtList}
 
 【规则】
 • 从上面选1-2个事件安排到未来几天
-• dayOffset范围：2~${Math.min(daysLeftInSeason, 4)}（当季剩余${daysLeftInSeason}天内）
+• dayOffset范围：1~${maxOffset}（当季剩余${daysLeftInSeason}天内）
 • 两个事件间隔至少3天
 • 距上次特殊天气至少间隔3天（当前已过${daysSinceLastEvent}天，${daysSinceLastEvent >= 3 ? '可以安排' : '需等待'}）
 • 为每个事件提供一个简短的理由（为什么会在这天出现这种天气）
@@ -244,13 +247,13 @@ ${evtList}
             effectsList.push('💧 自动浇水');
         }
 
-        // 14天预报
+        // 5天预报
         const schedule = this.state.weather.schedule || [];
         const futureEvents = schedule.filter(s => s.triggerDay > this.state.totalDays).sort((a, b) => a.triggerDay - b.triggerDay);
 
-        // 构建14天日历
+        // 构建5天日历
         let forecastHTML = '';
-        for (let i = 1; i <= 14; i++) {
+        for (let i = 1; i <= 5; i++) {
             const targetDay = this.state.totalDays + i;
             const scheduled = futureEvents.find(s => {
                 const evt = SPECIAL_WEATHER_EVENTS[s.eventId];

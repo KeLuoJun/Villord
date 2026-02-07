@@ -681,7 +681,7 @@ function showGameRulesModal() {
                 <h4 style="margin:0 0 8px;">🌤️ 天气系统</h4>
                 <p>• 每天 5:00 天气播报，每季有特殊天气事件</p>
                 <p>• 特殊天气会影响作物生长、村民体力和市场价格</p>
-                <p>• AI 天气预报员会提前预测未来 14 天的天气</p>
+                <p>• AI 天气预报员会提前预测未来 5 天的天气（每季一次）</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">🏗️ 建设系统</h4>

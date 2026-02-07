@@ -99,13 +99,14 @@ export class WeatherSystem {
         // 验证硬约束
         const season = this.state.season;
         const seasonEventIds = getSeasonEvents(season).map(e => e.id);
+        const seasonEnd = this.state.totalDays - (this.state.time.day - 1) + 4;
         const valid = [];
         let lastDay = this.state.weather.lastEventEndDay;
 
         for (const p of predictions.slice(0, 2)) {
             if (!seasonEventIds.includes(p.eventId)) continue;
             if (p.triggerDay < this.state.totalDays + 1) continue;
-            if (p.triggerDay > this.state.totalDays + 6) continue; // 最多6天内（适配5天季节）
+            if (p.triggerDay > seasonEnd) continue; // 必须在本季范围内
             if (p.triggerDay - lastDay < 3) continue; // 间隔至少3天（从5天改为3天适配短季节）
 
             valid.push(p);
@@ -127,7 +128,10 @@ export class WeatherSystem {
         if (seasonEvents.length === 0) return;
 
         const pick = seasonEvents[Math.floor(Math.random() * seasonEvents.length)];
-        const triggerDay = this.state.totalDays + 2 + Math.floor(Math.random() * 4); // 2-5天内
+        const seasonEnd = this.state.totalDays - (this.state.time.day - 1) + 4;
+        const minDay = this.state.totalDays + 1;
+        if (minDay > seasonEnd) return;
+        const triggerDay = minDay + Math.floor(Math.random() * (seasonEnd - minDay + 1)); // 本季剩余天数内
 
         // 同样用合并方式
         const existing = this.state.weather.schedule.filter(s => s.triggerDay > this.state.totalDays);
