@@ -207,30 +207,38 @@ export class UIManager {
         };
 
         const stackItems = resources.filter(res => res.value > 0);
-        const stackHtml = stackItems.map(res => {
+
+        // flex-grow 方案：每个资源条按数量分配空间，空白区域按剩余容量分配
+        // 排序：数量大的在下面（视觉上更稳定），数量小的在上面
+        const sortedItems = [...stackItems].sort((a, b) => a.value - b.value);
+
+        const stackHtml = sortedItems.map(res => {
             let changeHtml = '';
             if (res.change !== null && res.change !== undefined) {
                 if (res.change > 0) changeHtml = `<span class="stack-change up">+${res.change}</span>`;
                 else if (res.change < 0) changeHtml = `<span class="stack-change down">${res.change}</span>`;
             }
-            const denom = Math.max(s.warehouseCapacity, usedCapacity || 1);
-            const heightPct = denom > 0 ? Math.max(0, (res.value / denom) * 100) : 0;
             const color = stackColors[res.key] || 'var(--color-primary, #6B9E4F)';
+            // flex-grow 按资源数量，min-height 保证可读性
             return `
-                <div class="resource-stack-item" style="height:${heightPct}%;background:${color};">
+                <div class="resource-stack-item" style="flex-grow:${res.value};background:${color};">
                     <span class="stack-name">${res.icon} ${res.name}</span>
                     <span class="stack-value">${res.value}${changeHtml}</span>
                 </div>
             `;
         }).join('');
 
+        // 顶部空白区域的 flex-grow = 剩余容量，形成"水位线"效果
+        const emptyGrow = Math.max(0, s.warehouseCapacity - usedCapacity);
+
         container.innerHTML = `
             <div class="resource-barrel-wrap">
                 <div class="resource-barrel">
                     <div class="resource-barrel-inner">
+                        <div class="barrel-empty-space" style="flex-grow:${emptyGrow};"></div>
                         ${stackHtml || ''}
                     </div>
-                    ${stackItems.length === 0 ? '<div class="resource-barrel-empty">空</div>' : ''}
+                    ${stackItems.length === 0 ? '<div class="resource-barrel-empty">仓库空空如也</div>' : ''}
                 </div>
                 <div class="resource-barrel-summary">已用 ${usedCapacity}/${s.warehouseCapacity} · 剩余 ${remainingCapacity}</div>
             </div>
