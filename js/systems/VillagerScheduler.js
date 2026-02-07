@@ -30,9 +30,16 @@ export class VillagerScheduler {
         this.farmSys = farmSystem;
         this.isScheduling = false;
         this.lastScheduleDay = -1;
+        /** @type {import('./MeetingSystem.js').MeetingSystem|null} */
+        this.meetingSystem = null;
 
         // 监听事件
         this.bus.on('tick', (data) => this.onTick(data));
+    }
+
+    /** 注入村会系统引用 */
+    setMeetingSystem(meetingSystem) {
+        this.meetingSystem = meetingSystem;
     }
 
     /** 每 Tick 处理 */
@@ -227,6 +234,11 @@ export class VillagerScheduler {
         const restDay = this.state.isRestDay;
         const policyContext = this.buildPolicyContext();
 
+        // 村会指示上下文（影响行动计划）
+        const meetingContext = this.meetingSystem
+            ? this.meetingSystem.buildMeetingContext(villager)
+            : '';
+
         const timeInfo = `第${this.state.time.year}年·${this.state.seasonName} 第${this.state.time.day}天 ${String(this.state.time.hour).padStart(2, '0')}:00`;
         const directiveSummary = directiveInfo.summary || '无';
         const directiveRule = directiveInfo.tradePolicy?.disallowTrade
@@ -243,6 +255,8 @@ ${timeInfo}（正在为“今天”生成计划）
 ${traitHint}
 
 ${policyContext}
+
+${meetingContext}
 
 【市场消息】
 今日早报：${morningReport}

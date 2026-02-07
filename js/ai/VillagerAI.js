@@ -62,6 +62,11 @@ export class VillagerAI {
         this.scheduler = scheduler;
     }
 
+    /** 注入村会系统引用 */
+    setMeetingSystem(meetingSystem) {
+        this.meetingSystem = meetingSystem;
+    }
+
     /**
      * 将系统 currentAction 字符串清洗为自然口语
      * 例如 "⚠️ 无需浇水的农田" → "闲着没事做"
@@ -195,6 +200,11 @@ export class VillagerAI {
         // 政策上下文
         const policyContext = this.buildPolicyContext(villager);
 
+        // 村会指示上下文
+        const meetingContext = this.meetingSystem
+            ? this.meetingSystem.buildMeetingContext(villager)
+            : '';
+
         return {
             name: villager.name,
             avatar: villager.avatar || '👤',
@@ -222,6 +232,7 @@ export class VillagerAI {
             recentDialogue: this.getRecentDialogue(villager),
             playerInput,
             policyContext,
+            meetingContext,
             isNearScheduleTime: false, // 由 handlePlayerChat 覆盖
         };
     }
@@ -278,6 +289,8 @@ ${ctx.pendingTasks.length > 0 ? `待处理：${ctx.pendingTasks.join('、')}` : 
 ${ctx.matureCrops ? `成熟可收：${ctx.matureCrops}` : ''}
 
 ${ctx.policyContext}
+
+${ctx.meetingContext || ''}
 
 ${ctx.recentDialogue ? `【之前的对话】\n${ctx.recentDialogue}` : ''}
 

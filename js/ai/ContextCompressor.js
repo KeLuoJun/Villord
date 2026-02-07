@@ -269,6 +269,9 @@ ${eventTexts.slice(0, 500) || '无'}
 ## 本季施行政策
 ${this.getPolicyBrief()}
 
+## 本季村会指示
+${this.getMeetingBrief()}
+
 ## 本季重要事件
 ${importantLogs.join('\n') || '平安无事'}
 
@@ -302,6 +305,16 @@ ${importantLogs.join('\n') || '平安无事'}
 
         this.state.addLog('📜', `季末编年史：${chronicle}`, 'info');
         console.log(`[ContextCompressor] 村庄编年史: ${chronicle}`);
+    }
+
+    /** 获取本季村会指示的简短描述 */
+    getMeetingBrief() {
+        const meetings = this.state.meetings?.history || [];
+        if (meetings.length === 0) return '无村会记录';
+        // 取最近 2 条
+        return meetings.slice(0, 2).map(m =>
+            `第${m.day}天：「${m.directive}」`
+        ).join('；');
     }
 
     /** 获取当前政策的简短描述（用于编年史/压缩 prompt） */

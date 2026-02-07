@@ -109,6 +109,11 @@ export const GameState = {
     // 连续工作天数追踪（休假制度用）
     _consecutiveWorkDays: 0,
 
+    // ===== 村会系统 =====
+    meetings: {
+        history: [],   // 会议历史（最新在前，最多5条）
+    },
+
     // ===== 每日资源变化追踪 =====
     dailyChanges: {
         gold: 0,

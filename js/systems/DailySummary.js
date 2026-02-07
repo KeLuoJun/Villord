@@ -20,6 +20,8 @@ export class DailySummary {
         this.summaries = []; // 历史每日总结（最多保留7天）
         this.todayActivities = []; // 今日活动记录
         this.isGenerating = false;
+        /** @type {import('./MeetingSystem.js').MeetingSystem|null} */
+        this.meetingSystem = null;
 
         // 监听事件
         this.bus.on('tick', (data) => this.onTick(data));
@@ -32,6 +34,11 @@ export class DailySummary {
         this.bus.on('villagerRecruited', (data) => this.recordActivity('👤', `招募了新村民`));
         this.bus.on('weatherEventStart', (data) => this.recordActivity(data.event?.icon || '🌤️', `${data.event?.name || '特殊天气'}来袭`));
         this.bus.on('schedulesGenerated', () => this.recordActivity('📋', '村民行动计划已安排'));
+    }
+
+    /** 注入村会系统引用 */
+    setMeetingSystem(meetingSystem) {
+        this.meetingSystem = meetingSystem;
     }
 
     /** 记录今日活动 */
@@ -202,6 +209,11 @@ export class DailySummary {
         // 构建政策上下文
         const policyText = this.buildPolicySummaryContext();
 
+        // 构建村会指示上下文
+        const meetingText = this.meetingSystem
+            ? this.meetingSystem.getDirectiveBrief()
+            : '';
+
         return `你是一位村庄编年史官，请为桃源村的今天写一段**生动有趣的日记总结**。
 
 【今日档案】
@@ -211,6 +223,8 @@ export class DailySummary {
 今日资源变动：${resText}
 
 ${policyText}
+
+${meetingText ? `【村长指示】\n${meetingText}` : ''}
 
 【村民表现】
 ${villagersText}
@@ -224,7 +238,8 @@ ${eventText}
 3. 提到至少1位村民的名字和他/她今天做了什么
 4. 如果有特殊天气或重要事件，要突出描述
 5. 如果村庄政策对今天产生了明显影响（比如996导致村民疲惫、休息日大家轻松等），可以提到
-6. 评价今天是好的一天还是困难的一天
+6. 如果村长最近下达了工作指示，可以提到村民们是否在响应执行
+7. 评价今天是好的一天还是困难的一天
 7. 语气是温暖的村庄编年史风格，可以带一点幽默
 8. 不要罗列数据，不要用列表格式
 9. 直接输出纯文本，不要JSON、不要标题、不要markdown格式`;

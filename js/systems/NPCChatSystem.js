@@ -35,9 +35,17 @@ export class NPCChatSystem {
         /** 正在调用 LLM */
         this.isSpeaking = false;
 
+        /** @type {import('./MeetingSystem.js').MeetingSystem|null} */
+        this.meetingSystem = null;
+
         // 监听事件
         this.bus.on('tick', (data) => this.onTick(data));
         this.bus.on('newDay', () => this.onNewDay());
+    }
+
+    /** 注入村会系统引用 */
+    setMeetingSystem(meetingSystem) {
+        this.meetingSystem = meetingSystem;
     }
 
     /** 新的一天：重置并预排发言 */
@@ -158,6 +166,11 @@ export class NPCChatSystem {
         // 构建政策上下文
         const policyLines = this.buildPolicyContext(villager);
 
+        // 构建村会指示上下文
+        const meetingContext = this.meetingSystem
+            ? this.meetingSystem.buildMeetingContext(villager)
+            : '';
+
         const prompt = `你是${villager.name}${villager.avatar}，《治村物语》的村民。现在${currentHour}:00。
 
 【你的性格】${villager.traits.join('、')}
@@ -175,8 +188,10 @@ ${recentChats}
 
 ${policyLines}
 
+${meetingContext}
+
 现在你想说一句话。话题参考：${timeTopic}
-规则：20-50字，自然口语化，体现性格特点。如果前面有人说了话，优先接话或回应。不要重复别人说过的。可以偶尔聊聊对村庄政策的感受。
+规则：20-50字，自然口语化，体现性格特点。如果前面有人说了话，优先接话或回应。不要重复别人说过的。可以偶尔聊聊对村庄政策的感受。如果村长最近下达了工作指示，你可以聊聊对指示的看法或执行情况。
 
 输出JSON：{"text": "你说的话", "mood": "happy/neutral/tired/grumpy/excited"}`;
 

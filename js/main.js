@@ -24,6 +24,7 @@ import { TutorialSystem } from './systems/TutorialSystem.js';
 import { ProsperitySystem } from './systems/ProsperitySystem.js';
 import { DailySummary } from './systems/DailySummary.js';
 import { NPCChatSystem } from './systems/NPCChatSystem.js';
+import { MeetingSystem } from './systems/MeetingSystem.js';
 import { MarketEngine } from './market/MarketEngine.js';
 
 // AI 模块
@@ -104,6 +105,13 @@ const policySystem = new PolicySystem(gameState, eventBus);
 const prosperitySystem = new ProsperitySystem(gameState, eventBus);
 const dailySummary = new DailySummary(aiService, gameState, eventBus);
 const npcChatSystem = new NPCChatSystem(aiService, gameState, eventBus);
+const meetingSystem = new MeetingSystem(aiService, gameState, eventBus);
+
+// 注入 MeetingSystem 到需要访问会议上下文的模块
+villagerAI.setMeetingSystem(meetingSystem);
+villagerScheduler.setMeetingSystem(meetingSystem);
+npcChatSystem.setMeetingSystem(meetingSystem);
+dailySummary.setMeetingSystem(meetingSystem);
 
 // ===== 初始化 UI =====
 const uiManager = new UIManager(gameState, eventBus, timeSystem);
@@ -466,6 +474,42 @@ function refreshChatVillagerList() {
     }
 
     container.innerHTML = '';
+
+    // ===== 开村会按钮 =====
+    const meetingRow = document.createElement('div');
+    meetingRow.className = 'chat-villager-row chat-meeting-row';
+    const canMeet = meetingSystem.canStartMeeting();
+    const activeDirective = meetingSystem.getActiveDirective();
+    meetingRow.innerHTML = `
+        <span class="chat-v-avatar">📢</span>
+        <div class="chat-v-info">
+            <div class="chat-v-name">开村会</div>
+            <div class="chat-v-status">${activeDirective
+                ? `📌 当前指示：${activeDirective.directive}`
+                : '召集全体村民开会讨论村务'}</div>
+        </div>
+        <span class="chat-v-arrow">›</span>
+    `;
+    if (!canMeet.ok) {
+        meetingRow.style.opacity = '0.5';
+        meetingRow.title = canMeet.reason;
+        meetingRow.addEventListener('click', () => {
+            uiManager.showToast(`❌ ${canMeet.reason}`, 'warning');
+        });
+    } else {
+        meetingRow.addEventListener('click', () => {
+            document.getElementById('chat-float-panel').classList.add('chat-float-hidden');
+            openMeetingModal();
+        });
+    }
+    container.appendChild(meetingRow);
+
+    // ===== 分割线 =====
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height:1px;background:var(--border-color,#e0e0e0);margin:4px 12px;opacity:0.5;';
+    container.appendChild(divider);
+
+    // ===== 村民列表 =====
     gameState.villagers.forEach(v => {
         const moodEmoji = v.mood >= Math.round(MAX_MOOD * 0.6) ? '😊'
             : v.mood >= Math.round(MAX_MOOD * 0.3) ? '😐' : '😟';
@@ -486,6 +530,206 @@ function refreshChatVillagerList() {
         });
         container.appendChild(row);
     });
+}
+
+// ===== 村会弹窗 =====
+
+/** 打开村会弹窗 */
+function openMeetingModal() {
+    // 暂停游戏
+    const wasPaused = gameState.time.isPaused;
+    if (!wasPaused) timeSystem.pause();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'dialogue-overlay meeting-overlay';
+
+    // 获取活跃指示
+    const activeDirective = meetingSystem.getActiveDirective();
+    const historyMeetings = meetingSystem.getMeetingHistory(3);
+
+    overlay.innerHTML = `
+        <div class="dialogue-box meeting-box">
+            <div class="dialogue-header">
+                <div class="dialogue-title">📢 村会</div>
+                <button class="close-btn meeting-close-btn">✕</button>
+            </div>
+
+            ${activeDirective ? `
+            <div class="meeting-active-directive">
+                <span class="directive-label">📌 当前指示</span>
+                <span class="directive-text">${activeDirective.directive}</span>
+                <span class="directive-expires">（${activeDirective.dayLabel}发布，还有${Math.max(0, activeDirective.validUntil - gameState.totalDays)}天有效）</span>
+            </div>
+            ` : ''}
+
+            <div class="meeting-attendees">
+                <span class="attendees-label">参会村民：</span>
+                ${gameState.villagers.map(v => `<span class="attendee-tag">${v.avatar || '👤'} ${v.name}</span>`).join('')}
+            </div>
+
+            <div class="meeting-messages" id="meeting-messages">
+                <div class="message system">
+                    <div class="message-bubble">— 村会开始，请村长发言 —</div>
+                </div>
+            </div>
+
+            <div class="dialogue-input meeting-input">
+                <input type="text" id="meeting-input-field" placeholder="说点什么吧，村长...（如：接下来重点砍木头，准备建新房子）" maxlength="200">
+                <button class="send-btn" id="meeting-send-btn">📢 发言</button>
+            </div>
+
+            ${historyMeetings.length > 0 ? `
+            <div class="meeting-history-toggle">
+                <button class="meeting-history-btn" id="meeting-history-toggle-btn">📜 查看往期会议 (${historyMeetings.length})</button>
+            </div>
+            <div class="meeting-history" id="meeting-history" style="display:none;">
+                ${historyMeetings.map(m => `
+                    <div class="meeting-history-item">
+                        <div class="meeting-history-header">
+                            <span class="meeting-history-date">${m.dayLabel}</span>
+                            <span class="meeting-history-directive">📌 ${m.directive}</span>
+                        </div>
+                        <div class="meeting-history-responses">
+                            ${(m.responses || []).map(r => `
+                                <span class="meeting-history-response">
+                                    ${r.avatar || '👤'} ${r.name}：${r.response}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // 事件绑定
+    const closeBtn = overlay.querySelector('.meeting-close-btn');
+    const sendBtn = overlay.querySelector('#meeting-send-btn');
+    const inputField = overlay.querySelector('#meeting-input-field');
+    const messagesArea = overlay.querySelector('#meeting-messages');
+    const historyToggle = overlay.querySelector('#meeting-history-toggle-btn');
+    const historyPanel = overlay.querySelector('#meeting-history');
+
+    const closeModal = () => {
+        overlay.remove();
+        if (!wasPaused) timeSystem.resume();
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+    });
+
+    // 历史切换
+    if (historyToggle && historyPanel) {
+        historyToggle.addEventListener('click', () => {
+            const isHidden = historyPanel.style.display === 'none';
+            historyPanel.style.display = isHidden ? 'block' : 'none';
+            historyToggle.textContent = isHidden
+                ? '📜 收起往期会议'
+                : `📜 查看往期会议 (${historyMeetings.length})`;
+        });
+    }
+
+    // 发送
+    let isSending = false;
+
+    async function sendMeetingSpeech() {
+        if (isSending) return;
+        const text = inputField.value.trim();
+        if (!text) return;
+
+        isSending = true;
+        sendBtn.disabled = true;
+        sendBtn.textContent = '⏳ 思考中...';
+        inputField.disabled = true;
+
+        // 显示村长发言
+        const playerMsg = document.createElement('div');
+        playerMsg.className = 'message player';
+        playerMsg.innerHTML = `
+            <div class="message-avatar">👑</div>
+            <div class="message-bubble">${text}</div>
+        `;
+        messagesArea.appendChild(playerMsg);
+
+        // 显示加载中
+        const loadingMsg = document.createElement('div');
+        loadingMsg.className = 'message system';
+        loadingMsg.innerHTML = `<div class="message-bubble">🤔 村民们正在思考...</div>`;
+        messagesArea.appendChild(loadingMsg);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+
+        // 调用 MeetingSystem
+        inputField.value = '';
+        const result = await meetingSystem.holdMeeting(text);
+
+        // 移除加载中
+        loadingMsg.remove();
+
+        if (result.success) {
+            const meeting = result.meeting;
+
+            // 显示指示摘要
+            const directiveMsg = document.createElement('div');
+            directiveMsg.className = 'message system';
+            directiveMsg.innerHTML = `<div class="message-bubble meeting-directive-msg">📌 工作指示：${meeting.directive}（有效${Math.max(0, meeting.validUntil - gameState.totalDays)}天）</div>`;
+            messagesArea.appendChild(directiveMsg);
+
+            // 依次显示每位村民的回应（带动画延迟）
+            for (let i = 0; i < meeting.responses.length; i++) {
+                const r = meeting.responses[i];
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                const attitudeEmoji = {
+                    support: '👍',
+                    hesitant: '😅',
+                    question: '🤔',
+                    confused: '😵',
+                }[r.attitude] || '💬';
+
+                const villagerMsg = document.createElement('div');
+                villagerMsg.className = 'message villager';
+                villagerMsg.innerHTML = `
+                    <div class="message-avatar">${r.avatar || '👤'}</div>
+                    <div class="message-bubble">
+                        <div class="meeting-response-name">${r.name} ${attitudeEmoji}</div>
+                        <div>${r.response}</div>
+                    </div>
+                `;
+                messagesArea.appendChild(villagerMsg);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+
+            // 自动存档
+            saveSystem.autoSave('村会');
+        } else {
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'message system';
+            errorMsg.innerHTML = `<div class="message-bubble" style="color:var(--color-danger);">❌ ${result.error}</div>`;
+            messagesArea.appendChild(errorMsg);
+        }
+
+        isSending = false;
+        sendBtn.disabled = false;
+        sendBtn.textContent = '📢 发言';
+        inputField.disabled = false;
+        inputField.focus();
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+
+    sendBtn.addEventListener('click', sendMeetingSpeech);
+    inputField.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.isComposing) {
+            e.preventDefault();
+            sendMeetingSpeech();
+        }
+    });
+
+    inputField.focus();
 }
 
 // ===== 顶栏功能按钮 =====

@@ -124,6 +124,7 @@ export class SaveSystem {
             prosperity: this.state.prosperity,
             policies: { ...this.state.policies },
             _consecutiveWorkDays: this.state._consecutiveWorkDays || 0,
+            meetings: JSON.parse(JSON.stringify(this.state.meetings || { history: [] })),
         };
     }
 
@@ -158,6 +159,11 @@ export class SaveSystem {
         }
         if (data._consecutiveWorkDays !== undefined) {
             this.state._consecutiveWorkDays = data._consecutiveWorkDays;
+        }
+
+        // 村会系统数据恢复（兼容旧存档）
+        if (data.meetings) {
+            this.state.meetings = data.meetings;
         }
 
         // 暂停游戏
