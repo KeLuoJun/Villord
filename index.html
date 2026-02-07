@@ -38,6 +38,17 @@
                 <button class="speed-btn active" data-speed="1">1x</button>
                 <button class="speed-btn" data-speed="1.5">1.5x</button>
                 <span class="topbar-divider"></span>
+                <div class="bgm-wrap">
+                    <button class="topbar-icon-btn" id="btn-bgm" title="背景音乐">🎵</button>
+                    <div class="bgm-panel" id="bgm-panel">
+                        <div class="bgm-panel-title">🎵 背景音乐</div>
+                        <div class="bgm-volume-row">
+                            <button class="bgm-mute-btn" id="bgm-mute-btn" title="静音">🔊</button>
+                            <input type="range" class="bgm-slider" id="bgm-slider" min="0" max="100" value="35">
+                            <span class="bgm-volume-val" id="bgm-volume-val">35%</span>
+                        </div>
+                    </div>
+                </div>
                 <button class="topbar-icon-btn" id="btn-save" title="存档 (Ctrl+S)">💾</button>
                 <button class="topbar-icon-btn" id="btn-config" title="设置">⚙️</button>
                 <button class="topbar-icon-btn" id="btn-help" title="游戏规则">❓</button>

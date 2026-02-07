@@ -978,6 +978,161 @@ function showGameRulesModal() {
 // 暴露给全局，方便从UI按钮调用
 window.showGameRulesModal = showGameRulesModal;
 
+// ===== BGM 背景音乐系统（含音量调节） =====
+const bgm = (() => {
+    const audio = new Audio('./assets/sounds/gbm.mp3');
+    audio.loop = true;
+
+    // 默认值
+    const DEFAULT_VOLUME = 35; // 0-100
+
+    // 从 localStorage 读取偏好
+    const savedMuted = localStorage.getItem('villord_bgm_muted');
+    const savedVolume = localStorage.getItem('villord_bgm_volume');
+    let volume = savedVolume !== null ? parseInt(savedVolume, 10) : DEFAULT_VOLUME;
+    let muted = savedMuted === 'true';
+
+    audio.volume = volume / 100;
+    audio.muted = muted;
+
+    let started = false;
+
+    // DOM 引用
+    const btnBgm = document.getElementById('btn-bgm');
+    const panel = document.getElementById('bgm-panel');
+    const muteBtn = document.getElementById('bgm-mute-btn');
+    const slider = document.getElementById('bgm-slider');
+    const volumeVal = document.getElementById('bgm-volume-val');
+
+    /** 更新所有 UI 状态 */
+    function updateUI() {
+        // 顶栏按钮图标
+        if (btnBgm) {
+            btnBgm.textContent = muted ? '🔇' : '🎵';
+            btnBgm.classList.toggle('bgm-muted', muted);
+        }
+        // 静音按钮图标
+        if (muteBtn) {
+            if (muted || volume === 0) {
+                muteBtn.textContent = '🔇';
+            } else if (volume < 40) {
+                muteBtn.textContent = '🔉';
+            } else {
+                muteBtn.textContent = '🔊';
+            }
+        }
+        // 滑条值与填充色
+        if (slider) {
+            slider.value = volume;
+            slider.style.setProperty('--slider-pct', `${volume}%`);
+        }
+        // 百分比文字
+        if (volumeVal) {
+            volumeVal.textContent = muted ? '静音' : `${volume}%`;
+        }
+    }
+
+    /** 设置音量 (0-100) */
+    function setVolume(val) {
+        volume = Math.max(0, Math.min(100, Math.round(val)));
+        audio.volume = volume / 100;
+        // 调节音量时自动取消静音
+        if (volume > 0 && muted) {
+            muted = false;
+            audio.muted = false;
+            localStorage.setItem('villord_bgm_muted', 'false');
+        }
+        // 音量为0时自动静音
+        if (volume === 0) {
+            muted = true;
+            audio.muted = true;
+            localStorage.setItem('villord_bgm_muted', 'true');
+        }
+        localStorage.setItem('villord_bgm_volume', volume);
+        updateUI();
+    }
+
+    /** 切换静音 */
+    function toggleMute() {
+        muted = !muted;
+        audio.muted = muted;
+        localStorage.setItem('villord_bgm_muted', muted);
+        updateUI();
+        // 取消静音但尚未播放，尝试播放
+        if (!muted && !started) {
+            tryPlay();
+        }
+    }
+
+    /** 尝试播放 */
+    function tryPlay() {
+        if (started) return;
+        audio.play().then(() => {
+            started = true;
+            console.log('[BGM] 🎵 背景音乐已开始播放');
+        }).catch(() => {
+            // 浏览器阻止自动播放，等待用户交互
+        });
+    }
+
+    // --- 事件绑定 ---
+
+    // 点击音乐按钮：展开/收起音量面板
+    if (btnBgm && panel) {
+        btnBgm.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel.classList.toggle('open');
+            // 首次交互时尝试播放
+            if (!started && !muted) tryPlay();
+        });
+    }
+
+    // 静音按钮
+    if (muteBtn) {
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMute();
+            // 首次交互时尝试播放
+            if (!started && !muted) tryPlay();
+        });
+    }
+
+    // 滑条拖动
+    if (slider) {
+        slider.addEventListener('input', (e) => {
+            setVolume(parseInt(e.target.value, 10));
+            // 首次交互时尝试播放
+            if (!started && !muted) tryPlay();
+        });
+        // 阻止面板内的点击冒泡关闭面板
+        slider.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // 面板内点击不冒泡
+    if (panel) {
+        panel.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // 点击页面其他区域关闭面板
+    document.addEventListener('click', () => {
+        if (panel) panel.classList.remove('open');
+    });
+
+    // 首次用户交互时尝试播放（解决浏览器 autoplay 限制）
+    const startOnInteraction = () => {
+        if (!muted) tryPlay();
+        document.removeEventListener('click', startOnInteraction);
+        document.removeEventListener('keydown', startOnInteraction);
+    };
+    document.addEventListener('click', startOnInteraction);
+    document.addEventListener('keydown', startOnInteraction);
+
+    // 初始渲染
+    updateUI();
+
+    return { audio, setVolume, toggleMute, tryPlay };
+})();
+
 // ===== 启动 =====
 initTopBarButtons();
 showStartScreen();
@@ -1001,6 +1156,7 @@ window.game = {
     dailySummary,
     npcChat: npcChatSystem,
     priceChart,
+    bgm,
 };
 
 console.log('[Main] 🎮 治村物语已就绪 — 在控制台输入 window.game 查看游戏实例');
