@@ -78,7 +78,7 @@ export const GameState = {
 
     // ===== 仓库容量系统 =====
     storage: {
-        baseCapacity: 50,          // 基础仓库容量
+        baseCapacity: 80,          // 基础仓库容量
         upgradeBonus: 50,          // 每次升级增加的容量
         // 重要系数：基础且重要的资源系数高（gold 不占仓库容量）
         importanceFactors: {
@@ -145,11 +145,17 @@ export const GameState = {
         return this.storage.baseCapacity + upgradeCount * this.storage.upgradeBonus;
     },
 
-    /** 获取某资源的容量上限（金币无上限） */
+    /** 获取某资源的容量上限（金币无上限，容量按权重分配） */
     getStorageLimit(resourceType) {
         if (resourceType === 'gold') return Infinity;
-        const factor = this.storage.importanceFactors[resourceType] || 0.3;
-        return Math.floor(factor * this.warehouseCapacity);
+        const factors = this.storage.importanceFactors;
+        const total = Object.values(factors).reduce((sum, value) => sum + value, 0);
+        const factor = factors[resourceType];
+        if (!factor || total <= 0) {
+            const fallback = 0.3;
+            return Math.floor((fallback / Math.max(1, total + fallback)) * this.warehouseCapacity);
+        }
+        return Math.floor((factor / total) * this.warehouseCapacity);
     },
 
     /** 获取某资源的当前数量 */

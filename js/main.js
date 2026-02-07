@@ -355,6 +355,35 @@ function showStartScreen() {
 }
 
 // ===== 初始化新游戏 =====
+function fillInitialStorageToCapacity() {
+    const limitOf = (type) => gameState.getStorageLimit(type);
+
+    // 主资源
+    gameState.resources.food = limitOf('food');
+    gameState.resources.wood = limitOf('wood');
+    gameState.resources.stone = limitOf('stone');
+
+    // 种子总量按容量平均分配
+    const seedTypes = Object.keys(gameState.resources.seeds || {});
+    const seedLimit = limitOf('seeds');
+    if (seedTypes.length > 0) {
+        const per = Math.floor(seedLimit / seedTypes.length);
+        let remain = seedLimit - per * seedTypes.length;
+        seedTypes.forEach(type => {
+            const extra = remain > 0 ? 1 : 0;
+            if (remain > 0) remain -= 1;
+            gameState.resources.seeds[type] = per + extra;
+        });
+    }
+
+    // 仓库物品
+    Object.keys(gameState.inventory || {}).forEach(type => {
+        gameState.inventory[type] = limitOf(type);
+    });
+
+    gameState.resetDailyChanges();
+}
+
 function initNewGame() {
     console.log('[Main] 🏘️ 治村物语 新游戏初始化...');
 
@@ -363,6 +392,9 @@ function initNewGame() {
 
     // 赠送初始建筑：2块农田 + 1座茅草屋
     buildingSystem.buildInitial();
+
+    // 初始资源按仓库容量填满
+    fillInitialStorageToCapacity();
 
     // 赠送初始村民："小青"（勤劳·乐观）
     villagerSystem.addInitialVillager();
@@ -611,7 +643,7 @@ function showGameRulesModal() {
                 <p>游戏以 <b>Tick</b> 为单位推进，1 Tick = 1 游戏小时，1天 = 24 Tick。</p>
                 <p><b>1 Tick = 现实 3 秒</b>（1倍速下），即现实 72 秒 = 游戏 1 天。</p>
                 <p><b>1 季 = 5 天</b>，春→夏→秋→冬，<b>1 年 = 4 季 = 20 天</b>。</p>
-                <p>可通过右上角按钮调节速度（0.5x / 1x / 1.2x），空格键暂停/恢复。</p>
+                <p>可通过右上角按钮调节速度（0.5x / 1x / 1.5x），空格键暂停/恢复。</p>
                 <p>重要事件发生时游戏会自动暂停，给你时间做决策。</p>
 
                 <hr class="divider">

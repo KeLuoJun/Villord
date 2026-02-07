@@ -59,7 +59,7 @@ export class TutorialSystem {
                     <p><b>1季 = 5天</b>，春→夏→秋→冬循环，<b>1年 = 4季 = 20天</b>。</p>
                     <hr class="divider">
                     <p>⏸ <b>空格键</b> — 暂停/恢复游戏</p>
-                    <p>⏩ <b>右上角按钮</b> — 调整速度（0.5x / 1x / 1.2x）</p>
+                    <p>⏩ <b>右上角按钮</b> — 调整速度（0.5x / 1x / 1.5x）</p>
                     <p>💾 <b>Ctrl+S</b> 存档　<b>Ctrl+L</b> 读档</p>
                     <hr class="divider">
                     <p>⚡ 重要事件会<b>自动暂停</b>游戏，让你有时间做决策。</p>

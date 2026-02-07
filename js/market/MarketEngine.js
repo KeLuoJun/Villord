@@ -440,17 +440,23 @@ export class MarketEngine {
         let maxQty;
         // storageType 需在 if 块外声明，模板字符串中也要用
         let storageType = itemId;
+        let maxByGold = Infinity;
+        let storageSpace = Infinity;
         if (isBuy) {
-            const maxByGold = Math.floor(this.state.resources.gold / price);
+            maxByGold = Math.floor(this.state.resources.gold / price);
             // 根据物品类型获取对应的仓库剩余空间
             if (itemId.startsWith('seed_')) storageType = 'seeds';
             else if (['radish', 'wheat', 'potato'].includes(itemId)) storageType = 'food';
-            const storageSpace = this.state.getStorageSpace(storageType);
+            storageSpace = this.state.getStorageSpace(storageType);
             maxQty = Math.min(maxByGold, storageSpace);
         } else {
             maxQty = this.getInventoryCount(itemId);
         }
         maxQty = Math.max(0, maxQty);
+        const initialQty = maxQty > 0 ? 1 : 0;
+        const buyLimitReason = isBuy
+            ? (maxByGold <= 0 ? '金币不足' : storageSpace <= 0 ? '仓库已满' : '')
+            : '';
 
         // 移除已有弹窗
         const existing = document.querySelector('.trade-dialog-overlay');
@@ -469,7 +475,7 @@ export class MarketEngine {
                     <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;">
                         <button class="btn btn-sm btn-secondary trade-qty-btn" data-delta="-10">-10</button>
                         <button class="btn btn-sm btn-secondary trade-qty-btn" data-delta="-1">-1</button>
-                        <input type="number" class="trade-qty-input" value="1" min="0" max="${maxQty}" style="
+                        <input type="number" class="trade-qty-input" value="${initialQty}" min="0" max="${maxQty}" style="
                             width:70px;text-align:center;font-size:18px;font-weight:700;
                             border:2px solid var(--border);border-radius:8px;padding:6px;
                             background:var(--surface);color:var(--text-primary);
@@ -484,7 +490,7 @@ export class MarketEngine {
                     </div>
                     <div style="font-size:13px;color:var(--text-secondary);margin-top:8px;">
                         ${isBuy ?
-                            `当前金币: ${this.state.resources.gold}💰　仓库余量: ${this.state.getStorageSpace(storageType)}　可买: ${maxQty}个` :
+                            `当前金币: ${this.state.resources.gold}💰　仓库余量: ${storageSpace}　可买: ${maxQty}个${buyLimitReason ? `（${buyLimitReason}）` : ''}` :
                             `当前库存: ${maxQty}个`
                         }
                     </div>
@@ -526,7 +532,9 @@ export class MarketEngine {
         overlay.querySelectorAll('.trade-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 const pct = parseInt(btn.dataset.pct);
-                qtyInput.value = Math.max(1, Math.floor(maxQty * pct / 100));
+                qtyInput.value = maxQty <= 0
+                    ? 0
+                    : Math.max(1, Math.floor(maxQty * pct / 100));
                 updateTotal();
             });
         });
@@ -554,6 +562,17 @@ export class MarketEngine {
                 this.showTradeCommentary(result.tradeRecord);
             }
         });
+
+        // 初始状态同步
+        updateTotal();
+
+        // 无法买入时禁用输入控件
+        if (isBuy && maxQty <= 0) {
+            qtyInput.disabled = true;
+            overlay.querySelectorAll('.trade-qty-btn, .trade-preset').forEach(btn => {
+                btn.disabled = true;
+            });
+        }
 
         document.body.appendChild(overlay);
         qtyInput.focus();
