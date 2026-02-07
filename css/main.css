@@ -18,9 +18,22 @@ html, body {
     line-height: 1.5;
 }
 
+/* ===== 全局选中色 ===== */
+::selection {
+    background: rgba(107, 158, 79, 0.25);
+    color: var(--text-primary);
+}
+
+/* ===== 全局焦点样式 ===== */
+:focus-visible {
+    outline: 2px solid var(--color-primary-light);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
 /* ===== 滚动条美化 ===== */
 ::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -30,6 +43,7 @@ html, body {
 ::-webkit-scrollbar-thumb {
     background: var(--color-divider);
     border-radius: 3px;
+    transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -139,12 +153,32 @@ html, body {
 .progress-bar .fill {
     height: 100%;
     border-radius: 4px;
-    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.4s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.progress-bar .fill.high { background-color: var(--color-success); }
-.progress-bar .fill.medium { background-color: var(--color-warning); }
-.progress-bar .fill.low { background-color: var(--color-danger); }
+/* 进度条流光动画 */
+.progress-bar .fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    animation: progressShimmer 2.5s ease-in-out infinite;
+}
+
+@keyframes progressShimmer {
+    0% { left: -50%; }
+    100% { left: 150%; }
+}
+
+.progress-bar .fill.high { background: linear-gradient(90deg, #4a9e4f, #6bbd52); }
+.progress-bar .fill.medium { background: linear-gradient(90deg, #d9a836, #e5c94e); }
+.progress-bar .fill.low { background: linear-gradient(90deg, #c04040, #e05858); }
 
 /* ===== 卡片 ===== */
 .card {
@@ -159,6 +193,7 @@ html, body {
 .card:hover {
     box-shadow: var(--card-shadow-hover);
     transform: translateY(-2px);
+    border-color: rgba(107, 158, 79, 0.2);
 }
 
 /* ===== 分隔线 ===== */
@@ -240,12 +275,18 @@ html, body {
 .modal {
     background: var(--bg-panel);
     border-radius: var(--card-radius);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 16px 56px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.06);
     padding: var(--spacing-xl);
     max-width: 500px;
     width: 90%;
     max-height: 80vh;
     overflow-y: auto;
+    animation: modalPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalPopIn {
+    from { opacity: 0; transform: scale(0.88) translateY(12px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modal-title {
@@ -279,11 +320,36 @@ html, body {
     padding: 10px 16px;
     border-radius: 10px;
     background: var(--bg-panel);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0,0,0,0.06);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16), 0 1px 4px rgba(0,0,0,0.06);
     font-size: var(--font-size-base);
     animation: toastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1), toastFadeOut 0.4s ease 3s forwards;
     max-width: 320px;
     border-left: 3px solid var(--color-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Toast 底部倒计时进度条 */
+.toast::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background: var(--color-primary);
+    opacity: 0.4;
+    animation: toastTimer 3.4s linear forwards;
+    border-radius: 0 0 10px 10px;
+}
+
+.toast-success::after { background: var(--color-success); }
+.toast-warning::after { background: var(--color-warning); }
+.toast-danger::after  { background: var(--color-danger); }
+
+@keyframes toastTimer {
+    from { width: 100%; }
+    to   { width: 0%; }
 }
 
 .toast-success { border-left-color: var(--color-success); }

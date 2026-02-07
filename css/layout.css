@@ -60,7 +60,18 @@
     text-shadow: 0 1px 4px rgba(0,0,0,0.3);
     min-width: 60px;
     text-align: center;
-    transition: text-shadow 0.3s ease;
+    transition: text-shadow 0.3s ease, transform 0.15s ease;
+}
+
+/* 时钟变更时的柔和脉冲（通过 JS class toggle） */
+.time-clock.tick-pulse {
+    animation: clockTick 0.4s ease;
+}
+
+@keyframes clockTick {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.06); text-shadow: 0 0 12px rgba(255,255,255,0.35); }
+    100% { transform: scale(1); }
 }
 
 /* 顶部金币显示 */
@@ -90,6 +101,18 @@
     color: var(--color-gold-light, #F2D477);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     min-width: 30px;
+    transition: transform 0.2s ease, color 0.3s ease;
+}
+
+/* 金币数值变动时闪烁 */
+.topbar-gold-value.gold-bump {
+    animation: goldBump 0.5s ease;
+}
+
+@keyframes goldBump {
+    0%   { transform: scale(1); }
+    25%  { transform: scale(1.15); color: #fff; }
+    100% { transform: scale(1); }
 }
 
 .topbar-gold-change {
@@ -168,8 +191,8 @@
 }
 
 @keyframes pausedGlow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 200, 50, 0.2); }
-    50% { box-shadow: 0 0 8px 2px rgba(255, 200, 50, 0.3); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 200, 50, 0.15); background: rgba(255, 200, 50, 0.25); }
+    50% { box-shadow: 0 0 12px 4px rgba(255, 200, 50, 0.25); background: rgba(255, 200, 50, 0.40); }
 }
 
 /* ===== 主体三栏区域 ===== */
@@ -201,10 +224,16 @@
 #left-panel .panel-section-title {
     font-size: var(--font-size-sm);
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: var(--spacing-sm);
     text-transform: uppercase;
     letter-spacing: 1px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid transparent;
+    background-image: linear-gradient(var(--bg-panel), var(--bg-panel)),
+                      linear-gradient(90deg, var(--color-primary-light), transparent);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
 }
 
 /* 中央面板 */
@@ -299,8 +328,8 @@
 }
 
 @keyframes tabPageIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(8px) scale(0.995); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* 村民标签页特殊处理：左右独立滚动 */
@@ -335,9 +364,15 @@
 #right-panel .panel-section-title {
     font-size: var(--font-size-sm);
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: var(--spacing-sm);
     letter-spacing: 1px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid transparent;
+    background-image: linear-gradient(var(--bg-panel), var(--bg-panel)),
+                      linear-gradient(90deg, var(--season-accent, var(--color-primary-light)), transparent);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
 }
 
 /* ===== 顶栏图标按钮 ===== */
@@ -460,6 +495,12 @@
     width: 40px; height: 40px;
     display: flex; align-items: center; justify-content: center;
     background: rgba(91,140,90,0.08); border-radius: 50%;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+}
+
+.chat-villager-row:hover .chat-v-avatar {
+    transform: scale(1.1) rotate(-3deg);
+    background: rgba(91,140,90,0.15);
 }
 .chat-v-info { flex: 1; min-width: 0; }
 .chat-v-name {

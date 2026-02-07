@@ -28,15 +28,19 @@
 }
 
 .trait-tag {
-    padding: 2px 8px;
+    padding: 2px 10px;
     border-radius: 12px;
     font-size: var(--font-size-sm);
     font-weight: 500;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.2s ease,
+                background 0.2s ease;
+    cursor: default;
 }
 
 .trait-tag:hover {
-    transform: scale(1.05);
+    transform: scale(1.08) translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
 .trait-tag.positive {

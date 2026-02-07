@@ -122,13 +122,14 @@
 }
 
 @keyframes messageIn {
-    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    40%  { opacity: 1; }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .message .message-avatar {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -136,6 +137,12 @@
     font-size: 20px;
     flex-shrink: 0;
     background: var(--bg-input);
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.message:hover .message-avatar {
+    transform: scale(1.08);
 }
 
 .message .message-bubble {
@@ -151,10 +158,10 @@
 }
 
 .message.player .message-bubble {
-    background: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
     color: var(--text-inverse);
     border-bottom-right-radius: 4px;
-    box-shadow: 0 1px 4px rgba(107, 158, 79, 0.2);
+    box-shadow: 0 2px 8px rgba(107, 158, 79, 0.2);
 }
 
 /* 村民消息（左侧） */
@@ -162,7 +169,7 @@
     background: var(--bg-input);
     color: var(--text-primary);
     border-bottom-left-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 /* AI 加载中 */
@@ -181,7 +188,7 @@
 }
 
 .option-btn {
-    padding: 6px 12px;
+    padding: 6px 14px;
     border: var(--panel-border);
     border-radius: 20px;
     background: var(--bg-panel);
@@ -190,18 +197,29 @@
     font-family: var(--font-main);
     color: var(--text-primary);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: optionFadeIn 0.3s ease both;
+}
+
+.option-btn:nth-child(1) { animation-delay: 0.05s; }
+.option-btn:nth-child(2) { animation-delay: 0.1s; }
+.option-btn:nth-child(3) { animation-delay: 0.15s; }
+
+@keyframes optionFadeIn {
+    from { opacity: 0; transform: translateY(4px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .option-btn:hover {
     background: var(--bg-selected);
     border-color: var(--color-primary-light);
     color: var(--color-primary);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(107, 158, 79, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(107, 158, 79, 0.15);
 }
 
 .option-btn:active {
     transform: scale(0.95);
+    transition-duration: 0.08s;
 }
 
 /* 对话输入区域 */
@@ -226,6 +244,8 @@
 
 .dialogue-input input:focus {
     border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(107, 158, 79, 0.12);
+    background: var(--bg-panel);
 }
 
 .dialogue-input .send-btn {

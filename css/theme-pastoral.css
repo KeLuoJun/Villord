@@ -97,14 +97,20 @@
 /* ===== 季节切换平滑过渡 ===== */
 body {
     transition:
-        background-color 1.2s ease,
-        color 0.6s ease;
+        background-color 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+        color 0.8s ease;
 }
 
 #main-content {
-    transition: background-color 1.2s ease;
+    transition: background-color 1.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #top-bar {
-    transition: border-color 1s ease;
+    transition: border-color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 季节变化时面板也平滑过渡 */
+#left-panel,
+#right-panel {
+    transition: background-color 0.8s ease, border-color 0.8s ease;
 }

@@ -227,7 +227,18 @@
 .resource-bar-fill {
     height: 100%;
     border-radius: 3px;
-    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                background 0.4s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.resource-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: progressShimmer 2.5s ease-in-out infinite;
 }
 
 /* 村民卡片（左侧） */
@@ -314,7 +325,24 @@
 .villager-card .stat-row .stat-fill {
     height: 100%;
     border-radius: 3px;
-    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                background 0.4s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* stat 条微流光 */
+.villager-card .stat-row .stat-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: statShimmer 3s ease-in-out infinite;
+}
+
+@keyframes statShimmer {
+    0%   { left: -60%; }
+    100% { left: 160%; }
 }
 
 .villager-card .stat-row .stat-value {
@@ -346,8 +374,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 0;
+    padding: 5px 6px;
     font-size: var(--font-size-base);
+    border-radius: 6px;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.overview-item:hover {
+    background: var(--bg-hover);
 }
 
 .overview-item .overview-label {
@@ -356,12 +390,18 @@
 
 .overview-item .overview-value {
     font-family: var(--font-number);
-    font-weight: 500;
+    font-weight: 600;
+    transition: color 0.3s ease, transform 0.2s ease;
 }
 
 /* 繁荣度可点击 */
 #prosperity-clickable:hover {
-    background: var(--bg-input);
+    background: var(--bg-selected);
+    transform: translateX(2px);
+}
+
+#prosperity-clickable:active {
+    transform: scale(0.98);
 }
 
 /* 事件日志 */
@@ -372,25 +412,35 @@
 }
 
 .event-log-item {
-    padding: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
     border-radius: 8px;
     background: var(--bg-input);
     font-size: var(--font-size-sm);
     display: flex;
     gap: var(--spacing-sm);
     align-items: flex-start;
-    animation: eventLogIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    transition: background 0.2s ease, transform 0.2s ease;
+    animation: eventLogIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    border-left: 2px solid transparent;
 }
+
+/* 交错入场：通过 nth-child 添加延迟 */
+.event-log-item:nth-child(1) { animation-delay: 0s; }
+.event-log-item:nth-child(2) { animation-delay: 0.04s; }
+.event-log-item:nth-child(3) { animation-delay: 0.08s; }
+.event-log-item:nth-child(4) { animation-delay: 0.12s; }
+.event-log-item:nth-child(5) { animation-delay: 0.16s; }
 
 .event-log-item:hover {
     background: var(--bg-hover);
     transform: translateX(2px);
+    border-left-color: var(--season-accent, var(--color-primary-light));
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
 @keyframes eventLogIn {
-    from { opacity: 0; transform: translateX(-8px); }
-    to   { opacity: 1; transform: translateX(0); }
+    from { opacity: 0; transform: translateX(-10px) scale(0.97); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
 }
 
 .event-log-item .log-icon {
@@ -423,7 +473,14 @@
 }
 
 .weather-current .weather-icon {
-    font-size: 20px;
+    font-size: 22px;
+    display: inline-block;
+    animation: weatherIconFloat 3s ease-in-out infinite;
+}
+
+@keyframes weatherIconFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2px); }
 }
 
 .weather-alert {
@@ -455,13 +512,14 @@
     align-items: center;
     justify-content: space-between;
     font-size: var(--font-size-sm);
-    padding: 2px 4px;
-    border-radius: 4px;
-    transition: background 0.2s ease;
+    padding: 3px 6px;
+    border-radius: 6px;
+    transition: background 0.2s ease, transform 0.15s ease;
 }
 
 .price-row:hover {
     background: var(--bg-hover);
+    transform: translateX(2px);
 }
 
 .price-row .price-name {
@@ -499,6 +557,12 @@
 .building-card .building-icon {
     font-size: 32px;
     margin-bottom: var(--spacing-sm);
+    display: inline-block;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.building-card:hover .building-icon {
+    transform: scale(1.15) translateY(-2px);
 }
 
 .building-card .building-name {
@@ -528,11 +592,14 @@
 
 .farm-plot-card {
     padding: var(--spacing-lg);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s ease,
+                border-color 0.25s ease;
 }
 
 .farm-plot-card:hover {
     transform: translateY(-2px);
+    border-color: var(--color-primary-light);
 }
 
 .farm-plot-card .plot-header {
@@ -603,7 +670,11 @@
 }
 
 .market-table tr {
-    transition: background 0.2s ease;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.market-table tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.015);
 }
 
 .market-table tr:hover {
@@ -751,9 +822,24 @@
 }
 
 .ct-card:hover {
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
     border-color: var(--color-primary-light, #8FBF72);
+}
+
+/* 时间线卡片入场动画 */
+.ct-item {
+    animation: ctItemIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.ct-item:nth-child(1) { animation-delay: 0s; }
+.ct-item:nth-child(2) { animation-delay: 0.06s; }
+.ct-item:nth-child(3) { animation-delay: 0.12s; }
+.ct-item:nth-child(4) { animation-delay: 0.18s; }
+.ct-item:nth-child(5) { animation-delay: 0.24s; }
+
+@keyframes ctItemIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .ct-card.ct-card-latest {
@@ -969,7 +1055,7 @@
     border-radius: 10px;
     padding: 12px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .policy-option-card:hover:not(.policy-disabled):not(.policy-active) {
     border-color: var(--accent, #6B9E4F);

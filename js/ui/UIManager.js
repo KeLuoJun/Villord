@@ -138,7 +138,14 @@ export class UIManager {
 
         const hourEl = document.getElementById('status-hour');
         if (hourEl) {
-            hourEl.textContent = `${String(t.hour).padStart(2, '0')}:00`;
+            const newText = `${String(t.hour).padStart(2, '0')}:00`;
+            if (hourEl.textContent !== newText) {
+                hourEl.textContent = newText;
+                // 时钟变更时微脉冲
+                hourEl.classList.remove('tick-pulse');
+                void hourEl.offsetWidth; // 强制回流以重新触发动画
+                hourEl.classList.add('tick-pulse');
+            }
         }
 
     }
@@ -250,7 +257,16 @@ export class UIManager {
     _updateTopbarGold(gold, dailyChange) {
         const valEl = document.getElementById('topbar-gold-value');
         const changeEl = document.getElementById('topbar-gold-change');
-        if (valEl) valEl.textContent = gold;
+        if (valEl) {
+            const oldVal = valEl.textContent;
+            valEl.textContent = gold;
+            // 金币变化时微弹
+            if (oldVal !== '' && oldVal !== String(gold)) {
+                valEl.classList.remove('gold-bump');
+                void valEl.offsetWidth;
+                valEl.classList.add('gold-bump');
+            }
+        }
         if (changeEl) {
             if (dailyChange > 0) {
                 changeEl.textContent = `+${dailyChange}`;
