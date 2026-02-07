@@ -39,13 +39,24 @@
                 <button class="speed-btn" data-speed="1.5">1.5x</button>
                 <span class="topbar-divider"></span>
                 <div class="bgm-wrap">
-                    <button class="topbar-icon-btn" id="btn-bgm" title="背景音乐">🎵</button>
+                    <button class="topbar-icon-btn" id="btn-bgm" title="音频设置">🎵</button>
                     <div class="bgm-panel" id="bgm-panel">
-                        <div class="bgm-panel-title">🎵 背景音乐</div>
-                        <div class="bgm-volume-row">
-                            <button class="bgm-mute-btn" id="bgm-mute-btn" title="静音">🔊</button>
-                            <input type="range" class="bgm-slider" id="bgm-slider" min="0" max="100" value="35">
-                            <span class="bgm-volume-val" id="bgm-volume-val">35%</span>
+                        <div class="bgm-panel-title">🔊 音频设置</div>
+                        <div class="bgm-volume-group">
+                            <span class="bgm-volume-label">🎵 音乐</span>
+                            <div class="bgm-volume-row">
+                                <button class="bgm-mute-btn" id="bgm-mute-btn" title="静音">🔊</button>
+                                <input type="range" class="bgm-slider" id="bgm-slider" min="0" max="100" value="35">
+                                <span class="bgm-volume-val" id="bgm-volume-val">35%</span>
+                            </div>
+                        </div>
+                        <div class="bgm-volume-group">
+                            <span class="bgm-volume-label">🔔 音效</span>
+                            <div class="bgm-volume-row">
+                                <button class="bgm-mute-btn" id="sfx-mute-btn" title="静音">🔊</button>
+                                <input type="range" class="bgm-slider" id="sfx-slider" min="0" max="100" value="50">
+                                <span class="bgm-volume-val" id="sfx-volume-val">50%</span>
+                            </div>
                         </div>
                     </div>
                 </div>

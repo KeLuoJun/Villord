@@ -7,6 +7,7 @@ import { EventBus } from './core/EventBus.js';
 import { GameState } from './core/GameState.js';
 import { TimeSystem } from './core/TimeSystem.js';
 import { SaveSystem } from './core/SaveSystem.js';
+import { SoundManager } from './core/SoundManager.js';
 import { UIManager } from './ui/UIManager.js';
 import { MAX_MOOD } from './config/villagers.js';
 
@@ -1133,6 +1134,89 @@ const bgm = (() => {
     return { audio, setVolume, toggleMute, tryPlay };
 })();
 
+// ===== SFX 音效系统 =====
+const sfx = new SoundManager();
+sfx.registerAll({
+    click:   './assets/sounds/click.mp3',
+    coin:    './assets/sounds/coin.mp3',
+    harvest: './assets/sounds/harvest.mp3',
+    recruit: './assets/sounds/recruit.mp3',
+    notify:  './assets/sounds/notify.mp3',
+    season:  './assets/sounds/season.mp3',
+});
+
+// --- 绑定事件 → 音效 ---
+// 建造完成 → coin（扣费 + 建造反馈）
+eventBus.on('buildingBuilt', () => sfx.play('coin'));
+// 作物收获 → harvest
+eventBus.on('cropHarvested', () => sfx.play('harvest'));
+// 招募村民 → recruit
+eventBus.on('villagerRecruited', () => sfx.play('recruit'));
+// 季节变更 → season
+eventBus.on('seasonChange', () => sfx.play('season'));
+// Toast 通知 → notify（仅 warning/danger 类型触发，避免过于频繁）
+eventBus.on('showToast', (data) => {
+    if (data?.type === 'warning' || data?.type === 'danger') {
+        sfx.play('notify');
+    }
+});
+// 自动暂停事件（重要提醒） → notify
+eventBus.on('autoPause', () => sfx.play('notify'));
+// 通关 → recruit（复用庆祝音效）
+eventBus.on('gameWin', () => sfx.play('recruit'));
+
+// --- 按钮点击音效（事件委托） ---
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('.btn, .tab-btn, .speed-btn, .pause-btn, .topbar-icon-btn, .policy-option-card, .send-btn');
+    // 排除音量面板内的控件（避免调音量时不停响）
+    if (target && !target.closest('.bgm-panel')) {
+        sfx.play('click');
+    }
+});
+
+// --- SFX 音量面板控件 ---
+const sfxMuteBtn = document.getElementById('sfx-mute-btn');
+const sfxSlider = document.getElementById('sfx-slider');
+const sfxVolumeVal = document.getElementById('sfx-volume-val');
+
+function updateSfxUI() {
+    const vol = sfx.getVolume();
+    const muted = sfx.isMuted();
+    if (sfxMuteBtn) {
+        sfxMuteBtn.textContent = (muted || vol === 0) ? '🔇' : vol < 40 ? '🔉' : '🔊';
+    }
+    if (sfxSlider) {
+        sfxSlider.value = vol;
+        sfxSlider.style.setProperty('--slider-pct', `${vol}%`);
+    }
+    if (sfxVolumeVal) {
+        sfxVolumeVal.textContent = muted ? '静音' : `${vol}%`;
+    }
+}
+
+if (sfxMuteBtn) {
+    sfxMuteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sfx.toggleMute();
+        updateSfxUI();
+        // 取消静音时播放一个示例音效
+        if (!sfx.isMuted()) sfx.play('click');
+    });
+}
+if (sfxSlider) {
+    sfxSlider.addEventListener('input', (e) => {
+        sfx.setVolume(parseInt(e.target.value, 10));
+        updateSfxUI();
+    });
+    // 松开滑条时播放示例音效
+    sfxSlider.addEventListener('change', () => {
+        if (!sfx.isMuted()) sfx.play('click');
+    });
+    sfxSlider.addEventListener('click', (e) => e.stopPropagation());
+}
+
+updateSfxUI();
+
 // ===== 启动 =====
 initTopBarButtons();
 showStartScreen();
@@ -1157,6 +1241,7 @@ window.game = {
     npcChat: npcChatSystem,
     priceChart,
     bgm,
+    sfx,
 };
 
 console.log('[Main] 🎮 治村物语已就绪 — 在控制台输入 window.game 查看游戏实例');

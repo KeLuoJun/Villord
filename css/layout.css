@@ -441,8 +441,21 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary, #7a7265);
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     letter-spacing: 0.3px;
+}
+.bgm-volume-group {
+    margin-bottom: 10px;
+}
+.bgm-volume-group:last-child {
+    margin-bottom: 0;
+}
+.bgm-volume-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary, #7a7265);
+    margin-bottom: 6px;
 }
 .bgm-volume-row {
     display: flex;
