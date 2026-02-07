@@ -27,7 +27,7 @@ export const WORK_HOURS_POLICIES = {
         workStart: 8,
         workEnd: 21,
         productionMult: 1.35,
-        dailyMoodDelta: -2,
+        dailyMoodDelta: -1,
         staminaRecoveryMult: 0.7,
         tags: ['高压', '高产出'],
     },
@@ -136,7 +136,7 @@ export const HOLIDAY_POLICIES = {
         description: '全年无休！短期高效但连续工作超过3天后村民状态急剧下降。',
         restDays: [],                // 每季中的休息日（空=无）
         continuousWorkThreshold: 3,  // 连续工作X天后开始疲劳惩罚
-        fatigueMoodDelta: -2,        // 疲劳期每日心情惩罚
+        fatigueMoodDelta: -1,        // 疲劳期每日心情惩罚
         fatigueStaminaMult: 0.8,     // 疲劳期体力恢复倍率
         productionMult: 1.0,         // 基础产出倍率（仅按工作天数算）
         tags: ['无休', '高风险'],
@@ -165,7 +165,7 @@ export const HOLIDAY_POLICIES = {
         fatigueMoodDelta: 0,
         fatigueStaminaMult: 1.0,
         productionMult: 1.0,         // 3/5天工作
-        restDayMoodBonus: 2,         // 休息日心情恢复更多
+        restDayMoodBonus: 1,         // 休息日心情恢复更多
         restDayStaminaRestore: true,
         tags: ['轻松', '低产出'],
     },

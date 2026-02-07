@@ -51,23 +51,23 @@ export const DISMISS_COST = 20;
 export const DAILY_FOOD_COST = 1;
 
 /** 心情上限 */
-export const MAX_MOOD = 15;
+export const MAX_MOOD = 10;
 
-/** 体力消耗表（基于15体力上限平衡） */
+/** 体力消耗表（基于10体力上限平衡） */
 export const STAMINA_COSTS = {
-    plant: 3,
-    water: 2,
-    fertilize: 2,
-    harvest: 3,
-    pest_control: 4,
-    chop: 4,
-    mine: 5,
-    process: 3,
+    plant: 2,
+    water: 1,
+    fertilize: 1,
+    harvest: 2,
+    pest_control: 2,
+    chop: 2,
+    mine: 3,
+    process: 2,
     trade: 1,
     rest: 0,
     eat: 0,
-    idle: 1,
-    chat: 1,
+    idle: 0,
+    chat: 0,
 };
 
 /** 行动耗时表（小时） */
@@ -109,8 +109,8 @@ export const ACTION_NAMES = {
 
 /** 性格对属性的影响 */
 export const TRAIT_EFFECTS = {
-    '健壮': { maxStamina: 15, staminaMod: 0.9 },
-    '体弱': { maxStamina: 12, staminaMod: 1.15 },
+    '健壮': { maxStamina: 12, staminaMod: 0.9 },
+    '体弱': { maxStamina: 8, staminaMod: 1.15 },
     '聪明': { accuracy: 1.0 },
     '愚笨': { accuracy: 0.7 },
     '勤劳': { workSpeed: 1.3 },

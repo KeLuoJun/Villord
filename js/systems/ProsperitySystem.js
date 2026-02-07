@@ -23,10 +23,10 @@ const PROSPERITY_LEVELS = [
 
 export { PROSPERITY_LEVELS };
 
-const MOOD_BONUS_THRESHOLD_1 = Math.round(MAX_MOOD * 0.6); // 20 -> 12
-const MOOD_BONUS_THRESHOLD_2 = Math.round(MAX_MOOD * 0.8); // 20 -> 16
-const MOOD_DECAY_THRESHOLD_1 = Math.round(MAX_MOOD * 0.3); // 20 -> 6
-const MOOD_DECAY_THRESHOLD_2 = Math.max(1, Math.round(MAX_MOOD * 0.15)); // 20 -> 3
+const MOOD_BONUS_THRESHOLD_1 = Math.round(MAX_MOOD * 0.6); // 10 -> 6
+const MOOD_BONUS_THRESHOLD_2 = Math.round(MAX_MOOD * 0.8); // 10 -> 8
+const MOOD_DECAY_THRESHOLD_1 = Math.round(MAX_MOOD * 0.3); // 10 -> 3
+const MOOD_DECAY_THRESHOLD_2 = Math.max(1, Math.round(MAX_MOOD * 0.15)); // 10 -> 2
 
 export class ProsperitySystem {
     constructor(gameState, eventBus) {

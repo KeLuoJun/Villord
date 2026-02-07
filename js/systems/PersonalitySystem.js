@@ -4,9 +4,9 @@
  */
 import { MAX_MOOD } from '../config/villagers.js';
 
-const MOOD_REBEL_THRESHOLD = Math.round(MAX_MOOD * 0.4); // 20 -> 8
-const MOOD_GOOD_THRESHOLD = Math.round(MAX_MOOD * 0.7);  // 20 -> 14
-const MOOD_LOW_THRESHOLD = Math.round(MAX_MOOD * 0.4);   // 20 -> 8
+const MOOD_REBEL_THRESHOLD = Math.round(MAX_MOOD * 0.4); // 10 -> 4
+const MOOD_GOOD_THRESHOLD = Math.round(MAX_MOOD * 0.7);  // 10 -> 7
+const MOOD_LOW_THRESHOLD = Math.round(MAX_MOOD * 0.4);   // 10 -> 4
 
 export class PersonalitySystem {
     constructor(gameState, eventBus) {
@@ -170,7 +170,7 @@ export class PersonalitySystem {
                 weight: 3,
                 execute: () => {
                     villager.currentAction = '💤 自行休息';
-                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 3);
+                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 2);
                 },
             });
         }

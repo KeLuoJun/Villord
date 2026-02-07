@@ -516,7 +516,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         // 体力恢复中断：如果正在强制休息，先恢复
         if (villager._forceResting) {
             villager.stamina = Math.min(villager.maxStamina, villager.stamina + 2);
-            if (villager.stamina >= 6) {
+            if (villager.stamina >= 4) {
                 villager._forceResting = false;
                 // 恢复后继续当前时间点的计划
             } else {
@@ -570,7 +570,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             // 体力不足 → 进入强制恢复模式
             villager._forceResting = true;
             villager.currentAction = '💤 体力不足，休息中...';
-            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 2);
+            villager.stamina = Math.min(villager.maxStamina, villager.stamina + 1);
             villager._scheduleStatus[taskKey] = 'deferred';
             return;
         }
@@ -712,7 +712,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             }
             case 'rest': {
                 const restMult = this.state.getPolicyEffects().staminaRecoveryMult;
-                const restAmount = Math.round(4 * restMult);
+                const restAmount = Math.round(3 * restMult);
                 villager.stamina = Math.min(villager.maxStamina, villager.stamina + restAmount);
                 villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 break;
@@ -721,7 +721,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 if (this.state.resources.food >= 1) {
                     this.state.modifyResource('food', -1);
                     const eatMult = this.state.getPolicyEffects().staminaRecoveryMult;
-                    const eatAmount = Math.round(3 * eatMult);
+                    const eatAmount = Math.round(2 * eatMult);
                     villager.stamina = Math.min(villager.maxStamina, villager.stamina + eatAmount);
                     villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 } else {

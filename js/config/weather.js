@@ -65,8 +65,8 @@ export const SPECIAL_WEATHER_EVENTS = {
     heatwave: {
         id: 'heatwave', name: '酷暑高温', icon: '🌡️', season: 'summer',
         duration: 2, cropGrowth: 0.8, staminaMod: 1.5, marketMod: 1.0,
-        canGoOut: true, moodPenalty: -10,
-        effectSummary: '体力消耗+50%，心情-10，作物-20%',
+        canGoOut: true, moodPenalty: -1,
+        effectSummary: '体力消耗+50%，心情-1，作物-20%',
     },
 
     // === 秋季 ===
@@ -107,8 +107,8 @@ export const SPECIAL_WEATHER_EVENTS = {
     winterSun: {
         id: 'winterSun', name: '冬日暖阳', icon: '🌤️', season: 'winter',
         duration: 2, cropGrowth: 0.8, staminaMod: 0.9, marketMod: 1.0,
-        canGoOut: true, moodBonus: 10,
-        effectSummary: '作物恢复生长，体力-10%，心情+10',
+        canGoOut: true, moodBonus: 1,
+        effectSummary: '作物恢复生长，体力-10%，心情+1',
     },
 };
 
