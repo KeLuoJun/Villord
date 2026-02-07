@@ -4,6 +4,13 @@
  * 在事件标签页中以垂直时间线形式展示
  */
 import { ACTION_NAMES, ACTION_ICONS, MAX_MOOD } from '../config/villagers.js';
+import {
+    WORK_HOURS_POLICIES,
+    DISTRIBUTION_POLICIES,
+    REWARD_POLICIES,
+    HOLIDAY_POLICIES,
+    isRestDay,
+} from '../config/policies.js';
 
 export class DailySummary {
     constructor(aiService, gameState, eventBus) {
@@ -192,6 +199,9 @@ export class DailySummary {
         const eventText = keyEvents.length > 0 ? keyEvents.join('\n') : '今天没有特殊事件发生';
         const resText = resourceChanges.length > 0 ? resourceChanges.join('，') : '无明显变化';
 
+        // 构建政策上下文
+        const policyText = this.buildPolicySummaryContext();
+
         return `你是一位村庄编年史官，请为桃源村的今天写一段**生动有趣的日记总结**。
 
 【今日档案】
@@ -199,6 +209,8 @@ export class DailySummary {
 天气：${weatherName}
 村庄金币：${this.state.resources.gold}，粮食：${this.state.resources.food}，木材：${this.state.resources.wood}，石料：${this.state.resources.stone}
 今日资源变动：${resText}
+
+${policyText}
 
 【村民表现】
 ${villagersText}
@@ -211,10 +223,37 @@ ${eventText}
 2. 用生动的叙事语言描述今天发生了什么，像在讲故事
 3. 提到至少1位村民的名字和他/她今天做了什么
 4. 如果有特殊天气或重要事件，要突出描述
-5. 评价今天是好的一天还是困难的一天
-6. 语气是温暖的村庄编年史风格，可以带一点幽默
-7. 不要罗列数据，不要用列表格式
-8. 直接输出纯文本，不要JSON、不要标题、不要markdown格式`;
+5. 如果村庄政策对今天产生了明显影响（比如996导致村民疲惫、休息日大家轻松等），可以提到
+6. 评价今天是好的一天还是困难的一天
+7. 语气是温暖的村庄编年史风格，可以带一点幽默
+8. 不要罗列数据，不要用列表格式
+9. 直接输出纯文本，不要JSON、不要标题、不要markdown格式`;
+    }
+
+    /** 构建政策摘要上下文（注入到每日总结 Prompt 中） */
+    buildPolicySummaryContext() {
+        const policies = this.state.policies;
+        if (!policies) return '';
+
+        const lines = ['【当前村庄政策】'];
+
+        const wh = WORK_HOURS_POLICIES[policies.workHours];
+        if (wh) lines.push(`工时制度：${wh.name}（${wh.workStart}:00-${wh.workEnd}:00）`);
+
+        const dist = DISTRIBUTION_POLICIES[policies.distribution];
+        if (dist) lines.push(`分配制度：${dist.name}`);
+
+        const rwd = REWARD_POLICIES[policies.reward];
+        if (rwd) lines.push(`奖惩机制：${rwd.name}`);
+
+        const hol = HOLIDAY_POLICIES[policies.holiday];
+        if (hol) lines.push(`休假制度：${hol.name}`);
+
+        if (isRestDay(this.state.time.day, policies)) {
+            lines.push('📌 今天是休息日');
+        }
+
+        return lines.join('\n');
     }
 
     /** 降级总结（AI 不可用时生成有可读性的总结） */

@@ -19,6 +19,7 @@ import { WeatherSystem } from './systems/WeatherSystem.js';
 import { VillagerScheduler } from './systems/VillagerScheduler.js';
 import { EventSystem } from './systems/EventSystem.js';
 import { PersonalitySystem } from './systems/PersonalitySystem.js';
+import { PolicySystem } from './systems/PolicySystem.js';
 import { TutorialSystem } from './systems/TutorialSystem.js';
 import { ProsperitySystem } from './systems/ProsperitySystem.js';
 import { DailySummary } from './systems/DailySummary.js';
@@ -99,6 +100,7 @@ const contextCompressor = new ContextCompressor(aiService, gameState, eventBus);
 const priceChart = new PriceChart('price-chart-container');
 priceChart.init(marketEngine);
 const personalitySystem = new PersonalitySystem(gameState, eventBus);
+const policySystem = new PolicySystem(gameState, eventBus);
 const prosperitySystem = new ProsperitySystem(gameState, eventBus);
 const dailySummary = new DailySummary(aiService, gameState, eventBus);
 const npcChatSystem = new NPCChatSystem(aiService, gameState, eventBus);
@@ -164,7 +166,11 @@ uiManager.registerPanel('build', buildingSystem);
 uiManager.registerPanel('villagers', uiManager.villagerPanel);
 uiManager.registerPanel('farm', farmSystem);
 uiManager.registerPanel('market', marketEngine);
+uiManager.registerPanel('policy', policySystem);
 uiManager.registerPanel('events', dailySummary);
+
+// 连接政策系统与 UI
+uiManager.setPolicySystem(policySystem);
 
 // ===== 繁荣度点击事件 =====
 const prosperityClickable = document.getElementById('prosperity-clickable');
@@ -691,6 +697,16 @@ function showGameRulesModal() {
                 <p>• 建造加工坊 → 将原料加工为高价值商品</p>
 
                 <hr class="divider">
+                <h4 style="margin:0 0 8px;">📜 政策系统</h4>
+                <p>• 在"📜 政策"标签页中管理村庄的四大政策</p>
+                <p>• <b>工时制度</b>：朝八晚六 / 996 / 佛系模式，影响工作时间和产出</p>
+                <p>• <b>分配制度</b>：产出归公 / 按劳分配 / 自由市场，影响资源入库比例</p>
+                <p>• <b>奖惩机制</b>：无奖惩 / 绩效奖金 / 偷懒处罚，影响村民行为偏差</p>
+                <p>• <b>休假制度</b>：无休息 / 单休 / 双休，影响村民状态恢复节奏</p>
+                <p>• <b style="color:var(--accent);">每种政策都有 trade-off</b>，没有最优解，只有适合当前局势的解</p>
+                <p>• 政策切换有 2 天冷却时间，请谨慎决策</p>
+
+                <hr class="divider">
                 <h4 style="margin:0 0 8px;">⭐ 繁荣度系统</h4>
                 <p>• 繁荣度为<b>累计制</b>，可增可减（最低为0），无上限</p>
                 <p>• 每天根据村民数、建筑、农田、幸福度、资源状况<b>自动增长</b></p>
@@ -737,6 +753,7 @@ window.game = {
     weather: weatherSystem,
     market: marketEngine,
     scheduler: villagerScheduler,
+    policy: policySystem,
     dailySummary,
     npcChat: npcChatSystem,
     priceChart,

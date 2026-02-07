@@ -3,6 +3,8 @@
  * 所有游戏数据的唯一数据源
  */
 
+import { calculatePolicyEffects, isRestDay } from '../config/policies.js';
+
 // 季节名称映射
 const SEASON_NAMES = ['春', '夏', '秋', '冬'];
 const SEASON_IDS = ['spring', 'summer', 'autumn', 'winter'];
@@ -95,6 +97,17 @@ export const GameState = {
         claimedLevels: [],      // 已领取奖励的等级
         todayGain: 0,           // 今日获得
     },
+
+    // ===== 政策系统 =====
+    policies: {
+        workHours: 'standard',    // 'standard' | '996' | 'chill'
+        distribution: 'public',   // 'public' | 'merit' | 'freeMarket'
+        reward: 'none',           // 'none' | 'bonus' | 'punish'
+        holiday: 'one',           // 'none' | 'one' | 'two'
+    },
+
+    // 连续工作天数追踪（休假制度用）
+    _consecutiveWorkDays: 0,
 
     // ===== 每日资源变化追踪 =====
     dailyChanges: {
@@ -197,6 +210,16 @@ export const GameState = {
         return (this.time.year - 1) * 20  // 20天/年
             + (this.time.month - 1) * 5   // 5天/季
             + this.time.day;
+    },
+
+    /** 获取当前政策组合的综合效果 */
+    getPolicyEffects() {
+        return calculatePolicyEffects(this.policies);
+    },
+
+    /** 今天是否为休息日 */
+    get isRestDay() {
+        return isRestDay(this.time.day, this.policies);
     },
 
     /** 重置每日变化追踪 */

@@ -122,6 +122,8 @@ export class SaveSystem {
             eventLog: this.state.eventLog.slice(0, 20),
             settings: { ...this.state.settings },
             prosperity: this.state.prosperity,
+            policies: { ...this.state.policies },
+            _consecutiveWorkDays: this.state._consecutiveWorkDays || 0,
         };
     }
 
@@ -149,6 +151,14 @@ export class SaveSystem {
         if (data.eventLog) this.state.eventLog = data.eventLog;
         if (data.settings) Object.assign(this.state.settings, data.settings);
         if (data.prosperity !== undefined) this.state.prosperity = data.prosperity;
+
+        // 政策系统数据恢复（兼容旧存档）
+        if (data.policies) {
+            Object.assign(this.state.policies, data.policies);
+        }
+        if (data._consecutiveWorkDays !== undefined) {
+            this.state._consecutiveWorkDays = data._consecutiveWorkDays;
+        }
 
         // 暂停游戏
         this.state.time.isPaused = true;

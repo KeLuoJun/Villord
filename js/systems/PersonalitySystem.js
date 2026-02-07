@@ -34,18 +34,26 @@ export class PersonalitySystem {
     /**
      * 执行偏差系统
      * 根据性格特征，村民在执行任务时可能出偏差
+     * 偏差概率受奖惩政策影响：
+     *   - 绩效奖金(bonus)：懒惰概率×0.6，叛逆概率×0.5
+     *   - 偷懒处罚(punish)：懒惰概率×1.5，叛逆概率×1.8
      */
     checkExecutionDeviation(villager, data) {
         const task = villager.currentTask;
         if (!task) return;
 
-        // 懒惰：拖延（20%概率本小时不干活）
-        if (villager.traits.includes('懒惰') && Math.random() < 0.2) {
+        // 获取政策修正系数
+        const effects = this.state.getPolicyEffects();
+        const lazyMod = effects.lazyPenalty || 1.0;
+        const rebelMod = effects.rebelPenalty || 1.0;
+
+        // 懒惰：拖延（基础20%概率 × 政策修正）
+        if (villager.traits.includes('懒惰') && Math.random() < 0.2 * lazyMod) {
             villager.currentAction = '🚶 在磨洋工...';
             return;
         }
 
-        // 愚笨：做错事（15%概率执行错误行动）
+        // 愚笨：做错事（15%概率执行错误行动，不受政策影响）
         if (villager.traits.includes('愚笨') && Math.random() < 0.15) {
             const wrongActions = ['idle', 'water', 'plant'];
             const wrong = wrongActions[Math.floor(Math.random() * wrongActions.length)];
@@ -54,8 +62,8 @@ export class PersonalitySystem {
             }
         }
 
-        // 叛逆：拒绝执行（心情<40时10%概率拒绝）— E: 触发自动暂停
-        if (villager.traits.includes('叛逆') && villager.mood < MOOD_REBEL_THRESHOLD && Math.random() < 0.1) {
+        // 叛逆：拒绝执行（基础10%概率 × 政策修正，心情<40%时触发）
+        if (villager.traits.includes('叛逆') && villager.mood < MOOD_REBEL_THRESHOLD && Math.random() < 0.1 * rebelMod) {
             villager.currentAction = '😤 拒绝干活';
             this.state.addLog('😤', `${villager.name}拒绝执行任务："我不想干了！"`, 'warning');
             this.bus.emit('autoPause', { reason: `[村民] ${villager.name}拒绝执行任务` });

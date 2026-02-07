@@ -37,6 +37,7 @@ export class EventSystem {
         this.checkEconomicEvents();
         this.checkVillagerEvents();
         this.checkResourceAlerts();
+        this.checkPolicyEvents();
     }
 
     /** 每日处理 */
@@ -289,6 +290,131 @@ export class EventSystem {
                 ],
             });
             this.setCooldown('famine', 3);
+        }
+    }
+
+    // ===== 政策相关事件 =====
+    checkPolicyEvents() {
+        const policies = this.state.policies;
+        if (!policies) return;
+
+        const effects = this.state.getPolicyEffects();
+
+        // ─── 996 过劳事件：当996工时 + 连续工作多天时触发 ───
+        if (policies.workHours === '996' && !this.isOnCooldown('policy_overwork')) {
+            const consecutiveWork = this.state._consecutiveWorkDays || 0;
+            if (consecutiveWork >= 3) {
+                const exhausted = this.state.villagers.filter(v => v.stamina < v.maxStamina * 0.3);
+                if (exhausted.length > 0 && Math.random() < 0.3) {
+                    const victim = exhausted[Math.floor(Math.random() * exhausted.length)];
+                    this.triggerEvent({
+                        type: 'villager',
+                        title: `🔥 ${victim.name}过劳倒下了！`,
+                        description: `996高强度工作让${victim.name}体力透支，需要紧急休息！连续工作${consecutiveWork}天的高压终于爆发了。`,
+                        options: [
+                            { text: '强制休息1天（-10💰医疗费）', id: 'rest', effect: () => {
+                                if (this.state.resources.gold >= 10) {
+                                    this.state.resources.gold -= 10;
+                                    victim.stamina = victim.maxStamina;
+                                    victim.mood = Math.min(MAX_MOOD, victim.mood + 2);
+                                    this.applyHalfDayHoliday(victim);
+                                }
+                            }},
+                            { text: '让他硬撑', id: 'ignore', effect: () => {
+                                victim.mood = Math.max(0, victim.mood - 3);
+                                victim.stamina = Math.max(0, victim.stamina - 2);
+                            }},
+                        ],
+                    });
+                    this.setCooldown('policy_overwork', 5);
+                }
+            }
+        }
+
+        // ─── 自由市场 "倒爷" 事件 ───
+        if (policies.distribution === 'freeMarket' && !this.isOnCooldown('policy_scalper')) {
+            if (Math.random() < (effects.scalperChance || 0)) {
+                const goldLoss = Math.floor(Math.random() * 15) + 5;
+                const foodLoss = Math.floor(Math.random() * 3) + 1;
+                this.triggerEvent({
+                    type: 'villager',
+                    title: '🤑 村里出了个"倒爷"！',
+                    description: `自由市场制度下，有村民偷偷囤货倒卖，村庄损失了${goldLoss}💰和${foodLoss}🌾！自由的代价...`,
+                    options: [
+                        { text: '严厉警告（止损，心情-1）', id: 'warn', effect: () => {
+                            this.state.resources.gold = Math.max(0, this.state.resources.gold - Math.floor(goldLoss / 2));
+                            this.state.villagers.forEach(v => v.mood = Math.max(0, v.mood - 1));
+                        }},
+                        { text: '睁一只眼闭一只眼', id: 'ignore', effect: () => {
+                            this.state.resources.gold = Math.max(0, this.state.resources.gold - goldLoss);
+                            this.state.modifyResource('food', -foodLoss);
+                        }},
+                        { text: '切换分配制度', id: 'switch', effect: () => {
+                            this.bus.emit('switchTab', { tab: 'policy' });
+                        }},
+                    ],
+                });
+                this.setCooldown('policy_scalper', 7);
+            }
+        }
+
+        // ─── 连续无休息崩溃事件 ───
+        if (policies.holiday === 'none' && !this.isOnCooldown('policy_no_rest')) {
+            const consecutiveWork = this.state._consecutiveWorkDays || 0;
+            if (consecutiveWork >= 5) {
+                const lowMorale = this.state.villagers.filter(v => v.mood < Math.round(MAX_MOOD * 0.3));
+                if (lowMorale.length >= 2 && Math.random() < 0.4) {
+                    this.triggerEvent({
+                        type: 'crisis',
+                        title: '😵 村民集体抗议！',
+                        description: `连续${consecutiveWork}天无休息日，村民们忍无可忍！要求立刻安排休假，否则全体罢工！`,
+                        options: [
+                            { text: '紧急放假1天（全员心情+3）', id: 'holiday', effect: () => {
+                                this.state.villagers.forEach(v => {
+                                    v.mood = Math.min(MAX_MOOD, v.mood + 3);
+                                    v.stamina = v.maxStamina;
+                                    this.applyHalfDayHoliday(v);
+                                });
+                                this.state._consecutiveWorkDays = 0;
+                            }},
+                            { text: '强硬拒绝（全员心情-3）', id: 'refuse', effect: () => {
+                                this.state.villagers.forEach(v => {
+                                    v.mood = Math.max(0, v.mood - 3);
+                                });
+                            }},
+                        ],
+                    });
+                    this.setCooldown('policy_no_rest', 10);
+                }
+            }
+        }
+
+        // ─── 偷懒处罚引发叛逆事件 ───
+        if (policies.reward === 'punish' && !this.isOnCooldown('policy_punish_rebel')) {
+            const rebels = this.state.villagers.filter(v =>
+                v.traits.includes('叛逆') && v.mood < Math.round(MAX_MOOD * 0.3)
+            );
+            if (rebels.length > 0 && Math.random() < 0.2) {
+                const rebel = rebels[Math.floor(Math.random() * rebels.length)];
+                this.triggerEvent({
+                    type: 'villager',
+                    title: `⚡ ${rebel.name}公开抗命！`,
+                    description: `严厉的处罚制度让叛逆的${rebel.name}忍无可忍：「${rebel.quirk}」，当众拒绝工作并鼓动他人！`,
+                    options: [
+                        { text: '私下沟通（心情+2）', id: 'talk', effect: () => {
+                            rebel.mood = Math.min(MAX_MOOD, rebel.mood + 2);
+                        }},
+                        { text: '加倍处罚（心情-3）', id: 'punish_more', effect: () => {
+                            rebel.mood = Math.max(0, rebel.mood - 3);
+                            // 其他村民也受影响
+                            this.state.villagers.forEach(v => {
+                                if (v.id !== rebel.id) v.mood = Math.max(0, v.mood - 1);
+                            });
+                        }},
+                    ],
+                });
+                this.setCooldown('policy_punish_rebel', 7);
+            }
         }
     }
 

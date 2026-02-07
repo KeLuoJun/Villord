@@ -681,6 +681,135 @@ export class UIManager {
         chatFeed.scrollTop = chatFeed.scrollHeight;
     }
 
+    // ===== 政策面板渲染 =====
+
+    /** 设置政策系统引用（由 main.js 调用） */
+    setPolicySystem(policySystem) {
+        this.policySystem = policySystem;
+        this.bus.on('policyPanelUpdate', () => this.renderPolicyPanel());
+        this.bus.on('policyChanged', () => this.renderPolicyPanel());
+    }
+
+    /** 渲染政策面板内容 */
+    renderPolicyPanel() {
+        if (!this.policySystem) return;
+
+        const summaryEl = document.getElementById('policy-summary');
+        const contentEl = document.getElementById('policy-panel-content');
+        if (!summaryEl || !contentEl) return;
+
+        const policiesInfo = this.policySystem.getPoliciesInfo();
+        const effectsSummary = this.policySystem.getEffectsSummary();
+        const restDay = this.state.isRestDay;
+
+        // 综合效果概览
+        summaryEl.innerHTML = `
+            <div class="policy-summary-bar">
+                <span class="policy-summary-label">当前政策效果：</span>
+                <span class="policy-summary-value">${effectsSummary}</span>
+                ${restDay ? '<span class="policy-rest-badge">🏖️ 今天是休息日</span>' : ''}
+            </div>
+        `;
+
+        // 渲染四大政策分类
+        let html = '';
+        for (const [catKey, catInfo] of Object.entries(policiesInfo)) {
+            const cooldownText = catInfo.cooldown.onCooldown
+                ? `<span class="policy-cooldown">冷却中（${catInfo.cooldown.remaining}天）</span>`
+                : '';
+
+            html += `
+                <div class="policy-category">
+                    <div class="policy-category-header">
+                        <span class="policy-category-icon">${catInfo.icon}</span>
+                        <span class="policy-category-name">${catInfo.name}</span>
+                        <span class="policy-category-desc">${catInfo.description}</span>
+                        ${cooldownText}
+                    </div>
+                    <div class="policy-options-grid">
+            `;
+
+            for (const opt of catInfo.options) {
+                const isCurrent = opt.isCurrent;
+                const isDisabled = catInfo.cooldown.onCooldown && !isCurrent;
+                const tags = (opt.tags || []).map(t => `<span class="policy-tag">${t}</span>`).join('');
+
+                // 构建效果描述
+                const effectLines = this._buildPolicyEffectLines(catKey, opt);
+
+                html += `
+                    <div class="policy-option-card ${isCurrent ? 'policy-active' : ''} ${isDisabled ? 'policy-disabled' : ''}"
+                         data-category="${catKey}" data-policy="${opt.id}">
+                        <div class="policy-option-header">
+                            <span class="policy-option-icon">${opt.icon}</span>
+                            <span class="policy-option-name">${opt.name}</span>
+                            ${isCurrent ? '<span class="policy-current-badge">当前</span>' : ''}
+                        </div>
+                        <div class="policy-option-desc">${opt.description}</div>
+                        <div class="policy-option-effects">${effectLines}</div>
+                        <div class="policy-option-tags">${tags}</div>
+                    </div>
+                `;
+            }
+
+            html += `</div></div>`;
+        }
+
+        contentEl.innerHTML = html;
+
+        // 绑定点击事件
+        contentEl.querySelectorAll('.policy-option-card').forEach(card => {
+            card.addEventListener('click', () => {
+                if (card.classList.contains('policy-disabled') || card.classList.contains('policy-active')) return;
+                const category = card.dataset.category;
+                const policyId = card.dataset.policy;
+                const result = this.policySystem.changePolicy(category, policyId);
+                if (!result.success) {
+                    this.showToast(`⚠️ ${result.reason}`, 'warning');
+                } else {
+                    this.renderPolicyPanel();
+                }
+            });
+        });
+    }
+
+    /** 构建单个政策选项的效果描述 HTML */
+    _buildPolicyEffectLines(category, opt) {
+        const lines = [];
+        switch (category) {
+            case 'workHours':
+                lines.push(`⏰ 工作 ${opt.workStart}:00-${opt.workEnd}:00`);
+                lines.push(`📈 产出 ×${opt.productionMult}`);
+                if (opt.dailyMoodDelta > 0) lines.push(`😊 心情 +${opt.dailyMoodDelta}/天`);
+                else if (opt.dailyMoodDelta < 0) lines.push(`😞 心情 ${opt.dailyMoodDelta}/天`);
+                else lines.push(`😐 心情 ±0/天`);
+                if (opt.staminaRecoveryMult !== 1.0) lines.push(`💪 体力恢复 ×${opt.staminaRecoveryMult}`);
+                break;
+            case 'distribution':
+                lines.push(`📦 入库 ${Math.round(opt.storageRate * 100)}%`);
+                lines.push(`⚡ 效率 ×${opt.efficiencyMult}`);
+                if (opt.dailyMoodDelta !== 0) lines.push(`${opt.dailyMoodDelta > 0 ? '😊' : '😞'} 心情 ${opt.dailyMoodDelta > 0 ? '+' : ''}${opt.dailyMoodDelta}/天`);
+                if (opt.skillGrowthMult !== 1.0) lines.push(`📚 技能成长 ×${opt.skillGrowthMult}`);
+                if (opt.scalperChance) lines.push(`⚠️ 倒爷风险 ${Math.round(opt.scalperChance * 100)}%`);
+                break;
+            case 'reward':
+                if (opt.dailyGoldCost > 0) lines.push(`💰 每人每天 -${opt.dailyGoldCost}💰`);
+                else lines.push(`💰 无额外开销`);
+                if (opt.rebelPenalty !== 1.0) lines.push(`😤 叛逆偏差 ×${opt.rebelPenalty}`);
+                if (opt.lazyPenalty !== 1.0) lines.push(`🚶 懒惰偏差 ×${opt.lazyPenalty}`);
+                if (opt.dailyMoodDelta !== 0) lines.push(`${opt.dailyMoodDelta > 0 ? '😊' : '😞'} 心情 ${opt.dailyMoodDelta > 0 ? '+' : ''}${opt.dailyMoodDelta}/天`);
+                break;
+            case 'holiday':
+                if (opt.restDays.length > 0) lines.push(`📅 休息日：每季第${opt.restDays.join(',')}天`);
+                else lines.push(`🚫 全年无休`);
+                if (opt.restDayMoodBonus) lines.push(`🏖️ 休息日心情 +${opt.restDayMoodBonus}`);
+                if (opt.restDayStaminaRestore) lines.push(`💪 休息日体力全恢复`);
+                if (opt.continuousWorkThreshold < Infinity) lines.push(`⚠️ 连续${opt.continuousWorkThreshold}天后疲劳`);
+                break;
+        }
+        return lines.map(l => `<div class="policy-effect-line">${l}</div>`).join('');
+    }
+
     /** 更新底部对话栏的村民选择下拉 */
     updateVillagerSelect() {
         const select = document.getElementById('villager-select');

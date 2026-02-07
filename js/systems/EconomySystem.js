@@ -1,6 +1,11 @@
 /**
  * EconomySystem - 经济系统
  * 管理每日消耗（食物、木材）、资源变化追踪
+ *
+ * 政策系统集成说明：
+ * - 绩效奖金扣款、分配制度心情惩罚等由 PolicySystem.onNewDay() 处理
+ * - 产出分配比例在 VillagerScheduler.executeAction() 中应用
+ * - 此模块保持基础经济逻辑不变（食物消耗、取暖等）
  */
 import { DAILY_FOOD_COST } from '../config/villagers.js';
 

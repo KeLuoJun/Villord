@@ -4,6 +4,12 @@
  * 保留最近4个季度记忆
  */
 import { SPECIAL_WEATHER_EVENTS } from '../config/weather.js';
+import {
+    WORK_HOURS_POLICIES,
+    DISTRIBUTION_POLICIES,
+    REWARD_POLICIES,
+    HOLIDAY_POLICIES,
+} from '../config/policies.js';
 
 export class ContextCompressor {
     constructor(aiService, gameState, eventBus) {
@@ -260,6 +266,9 @@ ${eventTexts.slice(0, 500) || '无'}
 - 金币：${gold}💰，粮食：${food}🌾
 - 繁荣度：${prosperity}/100
 
+## 本季施行政策
+${this.getPolicyBrief()}
+
 ## 本季重要事件
 ${importantLogs.join('\n') || '平安无事'}
 
@@ -293,5 +302,26 @@ ${importantLogs.join('\n') || '平安无事'}
 
         this.state.addLog('📜', `季末编年史：${chronicle}`, 'info');
         console.log(`[ContextCompressor] 村庄编年史: ${chronicle}`);
+    }
+
+    /** 获取当前政策的简短描述（用于编年史/压缩 prompt） */
+    getPolicyBrief() {
+        const policies = this.state.policies;
+        if (!policies) return '无特殊政策';
+
+        const parts = [];
+        const wh = WORK_HOURS_POLICIES[policies.workHours];
+        if (wh) parts.push(`工时${wh.name}`);
+
+        const dist = DISTRIBUTION_POLICIES[policies.distribution];
+        if (dist) parts.push(`分配${dist.name}`);
+
+        const rwd = REWARD_POLICIES[policies.reward];
+        if (rwd) parts.push(`奖惩${rwd.name}`);
+
+        const hol = HOLIDAY_POLICIES[policies.holiday];
+        if (hol) parts.push(`休假${hol.name}`);
+
+        return parts.join('，') || '无特殊政策';
     }
 }

@@ -3,12 +3,22 @@
  * 每日 7:00 AI 为每个村民并行生成当日行动计划（在市场早报5:00之后）
  * 每 Tick 驱动村民按计划执行行动（含现实检查）
  * 村民 7:00 起床，8:00 开始执行计划，22:00 睡觉
+ *
+ * 政策系统集成：工时制度影响作息时间，休假制度影响是否执行计划，
+ *              分配制度影响产出入库比例，奖惩机制通过 PersonalitySystem 生效
  */
 import { VALID_ACTIONS, ACTION_DURATIONS, ACTION_NAMES, ACTION_ICONS, STAMINA_COSTS, MAX_MOOD } from '../config/villagers.js';
 import { MARKET_OPEN_HOUR, MARKET_CLOSE_HOUR } from '../market/MarketEngine.js';
+import {
+    WORK_HOURS_POLICIES,
+    HOLIDAY_POLICIES,
+    DISTRIBUTION_POLICIES,
+    REWARD_POLICIES,
+    isRestDay,
+} from '../config/policies.js';
 
 const WAKE_HOUR = 7;            // 起床 & 计划生成触发时间
-const SCHEDULE_START_HOUR = 8;  // 计划执行起始时间（8:00开始安排行动）
+const DEFAULT_SCHEDULE_START = 8;  // 默认计划执行起始时间
 const SLEEP_HOUR = 22;
 
 export class VillagerScheduler {
@@ -136,7 +146,50 @@ export class VillagerScheduler {
         return this.fillScheduleGaps(this.getDefaultSchedule(villager));
     }
 
-    /** 构建调度 Prompt（含市场早报/昨日晚报上下文 + 市场时间引导） */
+    /** 获取当前政策下的工作起始小时 */
+    getScheduleStartHour() {
+        const effects = this.state.getPolicyEffects();
+        return effects.workStart || DEFAULT_SCHEDULE_START;
+    }
+
+    /** 获取当前政策下的工作结束小时（之后安排轻松活动直到 SLEEP_HOUR） */
+    getWorkEndHour() {
+        const effects = this.state.getPolicyEffects();
+        return Math.min(effects.workEnd || 18, SLEEP_HOUR);
+    }
+
+    /** 构建政策上下文提示词（注入到调度 Prompt 中） */
+    buildPolicyContext() {
+        const policies = this.state.policies;
+        const effects = this.state.getPolicyEffects();
+        const today = this.state.time.day;
+        const restDay = isRestDay(today, policies);
+
+        const whPolicy = WORK_HOURS_POLICIES[policies.workHours];
+        const distPolicy = DISTRIBUTION_POLICIES[policies.distribution];
+        const rwdPolicy = REWARD_POLICIES[policies.reward];
+        const holPolicy = HOLIDAY_POLICIES[policies.holiday];
+
+        const lines = [
+            `【当前村庄政策】`,
+            `工时制度：${whPolicy.name}（工作时间 ${effects.workStart}:00-${effects.workEnd}:00）`,
+            `分配制度：${distPolicy.name}（${Math.round(effects.storageRate * 100)}%归公）`,
+            `奖惩机制：${rwdPolicy.name}`,
+            `休假制度：${holPolicy.name}（休息日：${holPolicy.restDays.length > 0 ? '每季第' + holPolicy.restDays.join(',') + '天' : '无'}）`,
+            `今天是第${today}天，${restDay ? '🏖️ 今天是休息日' : '📋 今天是工作日'}`,
+            '',
+        ];
+
+        if (restDay) {
+            lines.push('• ⚠️ 今天是休息日！请安排轻松活动（rest/idle/chat/eat），不安排繁重工作');
+        } else {
+            lines.push(`• 今天工作时间为 ${effects.workStart}:00-${effects.workEnd}:00，工作时段内安排劳动，之后安排轻松活动`);
+        }
+
+        return lines.join('\n');
+    }
+
+    /** 构建调度 Prompt（含市场早报/昨日晚报上下文 + 市场时间引导 + 政策上下文） */
     buildSchedulePrompt(villager, directiveInfo = { summary: '无', tradePolicy: {} }) {
         // 农田状态
         const pendingTasks = [];
@@ -169,6 +222,11 @@ export class VillagerScheduler {
         const traitHint = villager.traits.includes('勤劳') ? '你很勤劳，尽量排满工作' :
                          villager.traits.includes('懒惰') ? '你比较懒，多安排休息和闲逛' : '';
 
+        const scheduleStart = this.getScheduleStartHour();
+        const workEnd = this.getWorkEndHour();
+        const restDay = this.state.isRestDay;
+        const policyContext = this.buildPolicyContext();
+
         const timeInfo = `第${this.state.time.year}年·${this.state.seasonName} 第${this.state.time.day}天 ${String(this.state.time.hour).padStart(2, '0')}:00`;
         const directiveSummary = directiveInfo.summary || '无';
         const directiveRule = directiveInfo.tradePolicy?.disallowTrade
@@ -183,6 +241,8 @@ ${timeInfo}（正在为“今天”生成计划）
 【村民】${villager.traits.join('、')}，特长${villager.specialty}
 体力${villager.stamina}/${villager.maxStamina}，心情${villager.mood}/${MAX_MOOD}
 ${traitHint}
+
+${policyContext}
 
 【市场消息】
 今日早报：${morningReport}
@@ -202,20 +262,21 @@ ${otherPlans ? `【其他人的计划】（避免重复）\n${otherPlans}` : ''}
 ${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${STAMINA_COSTS[a]}体力）`).join('，')}
 
 【硬性规则】
-• 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划从${SCHEDULE_START_HOUR}:00开始安排行动（${WAKE_HOUR}:00-${SCHEDULE_START_HOUR}:00为起床准备时间）
-• ⚠️ 必须安排从${SCHEDULE_START_HOUR}:00到${SLEEP_HOUR - 1}:00的完整计划，包括晚间活动（晚饭后安排idle/rest/chat等）
+• 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划从${scheduleStart}:00开始安排行动（${WAKE_HOUR}:00-${scheduleStart}:00为起床准备时间）
+• ⚠️ 必须安排从${scheduleStart}:00到${SLEEP_HOUR - 1}:00的完整计划，包括晚间活动（晚饭后安排idle/rest/chat等）
+${restDay ? '• 🏖️ 今天是休息日，只安排休闲活动（rest/idle/chat/eat），不安排劳动' : `• 工作时间 ${scheduleStart}:00-${workEnd}:00，工作结束后安排轻松活动`}
 ${directiveRule}
-• 吃饭：一天3餐（早8点/午12点/晚18点左右），用eat行动
+• 吃饭：一天3餐（早${scheduleStart}点/午12点/晚18点左右），用eat行动
 • 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时变，选时机要慎重
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
 ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
 • 体力不够时安排rest(+4)或eat(+3)
 
-输出JSON（必须覆盖8:00-21:00的完整时间段）：
+输出JSON（必须覆盖${scheduleStart}:00-${SLEEP_HOUR - 1}:00的完整时间段）：
 {
   "schedule": [
-    {"startHour": 8, "action": "eat", "duration": 1, "target": null, "note": "早饭"},
-    {"startHour": 9, "action": "water", "duration": 1, "target": null, "note": "浇水"},
+    {"startHour": ${scheduleStart}, "action": "eat", "duration": 1, "target": null, "note": "早饭"},
+    {"startHour": ${scheduleStart + 1}, "action": "${restDay ? 'idle' : 'water'}", "duration": 1, "target": null, "note": "${restDay ? '散步' : '浇水'}"},
     {"startHour": 18, "action": "eat", "duration": 1, "target": null, "note": "晚饭"},
     {"startHour": 19, "action": "idle", "duration": 1, "target": null, "note": "散步"},
     {"startHour": 20, "action": "rest", "duration": 2, "target": null, "note": "睡前休息"}
@@ -275,7 +336,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             if (startHour === undefined) continue;
 
             if (!VALID_ACTIONS.includes(item.action)) continue;
-            if (startHour < SCHEDULE_START_HOUR || startHour >= SLEEP_HOUR) continue;
+            if (startHour < this.getScheduleStartHour() || startHour >= SLEEP_HOUR) continue;
 
             // 市场交易时间检查
             if (item.action === 'trade' && (startHour < MARKET_OPEN_HOUR || startHour >= MARKET_CLOSE_HOUR)) {
@@ -320,7 +381,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             }
         });
 
-        for (let h = SCHEDULE_START_HOUR; h < SLEEP_HOUR; h++) {
+        for (let h = this.getScheduleStartHour(); h < SLEEP_HOUR; h++) {
             if (!occupied.has(h)) {
                 filled.push({
                     startHour: h,
@@ -335,12 +396,29 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         return filled.sort((a, b) => (a.startHour ?? 0) - (b.startHour ?? 0));
     }
 
-    /** 默认计划（降级方案） */
+    /** 默认计划（降级方案，政策感知） */
     getDefaultSchedule(villager) {
         const isLazy = villager.traits.includes('懒惰');
+        const startH = this.getScheduleStartHour();
+        const restDay = this.state.isRestDay;
         const schedule = [
-            { startHour: 8, action: 'eat', target: null, duration: 1, note: '早饭' },
+            { startHour: startH, action: 'eat', target: null, duration: 1, note: '早饭' },
         ];
+
+        // 休息日：全天安排轻松活动
+        if (restDay) {
+            schedule.push(
+                { startHour: startH + 1, action: 'idle', target: null, duration: 2, note: '散步' },
+                { startHour: 12, action: 'eat', target: null, duration: 1, note: '午饭' },
+                { startHour: 13, action: 'rest', target: null, duration: 2, note: '午休' },
+                { startHour: 15, action: 'idle', target: null, duration: 1, note: '闲逛' },
+                { startHour: 16, action: 'chat', target: null, duration: 2, note: '聊天' },
+                { startHour: 18, action: 'eat', target: null, duration: 1, note: '晚饭' },
+                { startHour: 19, action: 'idle', target: null, duration: 1, note: '散步' },
+                { startHour: 20, action: 'rest', target: null, duration: 2, note: '休息' },
+            );
+            return schedule;
+        }
 
         if (isLazy) {
             schedule.push(
@@ -385,13 +463,30 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         }
 
         // 起床准备时间（7:00-8:00）
-        if (currentHour >= WAKE_HOUR && currentHour < SCHEDULE_START_HOUR) {
+        if (currentHour >= WAKE_HOUR && currentHour < this.getScheduleStartHour()) {
             villager.currentAction = '🌅 起床准备中';
             villager.currentTask = null;
             return;
         }
 
-        // 放假时间：跳过计划执行
+        // 政策休息日：全天休闲（不安排繁重工作，但允许eat/idle/rest/chat）
+        if (this.state.isRestDay && villager.schedule) {
+            const task = villager.schedule.find(s =>
+                currentHour >= s.startHour && currentHour < s.startHour + (s.duration || 1)
+            );
+            if (task) {
+                const restDayAllowed = ['eat', 'rest', 'idle', 'chat'];
+                if (!restDayAllowed.includes(task.action)) {
+                    villager.currentAction = '🏖️ 休息日，不干活';
+                    villager.currentTask = null;
+                    if (!villager._scheduleStatus) villager._scheduleStatus = {};
+                    villager._scheduleStatus[`${task.startHour}_${task.action}`] = 'skipped';
+                    return;
+                }
+            }
+        }
+
+        // 放假时间：跳过计划执行（事件系统半天假）
         if (villager._holidayUntilHour !== undefined) {
             if (currentHour < villager._holidayUntilHour) {
                 villager.currentAction = '🎉 放假中';
@@ -598,26 +693,36 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 break;
             }
             case 'chop': {
-                const bonus = this.state.buildings.some(b => b.type === 'lumberYard') ? 2 : 1;
-                this.state.modifyResource('wood', bonus);
-                this.state.addLog('🪓', `${villager.avatar||'👤'}${villager.name}伐木获得${bonus}🪵`, 'info');
+                const pEffects = this.state.getPolicyEffects();
+                const baseBonus = this.state.buildings.some(b => b.type === 'lumberYard') ? 2 : 1;
+                const chopYield = Math.max(1, Math.round(baseBonus * pEffects.productionMult));
+                const chopStored = Math.max(1, Math.round(chopYield * pEffects.storageRate));
+                this.state.modifyResource('wood', chopStored);
+                this.state.addLog('🪓', `${villager.avatar||'👤'}${villager.name}伐木获得${chopStored}🪵${pEffects.storageRate < 1 ? '（部分归个人）' : ''}`, 'info');
                 break;
             }
             case 'mine': {
-                const bonus = this.state.buildings.some(b => b.type === 'quarry') ? 2 : 1;
-                this.state.modifyResource('stone', bonus);
-                this.state.addLog('⛏️', `${villager.avatar||'👤'}${villager.name}采石获得${bonus}🪨`, 'info');
+                const pEffects2 = this.state.getPolicyEffects();
+                const baseBonus2 = this.state.buildings.some(b => b.type === 'quarry') ? 2 : 1;
+                const mineYield = Math.max(1, Math.round(baseBonus2 * pEffects2.productionMult));
+                const mineStored = Math.max(1, Math.round(mineYield * pEffects2.storageRate));
+                this.state.modifyResource('stone', mineStored);
+                this.state.addLog('⛏️', `${villager.avatar||'👤'}${villager.name}采石获得${mineStored}🪨${pEffects2.storageRate < 1 ? '（部分归个人）' : ''}`, 'info');
                 break;
             }
             case 'rest': {
-                villager.stamina = Math.min(villager.maxStamina, villager.stamina + 4);
+                const restMult = this.state.getPolicyEffects().staminaRecoveryMult;
+                const restAmount = Math.round(4 * restMult);
+                villager.stamina = Math.min(villager.maxStamina, villager.stamina + restAmount);
                 villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 break;
             }
             case 'eat': {
                 if (this.state.resources.food >= 1) {
                     this.state.modifyResource('food', -1);
-                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + 3);
+                    const eatMult = this.state.getPolicyEffects().staminaRecoveryMult;
+                    const eatAmount = Math.round(3 * eatMult);
+                    villager.stamina = Math.min(villager.maxStamina, villager.stamina + eatAmount);
                     villager.mood = Math.min(MAX_MOOD, villager.mood + 1);
                 } else {
                     success = false;
@@ -661,16 +766,18 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         return success;
     }
 
-    /** 技能成长 */
+    /** 技能成长（受分配制度技能成长倍率影响） */
     growSkill(villager, action) {
+        const skillMult = this.state.getPolicyEffects().skillGrowthMult;
+        const baseGrowth = 0.02 * skillMult;
         if (['plant', 'water', 'fertilize', 'harvest', 'pest_control'].includes(action)) {
-            villager.skills.farming = Math.min(10, (villager.skills.farming || 1) + 0.02);
+            villager.skills.farming = Math.min(10, (villager.skills.farming || 1) + baseGrowth);
         }
         if (['chop', 'mine'].includes(action)) {
-            villager.skills.gathering = Math.min(10, (villager.skills.gathering || 1) + 0.02);
+            villager.skills.gathering = Math.min(10, (villager.skills.gathering || 1) + baseGrowth);
         }
         if (action === 'process') {
-            villager.skills.processing = Math.min(10, (villager.skills.processing || 1) + 0.02);
+            villager.skills.processing = Math.min(10, (villager.skills.processing || 1) + baseGrowth);
         }
     }
 

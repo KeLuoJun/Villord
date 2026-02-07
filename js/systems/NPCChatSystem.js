@@ -10,6 +10,13 @@
  * - 聊天内容：闲聊、吐槽、互相鼓励、讨论天气/市场/工作等
  */
 import { MAX_MOOD } from '../config/villagers.js';
+import {
+    WORK_HOURS_POLICIES,
+    DISTRIBUTION_POLICIES,
+    REWARD_POLICIES,
+    HOLIDAY_POLICIES,
+    isRestDay,
+} from '../config/policies.js';
 
 export class NPCChatSystem {
     constructor(aiService, gameState, eventBus) {
@@ -148,6 +155,9 @@ export class NPCChatSystem {
         const moodDesc = villager.mood >= Math.round(MAX_MOOD * 0.7) ? '心情不错' :
                         villager.mood >= Math.round(MAX_MOOD * 0.4) ? '心情一般' : '心情不好';
 
+        // 构建政策上下文
+        const policyLines = this.buildPolicyContext(villager);
+
         const prompt = `你是${villager.name}${villager.avatar}，《治村物语》的村民。现在${currentHour}:00。
 
 【你的性格】${villager.traits.join('、')}
@@ -163,8 +173,10 @@ ${recentChats}
 【环境】${this.state.seasonName}，${this.getCurrentWeatherInfo()}
 市场：${this.state.market.morningReport?.broadcast || '暂无消息'}
 
+${policyLines}
+
 现在你想说一句话。话题参考：${timeTopic}
-规则：20-50字，自然口语化，体现性格特点。如果前面有人说了话，优先接话或回应。不要重复别人说过的。
+规则：20-50字，自然口语化，体现性格特点。如果前面有人说了话，优先接话或回应。不要重复别人说过的。可以偶尔聊聊对村庄政策的感受。
 
 输出JSON：{"text": "你说的话", "mood": "happy/neutral/tired/grumpy/excited"}`;
 
@@ -226,6 +238,43 @@ ${recentChats}
 
         const text = pool[Math.floor(Math.random() * pool.length)];
         this.addChatMessage(villager, text, 'neutral');
+    }
+
+    /** 构建政策上下文（注入到聊天 Prompt 中） */
+    buildPolicyContext(villager) {
+        const policies = this.state.policies;
+        if (!policies) return '';
+
+        const lines = ['【村庄政策】'];
+
+        const wh = WORK_HOURS_POLICIES[policies.workHours];
+        if (wh) lines.push(`工时：${wh.name}`);
+
+        const dist = DISTRIBUTION_POLICIES[policies.distribution];
+        if (dist) lines.push(`分配：${dist.name}`);
+
+        const rwd = REWARD_POLICIES[policies.reward];
+        if (rwd) lines.push(`奖惩：${rwd.name}`);
+
+        const hol = HOLIDAY_POLICIES[policies.holiday];
+        if (hol) lines.push(`休假：${hol.name}`);
+
+        if (this.state.isRestDay) {
+            lines.push('📌 今天是休息日');
+        }
+
+        // 个性化感受（影响聊天话题）
+        if (policies.workHours === '996' && villager.traits.includes('懒惰')) {
+            lines.push('你对996非常不满');
+        }
+        if (policies.workHours === 'chill' && villager.traits.includes('勤劳')) {
+            lines.push('你觉得太闲了');
+        }
+        if (policies.holiday === 'none') {
+            lines.push('你很想要休息日');
+        }
+
+        return lines.join('\n');
     }
 
     /** 获取天气信息 */
