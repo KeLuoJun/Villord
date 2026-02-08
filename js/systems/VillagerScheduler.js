@@ -294,12 +294,31 @@ export class VillagerScheduler {
             ? inventoryLines.join('，')
             : '无可交易库存';
 
-        // ===== 5. 建筑限制 =====
+        // ===== 5. 建筑状态与可用行动 =====
         const hasLumber = this.state.buildings.some(b => b.type === 'lumberYard');
         const hasQuarry = this.state.buildings.some(b => b.type === 'quarry');
+        const hasMill = this.state.buildings.some(b => b.type === 'mill');
+        const hasBakery = this.state.buildings.some(b => b.type === 'bakery');
+        
+        // 根据建筑情况构建可用行动列表（注意：钓鱼是玩家专属，村民不能钓鱼）
+        const availableActions = VALID_ACTIONS.filter(a => {
+            if (a === 'chop' && !hasLumber) return false;
+            if (a === 'mine' && !hasQuarry) return false;
+            if (a === 'process' && !hasMill && !hasBakery) return false;
+            return true;
+        });
+        
+        // 建筑状态汇总（只显示与村民行动相关的建筑）
+        const buildingStatus = [];
+        buildingStatus.push(hasLumber ? '✅ 伐木场（可 chop 伐木）' : '❌ 无伐木场（不可 chop）');
+        buildingStatus.push(hasQuarry ? '✅ 采石场（可 mine 采石）' : '❌ 无采石场（不可 mine）');
+        buildingStatus.push(hasMill ? '✅ 磨坊（可 process 加工面粉）' : '❌ 无磨坊');
+        buildingStatus.push(hasBakery ? '✅ 面包店（可 process 加工面包）' : '❌ 无面包店');
+        
         const buildingRestrictions = [];
-        if (!hasLumber) buildingRestrictions.push('❌ 没有伐木场，禁止安排 chop');
-        if (!hasQuarry) buildingRestrictions.push('❌ 没有采石场，禁止安排 mine');
+        if (!hasLumber) buildingRestrictions.push('🚫 chop（伐木）— 没有伐木场，此行动不可用');
+        if (!hasQuarry) buildingRestrictions.push('🚫 mine（采石）— 没有采石场，此行动不可用');
+        if (!hasMill && !hasBakery) buildingRestrictions.push('🚫 process（加工）— 没有磨坊/面包店，此行动不可用');
 
         // ===== 6. 性格/政策/会议 =====
         const traitHint = villager.traits.includes('勤劳') ? '你很勤劳，尽量排满工作' :
@@ -353,6 +372,10 @@ ${policyContext}
 
 ${meetingContext}
 
+【🏗️ 村庄建筑状态（重要！决定哪些行动可用）】
+${buildingStatus.join('\n')}
+${buildingRestrictions.length > 0 ? `\n⛔ 不可用的行动（绝对禁止安排）：\n${buildingRestrictions.join('\n')}` : ''}
+
 【市场消息】
 今日早报：${morningReport}
 昨日晚报：${eveningReport}
@@ -373,8 +396,8 @@ ${coordinationBlock}
 【村长近期指令（含时间，最高优先级）】
 ${directiveSummary}
 
-【可用行动】
-${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${STAMINA_COSTS[a]}体力）`).join('，')}
+【✅ 可用行动（只能从这里选择，不在列表中的行动禁止安排）】
+${availableActions.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${STAMINA_COSTS[a]}体力）`).join('，')}
 
 【硬性规则】
 • 作息：${WAKE_HOUR}:00起床，${SLEEP_HOUR}:00睡觉，计划从${scheduleStart}:00开始安排行动（${WAKE_HOUR}:00-${scheduleStart}:00为起床准备时间）
@@ -388,7 +411,6 @@ ${directiveRule}
 • 施肥：fertilize可让作物产量+30%，对已种植且未施肥的田使用，每块田只能施一次。有未施肥的田时建议安排！
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
 • ⚠️ 农田数量限制：全村共${totalPlots}块农田，plant/water/fertilize/harvest的次数不能超过实际可操作的田地数，多了也做不了！
-${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
 • 体力不够时安排rest(+4)或eat(+3)
 
 输出JSON（必须覆盖${scheduleStart}:00-${SLEEP_HOUR - 1}:00的完整时间段）：
@@ -445,10 +467,16 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         return { summary, tradePolicy };
     }
 
-    /** 验证计划合法性（含农田任务数量硬性校验） */
+    /** 验证计划合法性（含农田任务数量硬性校验 + 建筑检查） */
     validateSchedule(schedule, villager, tradePolicy = {}) {
         const validated = [];
         let cumulativeStamina = 0;
+
+        // ===== 建筑可用性检查 =====
+        const hasLumber = this.state.buildings.some(b => b.type === 'lumberYard');
+        const hasQuarry = this.state.buildings.some(b => b.type === 'quarry');
+        const hasMill = this.state.buildings.some(b => b.type === 'mill');
+        const hasBakery = this.state.buildings.some(b => b.type === 'bakery');
 
         // 计算农田任务的实际上限（扣除其他村民已分配的）
         const otherVillagers = this.state.villagers.filter(v => v.id !== villager.id);
@@ -482,6 +510,23 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             }
             if (item.action === 'trade' && tradePolicy.disallowTrade) {
                 continue; // 近期指令禁止交易
+            }
+
+            // ===== 建筑限制硬性校验 =====
+            if (item.action === 'chop' && !hasLumber) {
+                validated.push({ startHour, action: 'idle', target: null, duration: item.duration || 1, note: '没有伐木场' });
+                continue;
+            }
+            if (item.action === 'mine' && !hasQuarry) {
+                validated.push({ startHour, action: 'idle', target: null, duration: item.duration || 1, note: '没有采石场' });
+                continue;
+            }
+            if (item.action === 'process') {
+                // process 需要磨坊或面包店
+                if (!hasMill && !hasBakery) {
+                    validated.push({ startHour, action: 'idle', target: null, duration: item.duration || 1, note: '没有加工建筑' });
+                    continue;
+                }
             }
 
             // ===== 农田任务数量硬性校验 =====
@@ -598,14 +643,21 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         } else {
             const plots = this.state.plots;
             const hasPlots = plots.length > 0;
+            const hasLumber = this.state.buildings.some(b => b.type === 'lumberYard');
+            const hasQuarry = this.state.buildings.some(b => b.type === 'quarry');
+            
+            // 根据建筑和农田情况选择合适的行动
+            const altAction = hasLumber ? 'chop' : hasQuarry ? 'mine' : 'idle';
+            const altAction2 = hasQuarry ? 'mine' : hasLumber ? 'chop' : 'idle';
+            
             schedule.push(
-                { startHour: 9, action: hasPlots ? 'water' : 'chop', target: hasPlots ? plots[0]?.name : null, duration: 1, note: '' },
-                { startHour: 10, action: hasPlots ? 'plant' : 'mine', target: null, duration: 2, note: '' },
+                { startHour: 9, action: hasPlots ? 'water' : altAction, target: hasPlots ? plots[0]?.name : null, duration: 1, note: '' },
+                { startHour: 10, action: hasPlots ? 'plant' : altAction2, target: null, duration: 2, note: '' },
                 { startHour: 12, action: 'eat', target: null, duration: 1, note: '午饭' },
-                { startHour: 13, action: 'harvest', target: null, duration: 1, note: '' },
+                { startHour: 13, action: hasPlots ? 'harvest' : 'idle', target: null, duration: 1, note: '' },
                 { startHour: 14, action: 'rest', target: null, duration: 1, note: '' },
-                { startHour: 15, action: hasPlots ? 'water' : 'chop', target: null, duration: 1, note: '' },
-                { startHour: 16, action: 'chop', target: null, duration: 2, note: '' },
+                { startHour: 15, action: hasPlots ? 'water' : altAction, target: null, duration: 1, note: '' },
+                { startHour: 16, action: hasLumber ? 'chop' : 'idle', target: null, duration: 2, note: '' },
                 { startHour: 18, action: 'eat', target: null, duration: 1, note: '晚饭' },
                 { startHour: 19, action: 'idle', target: null, duration: 1, note: '' },
                 { startHour: 20, action: 'rest', target: null, duration: 2, note: '' },
