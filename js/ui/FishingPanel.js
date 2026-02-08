@@ -817,6 +817,28 @@ export class FishingPanel {
             }
         }
 
+        // 状态切换 → 触发音效事件
+        switch (newState) {
+            case STATE.CASTING:
+                this.bus.emit('fishingCast');
+                break;
+            case STATE.WAITING:
+                this.bus.emit('fishingSplash');
+                break;
+            case STATE.BITING:
+                this.bus.emit('fishingBite');
+                break;
+            case STATE.REELING:
+                this.bus.emit('fishingReel');
+                break;
+            case STATE.CATCH_SUCCESS:
+                this.bus.emit('fishingSuccess');
+                break;
+            case STATE.CATCH_FAIL:
+                this.bus.emit('fishingFail');
+                break;
+        }
+
         this.gameState_ = newState;
         this.stateTimer = 0;
         this._updateHUD();
@@ -984,6 +1006,7 @@ export class FishingPanel {
         // 连击火焰提示
         const combo = this.state.fishing.combo;
         if (combo >= 3) {
+            this.bus.emit('fishingCombo');
             this._addFeedbackText(`🔥 ${combo}连击！`, this.W / 2, this.H * 0.18, '#ff5722', 22);
         }
 

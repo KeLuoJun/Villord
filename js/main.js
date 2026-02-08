@@ -1144,11 +1144,17 @@ sfx.registerAll({
     recruit: './assets/sounds/recruit.mp3',
     notify:  './assets/sounds/notify.mp3',
     season:  './assets/sounds/season.mp3',
+    // 钓鱼音效
+    fish_cast:    './assets/sounds/fish/cast.mp3',
+    fish_splash:  './assets/sounds/fish/splash.mp3',
+    fish_bite:    './assets/sounds/fish/bite.mp3',
+    fish_reel:    './assets/sounds/fish/reel.mp3',
+    fish_success: './assets/sounds/fish/success.mp3',
+    fish_fail:    './assets/sounds/fish/fail.mp3',
+    fish_combo:   './assets/sounds/fish/combo.mp3',
 });
 
 // --- 绑定事件 → 音效 ---
-// 钓到鱼 → harvest（复用收获音效）
-eventBus.on('fishCaught', () => sfx.play('harvest'));
 // 建造完成 → coin（扣费 + 建造反馈）
 eventBus.on('buildingBuilt', () => sfx.play('coin'));
 // 作物收获 → harvest
@@ -1167,6 +1173,16 @@ eventBus.on('showToast', (data) => {
 eventBus.on('autoPause', () => sfx.play('notify'));
 // 通关 → recruit（复用庆祝音效）
 eventBus.on('gameWin', () => sfx.play('recruit'));
+// 市场交易成功 → coin
+eventBus.on('marketTrade', () => sfx.play('coin'));
+// 钓鱼音效
+eventBus.on('fishingCast',    () => sfx.play('fish_cast'));
+eventBus.on('fishingSplash',  () => sfx.play('fish_splash'));
+eventBus.on('fishingBite',    () => sfx.play('fish_bite'));
+eventBus.on('fishingReel',    () => sfx.play('fish_reel'));
+eventBus.on('fishingSuccess', () => sfx.play('fish_success'));
+eventBus.on('fishingFail',    () => sfx.play('fish_fail'));
+eventBus.on('fishingCombo',   () => sfx.play('fish_combo'));
 
 // --- 按钮点击音效（事件委托） ---
 document.addEventListener('click', (e) => {

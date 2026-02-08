@@ -583,6 +583,8 @@ export class MarketEngine {
                 this.updatePriceList();
                 // 刷新资源面板（仓库库存变化）
                 this.bus.emit('uiUpdate');
+                // 交易成功音效
+                this.bus.emit('marketTrade');
                 // 触发 AI 交易点评
                 this.showTradeCommentary(result.tradeRecord);
             }
