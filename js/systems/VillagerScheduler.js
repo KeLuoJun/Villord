@@ -207,6 +207,27 @@ export class VillagerScheduler {
             if (p.crop && p.stage !== 'ready') pendingTasks.push(`${p.name}种了${p.cropName}(进度${Math.round(p.progress*100)}%，未成熟)`);
         });
 
+        // 种子库存和作物信息（供种植决策）
+        const seeds = this.state.resources.seeds;
+        const seedLines = [];
+        const cropConfigs = window.game?.farm?.cropConfigs || {};
+        const seedMap = { radish: '萝卜', wheat: '小麦', potato: '土豆', pumpkin: '南瓜', cotton: '棉花', grape: '葡萄' };
+        for (const [cropId, count] of Object.entries(seeds)) {
+            if (count > 0) {
+                seedLines.push(`${seedMap[cropId] || cropId}种子×${count}`);
+            }
+        }
+        const hasEmptyPlot = this.state.plots.some(p => p.stage === 'empty');
+        const wheatStock = this.state.inventory.wheat || 0;
+        const seedInfo = seedLines.length > 0
+            ? `可用种子：${seedLines.join('、')}`
+            : '⚠️ 没有任何种子！需要先去市场购买';
+        const wheatUrgency = wheatStock <= 5
+            ? `⚠️ 小麦仅剩${wheatStock}🌾，是村民每日消耗的粮食，优先种植小麦！如果没有小麦种子，先安排trade去买小麦种子`
+            : wheatStock <= 15
+            ? `小麦库存${wheatStock}🌾偏低，建议优先种植小麦保障粮食供应`
+            : '';
+
         // 市场报告上下文
         const morningReport = this.state.market.morningReport?.broadcast || '暂无早报';
         const eveningReport = this.state.market.eveningReport?.broadcast || '暂无昨日晚报';
@@ -290,6 +311,8 @@ ${eveningComment ? `分析师说：${eveningComment}` : ''}
 【村庄资源】${this.state.seasonName}，${this.getCurrentWeatherInfo()}
 金币${this.state.resources.gold}💰，小麦${this.state.inventory.wheat || 0}🌾，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨
 农田：${pendingTasks.join('；') || '无待处理'}
+${seedInfo}
+${wheatUrgency}
 仓库可交易品：${inventoryInfo}
 
 【村长近期指令（含时间，最高优先级）】
@@ -308,6 +331,7 @@ ${directiveRule}
 • 吃饭：一天3餐（早${scheduleStart}点/午12点/晚18点左右），用eat行动
 • 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时波动（类似股市）
 • 交易策略：你可以低价买入商品囤货，等价格上涨后再卖出赚取差价（但有亏损风险！价格也可能下跌）。参考早报/晚报的价格趋势分析来决策。在note中写明具体买/卖什么商品，如"买木材"、"卖萝卜"
+• 种植：plant时在note中写明要种什么，如"种小麦"、"种萝卜"。小麦是村民每日消耗的粮食，优先保障！没有种子时应先安排trade买种子再plant
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
 ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
 • 体力不够时安排rest(+4)或eat(+3)
@@ -720,10 +744,46 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 if (emptyPlot) {
                     let planted = false;
                     const seeds = this.state.resources.seeds;
-                    for (const [cropId, count] of Object.entries(seeds)) {
-                        if (count > 0) {
-                            const result = this.farmSys.plant(emptyPlot.id, cropId);
-                            if (result.success) { planted = true; break; }
+                    const plantHint = (task.note || '') + ' ' + (task.target || '');
+
+                    // 解析 note 中指定的作物
+                    const cropKeywords = {
+                        wheat: ['小麦', '麦'],
+                        radish: ['萝卜'],
+                        potato: ['土豆'],
+                        pumpkin: ['南瓜'],
+                        cotton: ['棉花'],
+                        grape: ['葡萄'],
+                    };
+                    let preferredCrop = null;
+                    for (const [cropId, keywords] of Object.entries(cropKeywords)) {
+                        if (keywords.some(kw => plantHint.includes(kw))) {
+                            preferredCrop = cropId;
+                            break;
+                        }
+                    }
+
+                    // 优先种指定的作物
+                    if (preferredCrop && (seeds[preferredCrop] || 0) > 0) {
+                        const result = this.farmSys.plant(emptyPlot.id, preferredCrop);
+                        if (result.success) planted = true;
+                    }
+
+                    // 没有指定或指定的没种子 → 优先种小麦（粮食保障），再按库存选
+                    if (!planted) {
+                        // 小麦优先（如果有种子）
+                        if ((seeds.wheat || 0) > 0) {
+                            const result = this.farmSys.plant(emptyPlot.id, 'wheat');
+                            if (result.success) planted = true;
+                        }
+                        // 否则按有种子的顺序种
+                        if (!planted) {
+                            for (const [cropId, count] of Object.entries(seeds)) {
+                                if (count > 0) {
+                                    const result = this.farmSys.plant(emptyPlot.id, cropId);
+                                    if (result.success) { planted = true; break; }
+                                }
+                            }
                         }
                     }
                     success = planted;

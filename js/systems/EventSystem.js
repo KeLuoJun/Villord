@@ -111,7 +111,7 @@ export class EventSystem {
                 this.triggerEvent({
                     type: 'economic',
                     title: `💸 ${stupidVillager.name}做了笔亏本买卖`,
-                    description: `${stupidVillager.name}在市场上搞混了价格，"${stupidVillager.quirk}"... 损失了${goldLoss}💰。`,
+                    description: `${stupidVillager.name}在市场上搞混了价格，损失了${goldLoss}💰。`,
                     options: [],
                 });
                 this.setCooldown('bad_trade', 7);
@@ -172,7 +172,7 @@ export class EventSystem {
                     this.triggerEvent({
                         type: 'villager',
                         title: `😤 ${villager.name}闹脾气了`,
-                        description: `${villager.name}觉得工作太多，表示不想干活了！"${villager.quirk}"`,
+                        description: `${villager.name}觉得工作太多，表示不想干活了！`,
                         options: [
                             { text: '耐心劝说', id: 'persuade', effect: () => { villager.mood = Math.min(MAX_MOOD, villager.mood + 1); } },
                             { text: '加薪鼓励（-15💰）', id: 'bonus', effect: () => {
@@ -233,7 +233,7 @@ export class EventSystem {
                 this.triggerEvent({
                     type: 'villager',
                     title: `💔 ${villager.name}想要离开`,
-                    description: `${villager.name}已经连续${consecutiveLowDays}天心情低落，表示想离开村庄。"${villager.quirk}"`,
+                    description: `${villager.name}已经连续${consecutiveLowDays}天心情低落，表示想离开村庄。`,
                     options: [
                         { text: '挽留（心情+2，-20💰）', id: 'retain', effect: () => {
                             if (this.state.resources.gold >= 20) {
@@ -399,7 +399,7 @@ export class EventSystem {
                 this.triggerEvent({
                     type: 'villager',
                     title: `⚡ ${rebel.name}公开抗命！`,
-                    description: `严厉的处罚制度让叛逆的${rebel.name}忍无可忍：「${rebel.quirk}」，当众拒绝工作并鼓动他人！`,
+                    description: `严厉的处罚制度让叛逆的${rebel.name}忍无可忍，当众拒绝工作并鼓动他人！`,
                     options: [
                         { text: '私下沟通（心情+1）', id: 'talk', effect: () => {
                             rebel.mood = Math.min(MAX_MOOD, rebel.mood + 1);

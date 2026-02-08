@@ -602,7 +602,7 @@ export class UIManager {
                     <div class="detail-info">
                         <h3>${v.name}</h3>
                         <div class="trait-tags">${traitTags}</div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">🎯 ${v.specialty}　💬 口癖："${v.quirk}"</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">🎯 ${v.specialty}</div>
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-md);">

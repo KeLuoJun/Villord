@@ -169,7 +169,7 @@ export class MeetingSystem {
             const staminaDesc = staminaRatio >= 0.6 ? '精力充沛' :
                                staminaRatio >= 0.3 ? '有点累' : '很疲惫';
 
-            return `- ${v.avatar||'👤'}${v.name}（性格：${v.traits.join('·')}，特长：${v.specialty}，口癖："${v.quirk}"，${moodDesc}，${staminaDesc}）`;
+            return `- ${v.avatar||'👤'}${v.name}（性格：${v.traits.join('·')}，特长：${v.specialty}，${moodDesc}，${staminaDesc}）`;
         }).join('\n');
 
         // 政策上下文
@@ -200,7 +200,7 @@ ${prevContext}
 村长在会上说："${topic}"
 ━━━━━━━━━━━━━━
 
-请为每位村民生成一句会议回应（15-40字），必须体现该村民的独特性格和口癖。
+请为每位村民生成一句会议回应（15-40字），必须体现该村民的独特性格。
 
 【性格回应指南】
 • 勤劳：积极响应，表示马上行动
@@ -222,7 +222,7 @@ support = 支持，hesitant = 犹豫，question = 质疑，confused = 困惑
 请直接输出JSON：
 {
   "responses": [
-    {"name": "${villagers[0]?.name || '村民'}", "response": "该村民的回应（带口癖）", "attitude": "support/hesitant/question/confused"}${villagers.length > 1 ? `,
+    {"name": "${villagers[0]?.name || '村民'}", "response": "该村民的回应", "attitude": "support/hesitant/question/confused"}${villagers.length > 1 ? `,
     {"name": "${villagers[1]?.name || '村民'}", "response": "...", "attitude": "..."}` : ''}${villagers.length > 2 ? `,
     {"name": "${villagers[2]?.name || '村民'}", "response": "...", "attitude": "..."}` : ''}${villagers.length > 3 ? `,
     {"name": "${villagers[3]?.name || '村民'}", "response": "...", "attitude": "..."}` : ''}
@@ -240,28 +240,28 @@ support = 支持，hesitant = 犹豫，question = 质疑，confused = 困惑
             let attitude = 'support';
 
             if (v.traits.includes('勤劳')) {
-                response = `好的村长！我这就去准备，${v.quirk}`;
+                response = '好的村长！我这就去准备！';
                 attitude = 'support';
             } else if (v.traits.includes('懒惰')) {
-                response = `啊...好吧...${v.quirk}`;
+                response = '啊...好吧...我尽量。';
                 attitude = 'hesitant';
             } else if (v.traits.includes('叛逆')) {
-                response = `嗯...我觉得可以再想想，${v.quirk}`;
+                response = '嗯...我觉得可以再想想。';
                 attitude = 'question';
             } else if (v.traits.includes('聪明')) {
-                response = `明白了，我来想想怎么安排最合理，${v.quirk}`;
+                response = '明白了，我来想想怎么安排最合理。';
                 attitude = 'support';
             } else if (v.traits.includes('愚笨')) {
-                response = `啊？好...好的？我尽量，${v.quirk}`;
+                response = '啊？好...好的？我尽量。';
                 attitude = 'confused';
             } else if (v.traits.includes('乐观')) {
-                response = `没问题！大家加油！${v.quirk}`;
+                response = '没问题！大家加油！';
                 attitude = 'support';
             } else if (v.traits.includes('悲观')) {
-                response = `唉...希望能顺利吧...${v.quirk}`;
+                response = '唉...希望能顺利吧...';
                 attitude = 'hesitant';
             } else {
-                response = `收到，村长！${v.quirk}`;
+                response = '收到，村长！';
                 attitude = 'support';
             }
 

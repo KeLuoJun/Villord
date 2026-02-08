@@ -174,7 +174,7 @@ export class NPCChatSystem {
         const prompt = `你是${villager.name}${villager.avatar}，《治村物语》的村民。现在${currentHour}:00。
 
 【你的性格】${villager.traits.join('、')}
-【口癖】说话爱带"${villager.quirk}"
+【性格特征】用性格特点来表达自己
 【当前状态】${moodDesc}，体力${villager.stamina}/${villager.maxStamina}，正在${villager.currentAction || '闲逛'}
 
 【村里的人】

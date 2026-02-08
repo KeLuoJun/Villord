@@ -42,7 +42,7 @@ export class RecruitReveal {
                         💪 体力上限: ${villager.maxStamina}
                     </div>
                     <div class="reveal-tip" id="reveal-tip" style="opacity:0;">
-                        口癖: "${villager.quirk}"
+                        特长: "${villager.specialty}"
                         <br>
                         ${this.getTraitTip(villager.traits)}
                     </div>

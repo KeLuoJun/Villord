@@ -210,7 +210,7 @@ export class VillagerAI {
             avatar: villager.avatar || '👤',
             traits: villager.traits,
             specialty: villager.specialty,
-            quirk: villager.quirk,
+            // quirk 已移除
             stamina: villager.stamina,
             maxStamina: villager.maxStamina,
             mood: villager.mood,
@@ -271,7 +271,6 @@ export class VillagerAI {
 【你的人设】
 性格：${ctx.traits.join('、')}
 特长：${ctx.specialty}
-口癖：你说话时经常带上"${ctx.quirk}"
 ${ctx.traits.map(t => traitGuides[t] ? `• ${t}：${traitGuides[t]}` : '').filter(Boolean).join('\n')}
 
 【你现在的状态】
@@ -300,7 +299,7 @@ ${ctx.recentDialogue ? `【之前的对话】\n${ctx.recentDialogue}` : ''}
 
 【最重要的规则】
 1. 你必须**直接回应**村长说的话！如果村长问问题，你要回答那个问题；如果村长打招呼，你要打招呼回去；如果村长安排任务，你要回应那个任务。绝对不能答非所问。
-2. 用你的性格和口癖来说话，让对话生动有趣。回复2-4句话，自然口语化。
+2. 用你的性格来说话，让对话生动有趣。回复2-4句话，自然口语化。
 3. 你可以结合当前状态（体力、心情、天气、市场等）来丰富回答。
 4. 回复中**禁止**使用 ⚠️、✅、❌、📈、📉 等系统图标符号，只用纯文字说话，最多用1个表情符号（如😊😅💪之类）。
 5. moodChange 很重要：如果村长在鼓励你、夸你、关心你，moodChange 应该是正数（+1到+3）；如果村长在骂你、批评你，moodChange 应该是负数（-1到-3）；普通聊天是0。

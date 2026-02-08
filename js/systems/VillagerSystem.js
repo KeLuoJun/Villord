@@ -3,7 +3,7 @@
  * 管理村民的招募、属性、体力、心情、技能
  */
 import {
-    TRAIT_POOL, EXCLUSIVE_TRAITS, SPECIALTY_POOL, QUIRK_POOL,
+    TRAIT_POOL, EXCLUSIVE_TRAITS, SPECIALTY_POOL,
     TRAIT_EFFECTS, RECRUIT_COST, DISMISS_REFUND, DAILY_FOOD_COST,
     STAMINA_COSTS, AVATAR_POOL, generateRandomName, MAX_MOOD,
 } from '../config/villagers.js';
@@ -36,7 +36,6 @@ export class VillagerSystem {
             avatar: '👩‍🌾',
             traits: ['勤劳', '乐观'],
             specialty: '种植能手',
-            quirk: '没问题！',
             stamina: 10,
             maxStamina: 10,
             mood: 8,
@@ -81,10 +80,7 @@ export class VillagerSystem {
         // 2. 随机特长
         const specialty = SPECIALTY_POOL[Math.floor(Math.random() * SPECIALTY_POOL.length)];
 
-        // 3. 随机口癖
-        const quirk = QUIRK_POOL[Math.floor(Math.random() * QUIRK_POOL.length)];
-
-        // 4. 根据性格推算属性
+        // 3. 根据性格推算属性
         let maxStamina = 10;
         let accuracy = 0.9;
         let workSpeed = 1.0;
@@ -98,7 +94,7 @@ export class VillagerSystem {
             }
         });
 
-        // 5. 生成姓名
+        // 4. 生成姓名
         const usedNames = this.state.villagers.map(v => v.name);
         const name = generateRandomName(usedNames);
 
@@ -108,7 +104,6 @@ export class VillagerSystem {
             avatar: this.getAvailableAvatar(),
             traits,
             specialty,
-            quirk,
             stamina: maxStamina,
             maxStamina,
             mood: 7,
