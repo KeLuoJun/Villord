@@ -301,6 +301,8 @@ function showStartScreen() {
             const slot = hasManual ? 'manual' : 'auto';
             const result = saveSystem.load(slot);
             if (result.success) {
+                // 迁移旧版住房数据（hut/woodHouse/stoneHouse → house+level）
+                buildingSystem.migrateOldHousing();
                 // 重新初始化市场价格引擎（用存档中的价格）
                 marketEngine.initPricesFromState();
                 weatherSystem.init();
@@ -871,6 +873,7 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         const result = saveSystem.load('manual');
         if (result.success) {
+            buildingSystem.migrateOldHousing();
             uiManager.updateAll();
             uiManager.updateSeasonTheme();
             uiManager.updateVillagerSelect();

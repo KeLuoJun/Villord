@@ -4,38 +4,16 @@
  */
 
 export const BUILDINGS = {
-    // ===== 住房 =====
-    hut: {
-        id: 'hut',
-        name: '茅草屋',
+    // ===== 住房（单栋可升级） =====
+    house: {
+        id: 'house',
+        name: '住宅',
         icon: '🏚️',
         category: 'housing',
-        capacity: 1,
+        capacity: 1,  // 初始容量（Lv0）
         cost: { gold: 35, wood: 15, stone: 0 },
-        description: '简陋但便宜，容纳1名村民',
+        description: '建造住宅供村民居住，可逐级扩建',
         unlocked: true,
-    },
-    woodHouse: {
-        id: 'woodHouse',
-        name: '木屋',
-        icon: '🏠',
-        category: 'housing',
-        capacity: 2,
-        cost: { gold: 90, wood: 35, stone: 10 },
-        description: '舒适木屋，容纳2名村民',
-        unlocked: false,
-        unlockCondition: '拥有2块农田',
-    },
-    stoneHouse: {
-        id: 'stoneHouse',
-        name: '石屋',
-        icon: '🏡',
-        category: 'housing',
-        capacity: 3,
-        cost: { gold: 200, wood: 20, stone: 60 },
-        description: '坚固石屋，容纳3名村民',
-        unlocked: false,
-        unlockCondition: '拥有采石场',
     },
 
     // ===== 采集/生产建筑 =====
@@ -139,6 +117,21 @@ export const BUILDINGS = {
         maxCount: 1,
     },
 };
+
+/**
+ * 住宅升级等级配置
+ * 每栋住宅初建为 Lv0（茅草屋），可逐级扩建
+ */
+export const HOUSE_LEVELS = [
+    { level: 0, name: '茅草屋', icon: '🏚️', capacity: 1 },
+    { level: 1, name: '木屋',   icon: '🏠', capacity: 2,
+      upgradeCost: { gold: 60, wood: 25, stone: 0 },
+      description: '扩建为木屋，容纳2名村民' },
+    { level: 2, name: '石屋',   icon: '🏡', capacity: 3,
+      upgradeCost: { gold: 120, wood: 20, stone: 50 },
+      description: '扩建为石屋，容纳3名村民',
+      unlockCondition: '拥有采石场' },
+];
 
 /**
  * 检查是否有足够资源建造
