@@ -279,13 +279,8 @@ export class MarketEngine {
             const current = this.state.resources[itemId] || 0;
             const canAdd = Math.min(quantity, this.state.getStorageSpace(itemId));
             this.state.resources[itemId] = current + canAdd;
-        } else if (itemId === 'radish' || itemId === 'wheat' || itemId === 'potato') {
-            // 粮食容量限制（先加食物，再加库存）
-            const canAddFood = Math.min(quantity, this.state.getStorageSpace('food'));
-            this.state.resources.food += canAddFood;
-            const canAddInv = Math.min(quantity, this.state.getStorageSpace(itemId));
-            this.state.inventory[itemId] = (this.state.inventory[itemId] || 0) + canAddInv;
         } else {
+            // 统一加入库存（含小麦、农产品、鱼类等）
             const current = this.state.inventory[itemId] || 0;
             const canAdd = Math.min(quantity, this.state.getStorageSpace(itemId));
             this.state.inventory[itemId] = current + canAdd;
@@ -298,13 +293,15 @@ export class MarketEngine {
             if ((this.state.resources[itemId] || 0) < quantity) return false;
             this.state.resources[itemId] -= quantity;
             return true;
-        } else if (['radish', 'wheat', 'potato'].includes(itemId)) {
-            if ((this.state.inventory[itemId] || 0) < quantity) return false;
-            this.state.inventory[itemId] -= quantity;
-            return true;
         } else {
             if ((this.state.inventory[itemId] || 0) < quantity) return false;
             this.state.inventory[itemId] -= quantity;
+            // 同步减少钓鱼系统的鱼类计数（如果是鱼）
+            if (this.state.fishing?.caughtFish?.[itemId] !== undefined) {
+                this.state.fishing.caughtFish[itemId] = Math.max(0,
+                    (this.state.fishing.caughtFish[itemId] || 0) - quantity
+                );
+            }
             return true;
         }
     }
@@ -319,9 +316,9 @@ export class MarketEngine {
         if (itemId.startsWith('seed_')) {
             return { footprint: 1, types: ['seeds'] };
         }
+        // 粮食作物（含小麦）：正常占用1格库存
         if (['radish', 'wheat', 'potato'].includes(itemId)) {
-            // 粮食作物：既进入库存，也计入粮食资源
-            return { footprint: 2, types: ['food', itemId] };
+            return { footprint: 1, types: [itemId] };
         }
         if (['wood', 'stone'].includes(itemId)) {
             return { footprint: 1, types: [itemId] };
@@ -584,6 +581,8 @@ export class MarketEngine {
                 // 刷新市场面板
                 this.update();
                 this.updatePriceList();
+                // 刷新资源面板（仓库库存变化）
+                this.bus.emit('uiUpdate');
                 // 触发 AI 交易点评
                 this.showTradeCommentary(result.tradeRecord);
             }
@@ -772,9 +771,6 @@ export class MarketEngine {
     getInventoryCount(itemId) {
         if (['wood', 'stone'].includes(itemId)) {
             return this.state.resources[itemId] || 0;
-        }
-        if (['radish', 'wheat', 'potato'].includes(itemId)) {
-            return this.state.inventory[itemId] || 0;
         }
         if (itemId.startsWith('seed_')) {
             const cropMap = { seed_r: 'radish', seed_w: 'wheat', seed_p: 'potato', seed_pk: 'pumpkin', seed_c: 'cotton', seed_g: 'grape' };

@@ -86,7 +86,7 @@ export class EventSystem {
             && !this.isOnCooldown('harvest_festival')) {
             const foodBonus = Math.min(20, Math.floor(this.state.plots.length * 3));
             // 直接应用效果
-            this.state.modifyResource('food', foodBonus);
+            this.state.inventory.wheat = (this.state.inventory.wheat || 0) + foodBonus;
             this.state.villagers.forEach(v => {
                 v.mood = Math.min(MAX_MOOD, v.mood + 1);
             });
@@ -193,7 +193,7 @@ export class EventSystem {
                 && !this.isOnCooldown(`happy_${villager.id}`)) {
                 if (Math.random() < 0.1) {
                     const bonus = Math.floor(Math.random() * 3) + 1;
-                    this.state.modifyResource('food', bonus);
+                    this.state.inventory.wheat = (this.state.inventory.wheat || 0) + bonus;
                     this.state.addLog('🎉', `${villager.name}心情大好，额外收获了${bonus}🌾！`, 'success');
                     this.setCooldown(`happy_${villager.id}`, 7);
                 }
@@ -264,7 +264,7 @@ export class EventSystem {
                         mistakeDesc = `种子种反了方向...虽然最后还是长出来了`;
                     } else if (action === 'harvest') {
                         mistakeDesc = `不小心踩坏了一些作物`;
-                        mistakeEffect = () => this.state.modifyResource('food', -1);
+                        mistakeEffect = () => { this.state.inventory.wheat = Math.max(0, (this.state.inventory.wheat || 0) - 1); };
                     } else {
                         mistakeDesc = `搞砸了手里的活，浪费了点材料`;
                     }
@@ -279,7 +279,7 @@ export class EventSystem {
 
     // ===== 资源告警 =====
     checkResourceAlerts() {
-        if (this.state.resources.food <= 0 && !this.isOnCooldown('famine')) {
+        if ((this.state.inventory.wheat || 0) <= 0 && !this.isOnCooldown('famine')) {
             this.triggerEvent({
                 type: 'crisis',
                 title: '⚠️ 粮食危机！',
@@ -347,7 +347,7 @@ export class EventSystem {
                         }},
                         { text: '睁一只眼闭一只眼', id: 'ignore', effect: () => {
                             this.state.resources.gold = Math.max(0, this.state.resources.gold - goldLoss);
-                            this.state.modifyResource('food', -foodLoss);
+                            this.state.inventory.wheat = Math.max(0, (this.state.inventory.wheat || 0) - foodLoss);
                         }},
                         { text: '切换分配制度', id: 'switch', effect: () => {
                             this.bus.emit('switchTab', { tab: 'policy' });

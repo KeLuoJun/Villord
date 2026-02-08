@@ -80,9 +80,9 @@ export class ProsperitySystem {
         if (avgMood >= MOOD_BONUS_THRESHOLD_2) gain += 2;
         else if (avgMood >= MOOD_BONUS_THRESHOLD_1) gain += 1;
 
-        // 5. 资源充裕加成：金币>200 +1，粮食>20 +1
+        // 5. 资源充裕加成：金币>200 +1，小麦>20 +1
         if (this.state.resources.gold >= 200) gain += 1;
-        if (this.state.resources.food >= 20) gain += 1;
+        if ((this.state.inventory.wheat || 0) >= 20) gain += 1;
 
         // 最少获得 1 点（有村民的情况下）
         if (this.state.villagers.length > 0) {
@@ -104,10 +104,10 @@ export class ProsperitySystem {
             }
         }
 
-        // 2. 饥荒：粮食为 0 → -2/天
-        if (this.state.resources.food <= 0 && this.state.villagers.length > 0) {
+        // 2. 饥荒：小麦为 0 → -2/天
+        if ((this.state.inventory.wheat || 0) <= 0 && this.state.villagers.length > 0) {
             decay += 2;
-            decayReasons.push('饥荒(粮食耗尽)');
+            decayReasons.push('饥荒(小麦耗尽)');
         }
 
         // 3. 财政困难：金币为 0 → -1/天
@@ -322,7 +322,7 @@ export class ProsperitySystem {
                 <div>🏗️ 每座建筑：+0.5/天</div>
                 <div>🌾 每块活跃农田：+0.5/天</div>
                 <div>😊 平均心情≥60：+1/天　≥80：+2/天</div>
-                <div>💰 金币≥200：+1/天　🌾 粮食≥20：+1/天</div>
+                <div>💰 金币≥200：+1/天　🌾 小麦≥20：+1/天</div>
                 <div style="margin-top:4px;border-top:1px dashed var(--border);padding-top:4px;">
                     🏗️ 建造建筑：+5　👥 招募村民：+10　🌾 收获作物：+2
                 </div>
@@ -331,7 +331,7 @@ export class ProsperitySystem {
                 <div style="font-weight:600;color:#c62828;margin-bottom:4px;">📉 每日衰减因素（力度较小）</div>
                 <div>😞 村民平均心情＜30：-1/天</div>
                 <div>😡 村民平均心情＜15：-2/天</div>
-                <div>🍚 粮食耗尽(饥荒)：-2/天</div>
+                <div>🌾 小麦耗尽(饥荒)：-2/天</div>
                 <div>💸 金币耗尽(财政困难)：-1/天</div>
                 <div>👻 无村民(人口空虚)：-1/天</div>
                 <div>🏜️ 农田全部荒废：-1/天</div>
@@ -395,7 +395,7 @@ export class ProsperitySystem {
 
         const review = `📜 ${seasonName}季回顾：村民${vilagerNames}，` +
             `平均心情${avgMood}，繁荣度${data.total}（${this.getCurrentLevel().name}），` +
-            `金币${this.state.resources.gold}💰，粮食${this.state.resources.food}🌾`;
+            `金币${this.state.resources.gold}💰，小麦${this.state.inventory.wheat || 0}🌾`;
 
         this.state.addLog('📜', review, 'info');
     }

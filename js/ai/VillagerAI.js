@@ -225,7 +225,7 @@ export class VillagerAI {
             season: this.state.seasonName,
             weather: this.getCurrentWeatherInfo(),
             market: this.state.market.dailyReport?.broadcast || '暂无市场简报',
-            foodStock: this.state.resources.food,
+            foodStock: this.state.inventory.wheat || 0,
             gold: this.state.resources.gold,
             pendingTasks: this.getPendingTasks(),
             matureCrops: this.getMatureCrops(),

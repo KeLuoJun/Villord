@@ -159,7 +159,7 @@ export class DailySummary {
             resourceChanges,
             resources: {
                 gold: this.state.resources.gold,
-                food: this.state.resources.food,
+                food: this.state.inventory.wheat || 0,
                 wood: this.state.resources.wood,
                 stone: this.state.resources.stone,
             },
@@ -219,7 +219,7 @@ export class DailySummary {
 【今日档案】
 日期：第${this.state.time.year}年·${this.state.seasonName}季 第${this.state.time.day}天
 天气：${weatherName}
-村庄金币：${this.state.resources.gold}，粮食：${this.state.resources.food}，木材：${this.state.resources.wood}，石料：${this.state.resources.stone}
+村庄金币：${this.state.resources.gold}，小麦：${this.state.inventory.wheat || 0}，木材：${this.state.resources.wood}，石料：${this.state.resources.stone}
 今日资源变动：${resText}
 
 ${policyText}
@@ -376,7 +376,7 @@ ${eventText}
                         <div class="ct-card-body">${summary.aiSummary}</div>
                         <div class="ct-card-resources">
                             <span>💰 ${summary.resources.gold}</span>
-                            <span>🌾 ${summary.resources.food}</span>
+                            <span>🌾 小麦${summary.resources.food}</span>
                             <span>🪵 ${summary.resources.wood}</span>
                             <span>🪨 ${summary.resources.stone}</span>
                             ${summary.resourceChanges.length > 0 ? `<span class="ct-res-change">${summary.resourceChanges.join(' ')}</span>` : ''}

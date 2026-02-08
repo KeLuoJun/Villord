@@ -244,7 +244,7 @@ ${eventTexts.slice(0, 500) || '无'}
         const buildingCount = this.state.buildings.length;
         const plotCount = this.state.plots.length;
         const gold = this.state.resources.gold;
-        const food = this.state.resources.food;
+        const food = this.state.inventory.wheat || 0;
         const prosperity = this.state.prosperity || 0;
 
         // 收集本季重要事件

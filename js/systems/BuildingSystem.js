@@ -153,7 +153,7 @@ export class BuildingSystem {
     onActivate() { this.update(); }
 
     update() {
-        this.renderCategory('buildings-gathering', ['farmPlot', 'lumberYard', 'quarry']);
+        this.renderCategory('buildings-gathering', ['farmPlot', 'lumberYard', 'quarry', 'fishPond']);
         this.renderCategory('buildings-housing', ['hut', 'woodHouse', 'stoneHouse']);
         this.renderCategory('buildings-processing', ['mill', 'bakery']);
         this.renderCategory('buildings-municipal', ['warehouse', 'well']);

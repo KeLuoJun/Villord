@@ -24,7 +24,7 @@ export const GameState = {
     // ===== 资源 =====
     resources: {
         gold: 150,
-        food: 20,
+        food: 0,   // 已废弃，统一用 inventory.wheat 作为粮食
         wood: 30,
         stone: 15,
         seeds: {
@@ -49,13 +49,22 @@ export const GameState = {
     // ===== 仓库（加工品等） =====
     inventory: {
         radish: 0,
-        wheat: 0,
+        wheat: 20,  // 小麦 = 村民的粮食
         potato: 0,
         pumpkin: 0,
         cotton: 0,
         grape: 0,
         flour: 0,
         bread: 0,
+        // 鱼类
+        crucianCarp: 0,
+        grassCarp: 0,
+        commonCarp: 0,
+        silverCarp: 0,
+        mandarin: 0,
+        snakehead: 0,
+        koi: 0,
+        goldenDragon: 0,
     },
 
     // ===== 天气状态 =====
@@ -108,6 +117,22 @@ export const GameState = {
 
     // 连续工作天数追踪（休假制度用）
     _consecutiveWorkDays: 0,
+
+    // ===== 钓鱼系统 =====
+    fishing: {
+        pondBuilt: false,          // 是否已建造鱼塘
+        pondLevel: 0,              // 鱼塘等级 0/1/2
+        fishStock: 5,              // 当前鱼存量
+        fishRecovery: [],          // 每条鱼的恢复计时 [{ recoveryDay: totalDay }]
+        caughtFish: {},            // 鱼库存：{ crucianCarp: 3, koi: 1 }
+        collection: [],            // 已发现的鱼种ID列表（图鉴）
+        collectionRewardsClaimed: [], // 已领取的图鉴奖励阈值
+        totalCaught: 0,            // 累计钓鱼数
+        combo: 0,                  // 当前连击数
+        bestCombo: 0,              // 最高连击记录
+        currentBait: 'normal',     // 当前使用的鱼饵
+        legendaryRod: false,       // 是否拥有传说鱼竿
+    },
 
     // ===== 村会系统 =====
     meetings: {
@@ -174,7 +199,7 @@ export const GameState = {
     /** 当前仓库已占用容量（金币不占用） */
     getStorageUsed() {
         let total = 0;
-        total += Math.max(0, this.resources.food || 0);
+        // food 已废弃，粮食统一用 inventory.wheat
         total += Math.max(0, this.resources.wood || 0);
         total += Math.max(0, this.resources.stone || 0);
         const seedTotal = Object.values(this.resources.seeds || {}).reduce((sum, v) => sum + (v || 0), 0);
@@ -229,7 +254,7 @@ export const GameState = {
 
     /** 重置每日变化追踪 */
     resetDailyChanges() {
-        this.dailyChanges = { gold: 0, food: 0, wood: 0, stone: 0 };
+        this.dailyChanges = { gold: 0, wood: 0, stone: 0, wheat: 0 };
     },
 
     /**

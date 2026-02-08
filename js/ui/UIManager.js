@@ -94,6 +94,11 @@ export class UIManager {
 
     /** 切换标签页 */
     switchTab(tabId) {
+        // 通知旧面板被停用
+        if (this.currentTab && this.panels[this.currentTab]?.onDeactivate) {
+            this.panels[this.currentTab].onDeactivate();
+        }
+
         this.currentTab = tabId;
 
         // 更新标签按钮
@@ -173,22 +178,36 @@ export class UIManager {
 
         // 定义资源配置（金币已移至顶部栏）
         const resources = [
-            { key: 'food', icon: '🌾', name: '粮食', value: r.food, change: d.food },
             { key: 'wood', icon: '🪵', name: '木材', value: r.wood, change: d.wood },
             { key: 'stone', icon: '🪨', name: '石料', value: r.stone, change: d.stone },
             { key: 'seeds', icon: '🌱', name: '种子', value: Object.values(r.seeds).reduce((a, b) => a + b, 0), change: null },
         ];
 
+        // 小麦（= 粮食）：从 inventory 中提取，带每日变化
+        const wheatQty = s.inventory.wheat || 0;
+        if (wheatQty > 0 || (d.wheat && d.wheat !== 0)) {
+            resources.unshift({ key: 'wheat', icon: '🌾', name: '小麦', value: wheatQty, change: d.wheat || null });
+        }
+
         // 库存物品（仅显示有数量的）
         const invItems = [
             { key: 'radish', icon: '🥕', name: '萝卜' },
-            { key: 'wheat', icon: '🌾', name: '小麦' },
+            // wheat 已在主资源区作为粮食显示，不在这里重复
             { key: 'potato', icon: '🥔', name: '土豆' },
             { key: 'pumpkin', icon: '🎃', name: '南瓜' },
             { key: 'cotton', icon: '🧶', name: '棉花' },
             { key: 'grape', icon: '🍇', name: '葡萄' },
             { key: 'flour', icon: '🫘', name: '面粉' },
             { key: 'bread', icon: '🍞', name: '面包' },
+            // 鱼类
+            { key: 'crucianCarp', icon: '🐟', name: '鲫鱼' },
+            { key: 'grassCarp', icon: '🐟', name: '草鱼' },
+            { key: 'commonCarp', icon: '🐠', name: '鲤鱼' },
+            { key: 'silverCarp', icon: '🐠', name: '鲢鱼' },
+            { key: 'mandarin', icon: '🐡', name: '鳜鱼' },
+            { key: 'snakehead', icon: '🐡', name: '黑鱼' },
+            { key: 'koi', icon: '🎏', name: '锦鲤' },
+            { key: 'goldenDragon', icon: '🐉', name: '金龙鱼' },
         ];
 
         invItems.forEach(item => {
@@ -211,6 +230,15 @@ export class UIManager {
             grape: '#9575cd',
             flour: '#f6d9b1',
             bread: '#f0b37e',
+            // 鱼类
+            crucianCarp: '#4fc3f7',
+            grassCarp: '#4db6ac',
+            commonCarp: '#ff8a65',
+            silverCarp: '#b0bec5',
+            mandarin: '#ce93d8',
+            snakehead: '#78909c',
+            koi: '#ffb74d',
+            goldenDragon: '#ffd54f',
         };
 
         const stackItems = resources.filter(res => res.value > 0);

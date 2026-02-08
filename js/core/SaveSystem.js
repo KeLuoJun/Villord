@@ -125,6 +125,7 @@ export class SaveSystem {
             policies: { ...this.state.policies },
             _consecutiveWorkDays: this.state._consecutiveWorkDays || 0,
             meetings: JSON.parse(JSON.stringify(this.state.meetings || { history: [] })),
+            fishing: JSON.parse(JSON.stringify(this.state.fishing)),
         };
     }
 
@@ -164,6 +165,11 @@ export class SaveSystem {
         // 村会系统数据恢复（兼容旧存档）
         if (data.meetings) {
             this.state.meetings = data.meetings;
+        }
+
+        // 钓鱼系统数据恢复（兼容旧存档）
+        if (data.fishing) {
+            Object.assign(this.state.fishing, data.fishing);
         }
 
         // 暂停游戏

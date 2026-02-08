@@ -145,7 +145,7 @@ export class FarmSystem {
 
         // 粮食特殊处理（食物资源，受总容量限制）
         if (['wheat', 'radish', 'potato'].includes(plot.crop)) {
-            this.state.modifyResource('food', yield_);
+            this.state.inventory.wheat = (this.state.inventory.wheat || 0) + yield_;
         }
 
         const harvestInfo = { plot, crop: cropConfig, yield: yield_ };

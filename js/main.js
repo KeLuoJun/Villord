@@ -26,6 +26,7 @@ import { ProsperitySystem } from './systems/ProsperitySystem.js';
 import { DailySummary } from './systems/DailySummary.js';
 import { NPCChatSystem } from './systems/NPCChatSystem.js';
 import { MeetingSystem } from './systems/MeetingSystem.js';
+import { FishingSystem } from './systems/FishingSystem.js';
 import { MarketEngine } from './market/MarketEngine.js';
 
 // AI 模块
@@ -39,6 +40,7 @@ import { ContextCompressor } from './ai/ContextCompressor.js';
 import { DialogueManager } from './ui/DialogueBox.js';
 import { RecruitReveal } from './ui/RecruitReveal.js';
 import { PriceChart } from './market/PriceChart.js';
+import { FishingPanel } from './ui/FishingPanel.js';
 
 // 配置暴露到全局（供 UIManager 等使用）
 import { SEASON_DEFAULT, SPECIAL_WEATHER_EVENTS } from './config/weather.js';
@@ -107,6 +109,8 @@ const prosperitySystem = new ProsperitySystem(gameState, eventBus);
 const dailySummary = new DailySummary(aiService, gameState, eventBus);
 const npcChatSystem = new NPCChatSystem(aiService, gameState, eventBus);
 const meetingSystem = new MeetingSystem(aiService, gameState, eventBus);
+const fishingSystem = new FishingSystem(gameState, eventBus);
+const fishingPanel = new FishingPanel(gameState, eventBus, fishingSystem);
 
 // 注入 MeetingSystem 到需要访问会议上下文的模块
 villagerAI.setMeetingSystem(meetingSystem);
@@ -175,6 +179,7 @@ uiManager.registerPanel('build', buildingSystem);
 uiManager.registerPanel('villagers', uiManager.villagerPanel);
 uiManager.registerPanel('farm', farmSystem);
 uiManager.registerPanel('market', marketEngine);
+uiManager.registerPanel('fishing', fishingPanel);
 uiManager.registerPanel('policy', policySystem);
 uiManager.registerPanel('events', dailySummary);
 
@@ -384,7 +389,7 @@ function fillInitialStorageToCapacity() {
     };
 
     // 清空库存与资源（金币不变）
-    gameState.resources.food = 0;
+    gameState.resources.food = 0; // 废弃字段，保持为0
     gameState.resources.wood = 0;
     gameState.resources.stone = 0;
     Object.keys(gameState.resources.seeds || {}).forEach(type => {
@@ -394,16 +399,12 @@ function fillInitialStorageToCapacity() {
         gameState.inventory[type] = 0;
     });
 
-    // 基础物资（不包含高级作物与加工品）
-    addResource('food', 20);
+    // 基础物资
+    gameState.inventory.wheat = 20;  // 小麦 = 粮食
     addResource('wood', 30);
     addResource('stone', 15);
     addSeed('radish', 5);
     addSeed('wheat', 3);
-
-    // 余量补给到粮食，确保总量不超过仓库容量
-    const remaining = gameState.getStorageRemaining();
-    if (remaining > 0) addResource('food', remaining);
 
     gameState.resetDailyChanges();
 }
@@ -1146,6 +1147,8 @@ sfx.registerAll({
 });
 
 // --- 绑定事件 → 音效 ---
+// 钓到鱼 → harvest（复用收获音效）
+eventBus.on('fishCaught', () => sfx.play('harvest'));
 // 建造完成 → coin（扣费 + 建造反馈）
 eventBus.on('buildingBuilt', () => sfx.play('coin'));
 // 作物收获 → harvest
@@ -1239,6 +1242,8 @@ window.game = {
     policy: policySystem,
     dailySummary,
     npcChat: npcChatSystem,
+    fishing: fishingSystem,
+    fishingPanel,
     priceChart,
     bgm,
     sfx,

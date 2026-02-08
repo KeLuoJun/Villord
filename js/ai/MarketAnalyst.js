@@ -98,7 +98,7 @@ export class MarketAnalyst {
 季节：${this.state.seasonName}
 天气：${weatherInfo}
 未来天气：${upcomingWeatherInfo}
-村庄金币：${this.state.resources.gold}💰，粮食：${this.state.resources.food}🌾
+村庄金币：${this.state.resources.gold}💰，小麦：${this.state.inventory.wheat || 0}🌾
 
 【各商品行情】
 ${priceInfo.join('\n')}

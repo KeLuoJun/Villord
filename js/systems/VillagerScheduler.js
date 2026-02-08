@@ -212,6 +212,30 @@ export class VillagerScheduler {
         const eveningReport = this.state.market.eveningReport?.broadcast || '暂无昨日晚报';
         const eveningComment = this.state.market.eveningReport?.playerComment || '';
 
+        // 库存和市场价格（供交易决策参考）
+        const marketRef = window.game?.market;
+        const inventoryLines = [];
+        const invItems = [
+            { id: 'radish', name: '萝卜', icon: '🥕' }, { id: 'wheat', name: '小麦', icon: '🌾' },
+            { id: 'potato', name: '土豆', icon: '🥔' }, { id: 'flour', name: '面粉', icon: '🫘' },
+            { id: 'bread', name: '面包', icon: '🍞' },
+        ];
+        for (const item of invItems) {
+            const qty = this.state.inventory[item.id] || 0;
+            if (qty > 0 && marketRef) {
+                const price = Math.round(marketRef.getPrice(item.id));
+                const basePrice = marketRef.prices?.[item.id]
+                    ? Math.round(window.MARKET_ITEMS?.[item.id]?.basePrice || price)
+                    : price;
+                const diff = price - basePrice;
+                const trend = diff > 0 ? `↑高于基准${diff}💰` : diff < 0 ? `↓低于基准${Math.abs(diff)}💰` : '→持平';
+                inventoryLines.push(`${item.icon}${item.name}×${qty}（现价${price}💰，${trend}）`);
+            }
+        }
+        const inventoryInfo = inventoryLines.length > 0
+            ? inventoryLines.join('，')
+            : '无可交易库存';
+
         // 其他村民的计划（避免重复）
         const otherPlans = this.state.villagers
             .filter(v => v.id !== villager.id && v.schedule)
@@ -264,8 +288,9 @@ ${meetingContext}
 ${eveningComment ? `分析师说：${eveningComment}` : ''}
 
 【村庄资源】${this.state.seasonName}，${this.getCurrentWeatherInfo()}
-金币${this.state.resources.gold}💰，粮食${this.state.resources.food}🌾，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨
+金币${this.state.resources.gold}💰，小麦${this.state.inventory.wheat || 0}🌾，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨
 农田：${pendingTasks.join('；') || '无待处理'}
+仓库可交易品：${inventoryInfo}
 
 【村长近期指令（含时间，最高优先级）】
 ${directiveSummary}
@@ -281,7 +306,8 @@ ${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${ST
 ${restDay ? '• 🏖️ 今天是休息日，只安排休闲活动（rest/idle/chat/eat），不安排劳动' : `• 工作时间 ${scheduleStart}:00-${workEnd}:00，工作结束后安排轻松活动`}
 ${directiveRule}
 • 吃饭：一天3餐（早${scheduleStart}点/午12点/晚18点左右），用eat行动
-• 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时变，选时机要慎重
+• 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时波动（类似股市）
+• 交易策略：你可以低价买入商品囤货，等价格上涨后再卖出赚取差价（但有亏损风险！价格也可能下跌）。参考早报/晚报的价格趋势分析来决策。在note中写明具体买/卖什么商品，如"买木材"、"卖萝卜"
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
 ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
 • 体力不够时安排rest(+4)或eat(+3)
@@ -630,8 +656,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 break;
             }
             case 'eat': {
-                if (this.state.resources.food < 1) {
-                    return { canExecute: false, reason: '粮食不足' };
+                if ((this.state.inventory.wheat || 0) < 1) {
+                    return { canExecute: false, reason: '小麦不足' };
                 }
                 break;
             }
@@ -732,8 +758,8 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 break;
             }
             case 'eat': {
-                if (this.state.resources.food >= 1) {
-                    this.state.modifyResource('food', -1);
+                if ((this.state.inventory.wheat || 0) >= 1) {
+                    this.state.inventory.wheat--;
                     const eatMult = this.state.getPolicyEffects().staminaRecoveryMult;
                     const eatAmount = Math.round(2 * eatMult);
                     villager.stamina = Math.min(villager.maxStamina, villager.stamina + eatAmount);
@@ -797,7 +823,9 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
 
     /**
      * NPC 自动交易逻辑：
-     * 根据库存和资源情况，智能决定买/卖什么，并在近期事件中记录详情
+     * 1. 优先解析 AI 计划中 note/target 指定的具体商品和买卖方向
+     * 2. 若有村长指令（村会/对话），严格执行指令中的交易要求
+     * 3. 若无明确指定，NPC 自行决定买卖什么
      */
     _executeNPCTrade(villager, task) {
         const market = window.game?.market;
@@ -806,93 +834,205 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
             return false;
         }
 
-        // 解析 task.note / task.target 中的交易意图（AI 可能指定如 "卖萝卜" "买种子"）
-        const hint = ((task.note || '') + ' ' + (task.target || '')).toLowerCase();
         const policy = villager._tradePolicy || {};
-        const wantBuy = (hint.includes('买') || hint.includes('buy') || hint.includes('种子') || hint.includes('seed')) && !policy.avoidBuy;
-        const wantSell = hint.includes('卖') || hint.includes('sell') || policy.preferSell;
         if (policy.disallowTrade) return false;
 
-        // 可卖出的商品（农产品/加工品，不卖建材避免影响建设）
-        const sellableItems = [
-            { id: 'radish',  name: '萝卜', icon: '🥕' },
-            { id: 'wheat',   name: '小麦', icon: '🌾' },
-            { id: 'potato',  name: '土豆', icon: '🥔' },
-            { id: 'pumpkin', name: '南瓜', icon: '🎃' },
-            { id: 'cotton',  name: '棉花', icon: '🧵' },
-            { id: 'grape',   name: '葡萄', icon: '🍇' },
-            { id: 'flour',   name: '面粉', icon: '🫘' },
-            { id: 'bread',   name: '面包', icon: '🍞' },
-        ];
+        // === 所有可交易商品（完整列表） ===
+        const ALL_TRADABLE = {
+            // 农产品
+            radish:  { id: 'radish',  name: '萝卜',     icon: '🥕', keywords: ['萝卜'] },
+            wheat:   { id: 'wheat',   name: '小麦',     icon: '🌾', keywords: ['小麦'] },
+            potato:  { id: 'potato',  name: '土豆',     icon: '🥔', keywords: ['土豆'] },
+            pumpkin: { id: 'pumpkin', name: '南瓜',     icon: '🎃', keywords: ['南瓜'] },
+            cotton:  { id: 'cotton',  name: '棉花',     icon: '🧵', keywords: ['棉花'] },
+            grape:   { id: 'grape',   name: '葡萄',     icon: '🍇', keywords: ['葡萄'] },
+            flour:   { id: 'flour',   name: '面粉',     icon: '🫘', keywords: ['面粉'] },
+            bread:   { id: 'bread',   name: '面包',     icon: '🍞', keywords: ['面包'] },
+            // 建材
+            wood:    { id: 'wood',    name: '木材',     icon: '🪵', keywords: ['木材', '木头', '木'] },
+            stone:   { id: 'stone',   name: '石料',     icon: '🪨', keywords: ['石料', '石头', '石材', '石'] },
+            // 种子
+            seed_r:  { id: 'seed_r',  name: '萝卜种子', icon: '🌱', keywords: ['萝卜种子', '萝卜种'] },
+            seed_w:  { id: 'seed_w',  name: '小麦种子', icon: '🌱', keywords: ['小麦种子', '小麦种'] },
+            seed_p:  { id: 'seed_p',  name: '土豆种子', icon: '🌱', keywords: ['土豆种子', '土豆种'] },
+            seed_pk: { id: 'seed_pk', name: '南瓜种子', icon: '🌱', keywords: ['南瓜种子'] },
+            seed_c:  { id: 'seed_c',  name: '棉花种子', icon: '🌱', keywords: ['棉花种子'] },
+            seed_g:  { id: 'seed_g',  name: '葡萄种子', icon: '🌱', keywords: ['葡萄种子'] },
+            // 鱼类
+            crucianCarp: { id: 'crucianCarp', name: '鲫鱼',   icon: '🐟', keywords: ['鲫鱼'] },
+            grassCarp:   { id: 'grassCarp',   name: '草鱼',   icon: '🐟', keywords: ['草鱼'] },
+            commonCarp:  { id: 'commonCarp',  name: '鲤鱼',   icon: '🐠', keywords: ['鲤鱼'] },
+            silverCarp:  { id: 'silverCarp',  name: '鲢鱼',   icon: '🐠', keywords: ['鲢鱼'] },
+            mandarin:    { id: 'mandarin',    name: '鳜鱼',   icon: '🐡', keywords: ['鳜鱼'] },
+            snakehead:   { id: 'snakehead',   name: '黑鱼',   icon: '🐡', keywords: ['黑鱼'] },
+            koi:         { id: 'koi',         name: '锦鲤',   icon: '🎏', keywords: ['锦鲤'] },
+            goldenDragon:{ id: 'goldenDragon',name: '金龙鱼', icon: '🐉', keywords: ['金龙鱼'] },
+        };
 
-        // 可买入的种子
-        const buyableSeeds = [
-            { id: 'seed_r',  name: '萝卜种子', icon: '🌱' },
-            { id: 'seed_w',  name: '小麦种子', icon: '🌱' },
-            { id: 'seed_p',  name: '土豆种子', icon: '🌱' },
-        ];
+        // === 解析 AI 计划中的交易意图 ===
+        const hint = (task.note || '') + ' ' + (task.target || '');
+        const parsed = this._parseTradeIntent(hint, ALL_TRADABLE);
+
+        // 如果 AI 计划没写具体意图，再看村会指令
+        if (!parsed.direction && !parsed.itemId) {
+            const directive = this.meetingSystem?.getActiveDirective();
+            if (directive) {
+                const dirParsed = this._parseTradeIntent(directive.directive + ' ' + directive.topic, ALL_TRADABLE);
+                if (dirParsed.direction || dirParsed.itemId) {
+                    Object.assign(parsed, dirParsed);
+                }
+            }
+        }
+
+        console.log(`[Scheduler] ${villager.name} 交易意图解析:`, parsed);
 
         let tradeResult = null;
 
-        // ─── 卖出逻辑 ───
-        if (!tradeResult && (wantSell || !wantBuy)) {
-            const available = sellableItems
-                .map(item => ({
-                    ...item,
-                    qty: this.state.inventory[item.id] || 0,
-                }))
-                .filter(item => item.qty > 0)
-                .sort((a, b) => b.qty - a.qty);
-
-            if (available.length > 0) {
-                const chosen = available[0];
-                const sellQty = Math.min(chosen.qty, Math.max(1, Math.ceil(chosen.qty * 0.3)));
-                const result = market.executeTrade(chosen.id, sellQty, false);
-                if (result.success) {
-                    const actualQty = result.quantity ?? sellQty;
-                    tradeResult = { isBuy: false, item: chosen, qty: actualQty, totalPrice: result.totalPrice };
+        // === 有明确指定商品时：严格执行 ===
+        if (parsed.itemId) {
+            const item = ALL_TRADABLE[parsed.itemId];
+            if (item) {
+                if (parsed.direction === 'buy' || (!parsed.direction && !policy.avoidBuy)) {
+                    tradeResult = this._tryBuy(market, villager, item, parsed.qty);
+                }
+                if (!tradeResult && (parsed.direction === 'sell' || !parsed.direction)) {
+                    tradeResult = this._trySell(market, villager, item, parsed.qty);
                 }
             }
         }
 
-        // ─── 买入逻辑（没卖成或明确想买时） ───
-        if (!tradeResult && (wantBuy || !wantSell)) {
-            const gold = this.state.resources.gold;
-            if (gold >= 10) {
-                const affordable = buyableSeeds
-                    .map(s => ({ ...s, price: Math.round(market.getPrice(s.id)) }))
-                    .filter(s => s.price > 0 && s.price <= gold)
-                    .sort((a, b) => a.price - b.price);
+        // === 有方向但无具体商品时：NPC 自行选择最合适的 ===
+        if (!tradeResult && parsed.direction === 'buy' && !policy.avoidBuy) {
+            // 优先买种子（通用"买种子"请求），然后尝试建材
+            const seedItems = ['seed_r', 'seed_w', 'seed_p'].map(id => ALL_TRADABLE[id]);
+            const materialItems = [ALL_TRADABLE.wood, ALL_TRADABLE.stone];
+            const candidates = [...seedItems, ...materialItems];
+            for (const item of candidates) {
+                tradeResult = this._tryBuy(market, villager, item);
+                if (tradeResult) break;
+            }
+        }
 
-                if (affordable.length > 0) {
-                    const chosen = affordable[0];
-                    const maxBudget = Math.floor(gold * 0.3);
-                    const buyQty = Math.min(3, Math.max(1, Math.floor(maxBudget / chosen.price)));
-                    if (buyQty > 0) {
-                        const result = market.executeTrade(chosen.id, buyQty, true);
-                        if (result.success) {
-                            const actualQty = result.quantity ?? buyQty;
-                            tradeResult = { isBuy: true, item: chosen, qty: actualQty, totalPrice: result.totalPrice };
-                        }
-                    }
+        if (!tradeResult && parsed.direction === 'sell') {
+            tradeResult = this._trySellBestItem(market, villager, ALL_TRADABLE);
+        }
+
+        // === 完全无指定时：NPC 自主决策 ===
+        if (!tradeResult && !parsed.direction && !parsed.itemId) {
+            // 先尝试卖库存最多的农产品/鱼类
+            if (!policy.avoidBuy) {
+                tradeResult = this._trySellBestItem(market, villager, ALL_TRADABLE);
+            }
+            // 卖不了就尝试买种子
+            if (!tradeResult && !policy.avoidBuy) {
+                const seedItems = ['seed_r', 'seed_w', 'seed_p'].map(id => ALL_TRADABLE[id]);
+                for (const item of seedItems) {
+                    tradeResult = this._tryBuy(market, villager, item);
+                    if (tradeResult) break;
                 }
             }
         }
 
+        // === 记录结果 ===
         if (tradeResult) {
             const { isBuy, item, qty, totalPrice } = tradeResult;
             const action = isBuy ? '买入' : '卖出';
             const priceText = isBuy ? `花费${totalPrice}💰` : `获得${totalPrice}💰`;
-            // 带村民名字的详细交易日志（executeTrade 内已记录通用日志，此处补充NPC归属）
             const npcLog = `${villager.avatar || '👤'}${villager.name} ${action}了${qty}个${item.icon}${item.name}（${priceText}）`;
             this.state.addLog('🛒', npcLog, 'info');
             this.bus.emit('showToast', { message: `🛒 ${villager.name} ${action}${qty}个${item.icon}${item.name}`, type: 'info' });
+            this.bus.emit('uiUpdate');
             console.log(`[Scheduler] NPC交易: ${npcLog}`);
             return true;
         }
 
         console.log(`[Scheduler] ${villager.name} 交易失败：无可交易商品或金币不足`);
         return false;
+    }
+
+    /**
+     * 解析交易意图文本，提取方向（买/卖）和具体商品
+     * @returns {{ direction: 'buy'|'sell'|null, itemId: string|null, qty: number|null }}
+     */
+    _parseTradeIntent(text, tradableMap) {
+        if (!text) return { direction: null, itemId: null, qty: null };
+        const t = text;
+
+        // 判断买/卖方向
+        let direction = null;
+        if (/买|购买|buy|采购|进货|补充|多买|去买/.test(t)) direction = 'buy';
+        if (/卖|出售|sell|清仓|抛售|卖出|去卖/.test(t)) direction = 'sell';
+
+        // 匹配具体商品（按关键词长度降序匹配，避免"小麦"匹配到"小麦种子"之前）
+        let itemId = null;
+        const allItems = Object.values(tradableMap);
+        // 按 keywords 长度降序排列，优先匹配更长的词
+        const sortedItems = allItems.flatMap(item =>
+            item.keywords.map(kw => ({ kw, id: item.id }))
+        ).sort((a, b) => b.kw.length - a.kw.length);
+
+        for (const { kw, id } of sortedItems) {
+            if (t.includes(kw)) {
+                itemId = id;
+                break;
+            }
+        }
+
+        // 提取数量（如"买3个木材"、"买点木材"）
+        let qty = null;
+        const qtyMatch = t.match(/(\d+)\s*(?:个|份|块|根|条|捆)/);
+        if (qtyMatch) qty = parseInt(qtyMatch[1], 10);
+
+        return { direction, itemId, qty };
+    }
+
+    /** 尝试买入指定商品 */
+    _tryBuy(market, villager, item, qty = null) {
+        const gold = this.state.resources.gold;
+        const price = Math.round(market.getPrice(item.id));
+        if (price <= 0 || price > gold) return null;
+
+        const maxBudget = Math.floor(gold * 0.3);
+        const buyQty = qty || Math.min(5, Math.max(1, Math.floor(maxBudget / price)));
+        if (buyQty <= 0) return null;
+
+        const result = market.executeTrade(item.id, buyQty, true);
+        if (result.success) {
+            return { isBuy: true, item, qty: result.quantity ?? buyQty, totalPrice: result.totalPrice };
+        }
+        return null;
+    }
+
+    /** 尝试卖出指定商品 */
+    _trySell(market, villager, item, qty = null) {
+        const inv = market.getInventoryCount(item.id);
+        if (inv <= 0) return null;
+
+        const sellQty = qty || Math.min(inv, Math.max(1, Math.ceil(inv * 0.3)));
+        const result = market.executeTrade(item.id, sellQty, false);
+        if (result.success) {
+            return { isBuy: false, item, qty: result.quantity ?? sellQty, totalPrice: result.totalPrice };
+        }
+        return null;
+    }
+
+    /** 自动选择库存最多的非建材商品卖出 */
+    _trySellBestItem(market, villager, tradableMap) {
+        // 可自动卖出的（不卖建材和种子，避免影响建设和种植）
+        const autoSellIds = [
+            'radish', 'wheat', 'potato', 'pumpkin', 'cotton', 'grape', 'flour', 'bread',
+            'crucianCarp', 'grassCarp', 'commonCarp', 'silverCarp', 'mandarin', 'snakehead', 'koi', 'goldenDragon',
+        ];
+        const available = autoSellIds
+            .map(id => ({ ...tradableMap[id], qty: market.getInventoryCount(id) }))
+            .filter(item => item && item.qty > 0)
+            .sort((a, b) => b.qty - a.qty);
+
+        for (const item of available) {
+            const result = this._trySell(market, { id: item.id }, item);
+            if (result) return result;
+        }
+        return null;
     }
 
     /** 获取天气信息 */

@@ -184,7 +184,7 @@ export class MeetingSystem {
             : '（这是第一次开村会）';
 
         // 村庄环境
-        const env = `${this.state.seasonName}季，粮食${this.state.resources.food}🌾，金币${this.state.resources.gold}💰，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨`;
+        const env = `${this.state.seasonName}季，小麦${this.state.inventory.wheat || 0}🌾，金币${this.state.resources.gold}💰，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨`;
 
         return `你是《治村物语》的村会系统。村长召集全体村民开会。
 
