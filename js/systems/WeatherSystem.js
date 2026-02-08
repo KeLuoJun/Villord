@@ -22,6 +22,7 @@ export class WeatherSystem {
         this.state.weather.activeEventRemaining = 0;
         this.state.weather.schedule = [];
         this.state.weather.lastEventEndDay = -5;
+        this.state.weather.recentEvents = []; // 记录近期出现的天气，用于保证多样性
     }
 
     /** 获取当前天气效果 */
@@ -71,6 +72,17 @@ export class WeatherSystem {
                 if (evt && (today - w.lastEventEndDay >= 3)) {
                     w.activeEvent = scheduled.eventId;
                     w.activeEventRemaining = evt.duration;
+
+                    // 记录到历史天气中（保留最近6条，约2个季节的记录）
+                    if (!w.recentEvents) w.recentEvents = [];
+                    w.recentEvents.push({
+                        id: evt.id,
+                        name: evt.name,
+                        icon: evt.icon,
+                        day: today,
+                        season: this.state.season
+                    });
+                    if (w.recentEvents.length > 6) w.recentEvents.shift();
 
                     this.state.addLog(evt.icon, `${evt.name}来袭！${evt.effectSummary}`, 'warning');
                     this.bus.emit('weatherEventStart', { event: evt });

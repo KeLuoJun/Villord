@@ -92,28 +92,63 @@ export class WeatherForecaster {
         const maxOffset = Math.max(1, Math.min(daysLeftInSeason - 1, 5));
         const daysSinceLastEvent = this.state.totalDays - this.state.weather.lastEventEndDay;
 
+        // 获取历史天气记录，用于引导多样化选择
+        const recentHistory = this.state.weather.recentEvents || [];
+        const historyText = recentHistory.length > 0
+            ? recentHistory.map(h => `${h.icon}${h.name}`).join('、')
+            : '无';
+        
+        // 当前已安排的天气
+        const scheduled = this.state.weather.schedule || [];
+        const scheduledText = scheduled.length > 0
+            ? scheduled.map(s => {
+                const evt = SPECIAL_WEATHER_EVENTS[s.eventId];
+                return evt ? `${evt.icon}${evt.name}(+${s.triggerDay - this.state.totalDays}天)` : s.eventId;
+            }).join('、')
+            : '无';
+
+        // 统计各天气类型的历史出现次数
+        const eventCounts = {};
+        seasonEvents.forEach(e => { eventCounts[e.id] = 0; });
+        recentHistory.forEach(h => {
+            if (eventCounts[h.id] !== undefined) eventCounts[h.id]++;
+        });
+        
+        // 找出出现次数最少的天气（推荐优先选择）
+        const leastUsed = seasonEvents
+            .sort((a, b) => (eventCounts[a.id] || 0) - (eventCounts[b.id] || 0))
+            .slice(0, 2)
+            .map(e => `${e.icon}${e.name}`)
+            .join('、');
+
         return `你是村庄经营游戏的天气预测AI。为当前季节安排特殊天气事件。
 
 【当前状态】
 季节：${this.state.seasonName}，当季第${this.state.time.day}天（每季共5天）
 距上次特殊天气已过${daysSinceLastEvent}天
 
-【本季可用的特殊天气】
+【本季可用的3种特殊天气】
 ${evtList}
 
+【天气历史（重要！用于保证多样性）】
+• 近期出现过的天气：${historyText}
+• 当前已安排的天气：${scheduledText}
+• 💡 推荐优先选择（出现次数较少）：${leastUsed}
+
 【规则】
-• 从上面选1-2个事件安排到未来几天
+• 从上面3种天气中选择1-2个安排到未来几天
+• ⚠️ 多样性要求：尽量选择"近期出现过的天气"中没有的类型，让玩家体验到不同天气
 • dayOffset范围：1~${maxOffset}（当季剩余${daysLeftInSeason}天内）
 • 两个事件间隔至少3天
 • 距上次特殊天气至少间隔3天（当前已过${daysSinceLastEvent}天，${daysSinceLastEvent >= 3 ? '可以安排' : '需等待'}）
-• 为每个事件提供一个简短的理由（为什么会在这天出现这种天气）
+• 为每个事件提供一个简短的理由（结合季节特点和村庄状态）
 
 输出JSON：
 {
   "predictions": [
     {"eventId": "事件ID", "dayOffset": 3, "reason": "简短理由"}
   ],
-  "reasoning": "整体预测思路（2-3句话）"
+  "reasoning": "整体预测思路（2-3句话，说明为什么选择这种天气）"
 }`;
     }
 
