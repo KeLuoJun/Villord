@@ -32,97 +32,114 @@ export class TutorialSystem {
                     <p>你好，新村长！我是系统助手。</p>
                     <p>桃源村现在只有<b>2块农田</b>、<b>1座茅草屋</b>和一位村民<b>小青</b>。</p>
                     <hr class="divider">
-                    <p>你的目标是将这个小村庄建设成繁荣社区，<b>繁荣度达到100</b>即为通关！</p>
+                    <p>你的目标是将这个小村庄建设成繁荣社区，不断提升<b>繁荣度</b>，解锁更高等级！</p>
                 `,
                 buttonText: '了解！继续 →',
-                step: '1/5',
+                step: '1/6',
             },
             {
                 id: 'layout_intro',
                 title: '📋 界面说明',
                 content: `
                     <p>👈 <b>左侧面板</b>：资源状态、市场价格、村民一览</p>
-                    <p>📋 <b>中央区域</b>：建设/村民/农场/市场/事件 五大标签页</p>
+                    <p>📋 <b>中央区域</b>：建设/村民/农场/市场/钓鱼/邻村/政策/事件 标签页</p>
                     <p>👉 <b>右侧面板</b>：村庄概况、天气预报、近期事件</p>
                     <p>💬 <b>底部栏</b>：选择村民进行对话，安排任务</p>
                     <hr class="divider">
-                    <p>📦 仓库有<b>总容量上限</b>，所有资源的总量不能超过仓库容量！可以通过升级仓库扩大容量。</p>
+                    <p>📦 仓库有<b>总容量上限</b>，可通过升级仓库扩大容量。</p>
                 `,
                 buttonText: '明白了 →',
-                step: '2/5',
+                step: '2/6',
+            },
+            {
+                id: 'strategy_guide',
+                title: '💡 开局攻略',
+                content: `
+                    <p>推荐的发展路线：</p>
+                    <hr class="divider">
+                    <p><b>① 建鱼塘</b> — 钓鱼到市场卖出，换取启动资金</p>
+                    <p><b>② 建伐木场</b> — 买入木材建造，村民就能帮你伐木了</p>
+                    <p><b>③ 扩建房屋</b> — 攒够资源后建房，招募村民壮大队伍</p>
+                    <p><b>④ 建采石场</b> — 解锁石材产出，升级房屋容纳更多人</p>
+                    <p><b>⑤ 拜访邻村</b> — 与邻村村长交流提升好感度，解锁贸易和互助</p>
+                    <hr class="divider">
+                    <p style="font-size:12px;color:var(--text-secondary);">📌 繁荣度达到新等级可领取金币奖励；金币不够时随时可以钓鱼卖鱼！</p>
+                `,
+                buttonText: '记住了 →',
+                step: '3/6',
             },
             {
                 id: 'time_control',
                 title: '⏰ 时间与操作',
                 content: `
-                    <p>游戏以 <b>Tick</b> 为单位推进时间，1 Tick = 1 游戏小时 = 现实 3 秒（1倍速），1天 = 24小时。</p>
+                    <p>游戏以 <b>Tick</b> 为单位推进，1 Tick = 1 游戏小时 = 现实 3 秒（1倍速）。</p>
                     <p><b>1季 = 5天</b>，春→夏→秋→冬循环，<b>1年 = 4季 = 20天</b>。</p>
                     <hr class="divider">
-                    <p>⏸ <b>空格键</b> — 暂停/恢复游戏</p>
-                    <p>⏩ <b>右上角按钮</b> — 调整速度（0.5x / 1x / 1.5x）</p>
+                    <p>⏩ <b>右上角按钮</b> — 暂停/恢复 + 调速（0.5x / 1x / 1.5x）</p>
                     <p>💾 <b>Ctrl+S</b> 存档　<b>Ctrl+L</b> 读档</p>
-                    <hr class="divider">
-                    <p>⚡ 重要事件会<b>自动暂停</b>游戏，让你有时间做决策。</p>
-                `,
-                buttonText: '记住了 →',
-                step: '3/5',
-            },
-            {
-                id: 'weather_intro',
-                title: '🌤️ 天气与市场',
-                content: `
-                    <p>🌸 每天早上 <b>5:00</b> 会有天气播报，不同天气影响作物和村民。</p>
-                    <p>📅 AI 天气预报员会预测未来 5 天的天气（每季一次）。</p>
-                    <hr class="divider">
-                    <p>🏪 <b>市场开放时间：9:00 - 18:00</b>，非营业时间无法交易。</p>
-                    <p>🛒 市场价格随<b>供需、季节、天气</b>波动。</p>
-                    <p>☀️ 每天 <b>5:00</b> AI 分析师发布<b>早报</b>（走势预测）</p>
-                    <p>🌙 每天 <b>19:00</b> 发布<b>晚报</b>（交易回顾 + 毒舌点评）</p>
-                    <p>💡 低买高卖，把握商机！</p>
+                    <p>⚡ 重要事件会<b>自动暂停</b>游戏，给你时间做决策。</p>
                 `,
                 buttonText: '了解 →',
-                step: '4/5',
+                step: '4/6',
+            },
+            {
+                id: 'systems_intro',
+                title: '🎮 核心玩法一览',
+                content: `
+                    <p>🌾 <b>农场</b> — 种植作物，浇水施肥，收获后卖钱</p>
+                    <p>🎣 <b>钓鱼</b> — 建造鱼塘后解锁，仅限玩家亲自操作</p>
+                    <p>🛒 <b>市场</b> — 9:00-18:00 开放交易，价格实时波动</p>
+                    <p>🏘️ <b>邻村</b> — 拜访3个邻村村长，通过对话和赠礼提升好感度，解锁贸易和互助</p>
+                    <p>📜 <b>政策</b> — 4类政策影响村庄运行，各有利弊</p>
+                    <hr class="divider">
+                    <p style="font-size:12px;">👥 村民由 AI 自动安排每日计划，也可以通过<b>底部对话栏</b>和<b>村会</b>指挥他们</p>
+                `,
+                buttonText: '了解 →',
+                step: '5/6',
             },
             {
                 id: 'first_action',
-                title: '🌱 第一步行动',
+                title: '🌱 开始你的第一步',
                 content: `
-                    <p>准备好了吗？以下是你的第一步行动建议：</p>
+                    <p>准备好了吗？建议的第一步行动：</p>
                     <hr class="divider">
-                    <p>1️⃣ 点击「<b>🌾 农场</b>」标签，在农田里种下<b>萝卜</b>（最快3天成熟）</p>
-                    <p>2️⃣ 通过<b>底部对话栏</b>与村民小青交流，安排她去浇水</p>
-                    <p>3️⃣ 等萝卜成熟后去「<b>🛒 市场</b>」卖掉赚金币</p>
-                    <p>4️⃣ 攒够金币后建造房屋，招募更多村民！</p>
+                    <p>1️⃣ 去「<b>🏗️ 建设</b>」建造<b>鱼塘</b>（80💰 + 15🪵）</p>
+                    <p>2️⃣ 去「<b>🎣 钓鱼</b>」钓几条鱼</p>
+                    <p>3️⃣ 去「<b>🛒 市场</b>」把鱼卖掉赚金币</p>
+                    <p>4️⃣ 用金币继续建设，壮大你的村庄！</p>
                     <hr class="divider">
                     <p>🎮 教程结束，游戏即将开始！祝你好运，村长！</p>
+                    <p style="font-size:12px;color:var(--text-secondary);">随时点击右上角 ❓ 按钮查看完整玩法介绍</p>
                 `,
                 buttonText: '🚀 开始游戏！',
-                step: '5/5',
+                step: '6/6',
             },
         ];
 
         // 按序展示每个步骤
         let currentIndex = 0;
+        const finishAll = () => {
+            this.initialTutorialDone = true;
+            steps.forEach(s => this.completedSteps.add(s.id));
+            if (onComplete) onComplete();
+        };
+
         const showNext = () => {
             if (currentIndex >= steps.length) {
-                // 所有教程完成
-                this.initialTutorialDone = true;
-                // 标记所有初始步骤为已完成
-                steps.forEach(s => this.completedSteps.add(s.id));
-                if (onComplete) onComplete();
+                finishAll();
                 return;
             }
 
             const step = steps[currentIndex];
             currentIndex++;
-            this.showSequentialGuide(step, showNext);
+            this.showSequentialGuide(step, showNext, finishAll);
         };
 
         showNext();
     }
 
-    /** 显示单个序列教程弹窗，确认后调用 onConfirm */
-    showSequentialGuide(config, onConfirm) {
+    /** 显示单个序列教程弹窗，确认后调用 onConfirm，可跳过所有步骤 */
+    showSequentialGuide(config, onConfirm, onSkipAll) {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.style.zIndex = '10000';
@@ -133,7 +150,8 @@ export class TutorialSystem {
                     ${config.step ? `<span style="font-size:12px;color:var(--text-secondary);font-weight:400;">${config.step}</span>` : ''}
                 </div>
                 <div class="modal-body" style="line-height:1.8;">${config.content}</div>
-                <div class="modal-actions">
+                <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;">
+                    <button class="btn btn-ghost guide-skip" style="font-size:12px;color:var(--text-muted);padding:4px 8px;">跳过教程</button>
                     <button class="btn btn-primary guide-confirm" style="min-width:140px;">${config.buttonText || '下一步'}</button>
                 </div>
             </div>
@@ -142,6 +160,11 @@ export class TutorialSystem {
         overlay.querySelector('.guide-confirm').addEventListener('click', () => {
             overlay.remove();
             if (onConfirm) onConfirm();
+        });
+
+        overlay.querySelector('.guide-skip').addEventListener('click', () => {
+            overlay.remove();
+            if (onSkipAll) onSkipAll();
         });
 
         // 序列教程不允许点击背景关闭

@@ -29,6 +29,9 @@ export class ContextCompressor {
             await this.compressVillagerMemory(villager);
         }
 
+        // 1.5 压缩邻村村长对话记忆
+        await this.compressNeighborChatMemory();
+
         // 2. G2: 压缩市场历史（含统计摘要）
         this.compressMarketHistory();
 
@@ -112,6 +115,70 @@ ${eventTexts.slice(0, 500) || '无'}
         villager.dialogueHistory = villager.dialogueHistory.slice(-3);
 
         console.log(`[ContextCompressor] ${villager.name} 记忆压缩: ${dialogueCount}对话+${eventCount}事件 → ${summary.length}字摘要`);
+    }
+
+    /** 压缩邻村村长对话记忆 */
+    async compressNeighborChatMemory() {
+        const neighbors = this.state.neighbors;
+        if (!neighbors?.chatHistory) return;
+
+        const villageNames = { fenggu: '丰谷村·田丰', tieling: '铁岭镇·铁柱', yunshui: '云水乡·云飞' };
+
+        for (const [vid, history] of Object.entries(neighbors.chatHistory)) {
+            if (!history || history.length === 0) continue;
+
+            const dialogueCount = history.length;
+            const dialogueTexts = history
+                .map(d => `桃源村村长: "${d.player}" → ${villageNames[vid] || vid}: "${d.leader}"`)
+                .join('\n');
+
+            let summary = '';
+
+            if (this.ai.enabled && dialogueCount > 2) {
+                const prompt = `请将以下桃源村村长与${villageNames[vid] || vid}村长本季度的对话压缩为2-4句核心摘要。保留重要事项（资源交换、承诺、关系变化），去掉日常寒暄。
+
+## 对话记录（共${dialogueCount}条）
+${dialogueTexts.slice(0, 2000)}
+
+## 要求
+- 2-4句话概括
+- 保留资源交易和重要承诺
+- 第三人称
+- 直接输出文本，不要JSON
+
+## 摘要：`;
+
+                const result = await this.ai.chatRaw(prompt, { temperature: 0.5, maxTokens: 200 });
+                if (result) {
+                    summary = result;
+                }
+            }
+
+            // 降级
+            if (!summary) {
+                summary = `本季与${villageNames[vid] || vid}村长对话${dialogueCount}次。`;
+            }
+
+            // 保存压缩摘要
+            if (!neighbors.chatMemory) neighbors.chatMemory = {};
+            if (!neighbors.chatMemory[vid]) neighbors.chatMemory[vid] = [];
+
+            neighbors.chatMemory[vid].push({
+                season: this.state.seasonName,
+                year: this.state.time.year,
+                summary,
+            });
+
+            // 最多保留 4 个季度
+            if (neighbors.chatMemory[vid].length > 4) {
+                neighbors.chatMemory[vid].shift();
+            }
+
+            // 清理本季对话历史，只保留最近 3 条
+            neighbors.chatHistory[vid] = history.slice(-3);
+
+            console.log(`[ContextCompressor] ${villageNames[vid] || vid} 对话压缩: ${dialogueCount}条 → ${summary.length}字摘要`);
+        }
     }
 
     /** G2: 压缩市场历史（含统计摘要） */

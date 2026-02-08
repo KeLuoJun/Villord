@@ -27,6 +27,7 @@ import { DailySummary } from './systems/DailySummary.js';
 import { NPCChatSystem } from './systems/NPCChatSystem.js';
 import { MeetingSystem } from './systems/MeetingSystem.js';
 import { FishingSystem } from './systems/FishingSystem.js';
+import { NeighborSystem } from './systems/NeighborSystem.js';
 import { MarketEngine } from './market/MarketEngine.js';
 
 // AI 模块
@@ -111,6 +112,7 @@ const npcChatSystem = new NPCChatSystem(aiService, gameState, eventBus);
 const meetingSystem = new MeetingSystem(aiService, gameState, eventBus);
 const fishingSystem = new FishingSystem(gameState, eventBus);
 const fishingPanel = new FishingPanel(gameState, eventBus, fishingSystem);
+const neighborSystem = new NeighborSystem(gameState, eventBus, null, aiService); // uiManager set later
 
 // 注入 MeetingSystem 到需要访问会议上下文的模块
 villagerAI.setMeetingSystem(meetingSystem);
@@ -180,6 +182,8 @@ uiManager.registerPanel('villagers', uiManager.villagerPanel);
 uiManager.registerPanel('farm', farmSystem);
 uiManager.registerPanel('market', marketEngine);
 uiManager.registerPanel('fishing', fishingPanel);
+neighborSystem.ui = uiManager;
+uiManager.registerPanel('neighbor', neighborSystem);
 uiManager.registerPanel('policy', policySystem);
 uiManager.registerPanel('events', dailySummary);
 
@@ -217,9 +221,9 @@ eventBus.on('uiUpdate', () => {
     uiManager.updateAll();
 });
 
-// ===== 通关事件 =====
+// ===== 最高等级达成事件 =====
 eventBus.on('gameWin', (data) => {
-    uiManager.showModal('🏆 恭喜通关！', `
+    uiManager.showModal('🏆 传说桃源达成！', `
         <p style="font-size:18px;text-align:center;margin-bottom:16px;">👑 桃源村已成为传说中的桃源！</p>
         <div style="text-align:center;">
             <p>🏘️ 村民：${gameState.villagers.length}人</p>
@@ -896,7 +900,7 @@ function showGameRulesModal() {
             <div class="modal-title">📖 游戏规则与玩法介绍</div>
             <div class="modal-body" style="line-height:1.9;text-align:left;">
                 <h4 style="margin:0 0 8px;">🎯 游戏目标</h4>
-                <p>你是桃源村的新村长，目标是将小村庄建设成繁荣的社区。提升<b>繁荣度</b>，达到最高等级「👑 传说桃源」即为通关！</p>
+                <p>你是桃源村的新村长，目标是将小村庄建设成繁荣的社区。不断提升<b>繁荣度</b>，解锁更高等级，向「👑 传说桃源」迈进！</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">💡 新手攻略建议</h4>
@@ -932,9 +936,18 @@ function showGameRulesModal() {
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">🌾 农业系统</h4>
-                <p>• 在农田中种植作物，需要种子和浇水</p>
+                <p>• 在农田中种植作物，需要<b>种子</b>和<b>浇水</b></p>
+                <p>• <b>施肥</b>可提升产量 30%，每块田每茬只能施一次</p>
                 <p>• 作物有生长周期，受天气和季节影响</p>
                 <p>• 收获后可以在市场出售赚取金币</p>
+
+                <hr class="divider">
+                <h4 style="margin:0 0 8px;">🎣 钓鱼系统</h4>
+                <p>• 建造<b>鱼塘</b>后解锁，<b>仅限玩家亲自操作</b>（村民不会钓鱼）</p>
+                <p>• 操作：点击抛竿 → 等鱼咬钩 → 时机点击 → 拉杆搏斗</p>
+                <p>• 共 8 种鱼（普通→传说），钓到的鱼可在<b>市场卖出换金币</b></p>
+                <p>• 连续成功不跑鱼可触发<b>连击</b>特效</p>
+                <p>• 鱼塘可升级（3 级），提升鱼群容量</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">🛒 市场经济</h4>
@@ -952,10 +965,11 @@ function showGameRulesModal() {
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">🏗️ 建设系统</h4>
-                <p>• 建造房屋 → 招募更多村民</p>
-                <p>• 扩建农田 → 种植更多作物</p>
-                <p>• 建造伐木场/采石场 → 获取建筑材料</p>
-                <p>• 建造加工坊 → 将原料加工为高价值商品</p>
+                <p>• 建造<b>住宅</b> → 招募更多村民（住宅可升级：茅草屋→木屋→石屋）</p>
+                <p>• 扩建<b>农田</b> → 种植更多作物</p>
+                <p>• 建造<b>鱼塘</b> → 解锁钓鱼玩法（可升级3级）</p>
+                <p>• 建造<b>伐木场/采石场</b> → 村民可伐木采石</p>
+                <p>• 建造<b>磨坊/面包坊</b> → 将小麦加工为面粉、面包（更高价值）</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">📜 政策系统</h4>
@@ -976,6 +990,18 @@ function showGameRulesModal() {
                 <p style="padding-left:12px;font-size:12px;">村民心情低迷(-1~-2)、饥荒(-2)、金币耗尽(-1)、无村民(-1)、农田荒废(-1)</p>
                 <p>• 共 <b>10 个等级</b>，每达到新等级可<b>领取金币奖励</b></p>
                 <p>• 点击右侧面板「⭐ 繁荣度」查看等级详情与领取奖励</p>
+
+                <hr class="divider">
+                <h4 style="margin:0 0 8px;">🏘️ 邻村往来</h4>
+                <p>• 桃源村周围有 <b>3 个邻村</b>：🌾丰谷村（农业）、⛏️铁岭镇（矿业）、🏮云水乡（商贸）</p>
+                <p>• 点击<b>「💬 拜访村长」</b>与邻村村长自由对话，AI 会实时生成回复和建议话术</p>
+                <p>• 通过对话、<b>赠礼</b>（每村每天2次）提升好感度</p>
+                <p>• 好感度 ≥ 30 解锁<b>村际贸易</b>，各邻村物价有差异，可赚取差价</p>
+                <p>• 好感度 ≥ 35 时邻村可能<b>主动送来资源</b>（每村每季最多1次）</p>
+                <p>• 邻村可能发来<b>求援请求</b>（每季最多2次），帮助可提升好感度和声望，日后会有回报</p>
+                <p>• <b>声望</b>越高，招募费用越低、贸易次数越多</p>
+                <p>• <b>超过 5 天不与某邻村互动</b>，好感度会缓慢下降</p>
+                <p>• 村庄政策也会影响好感度（996 降低，双休提升）</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">⌨️ 快捷键</h4>
@@ -1275,6 +1301,7 @@ window.game = {
     npcChat: npcChatSystem,
     fishing: fishingSystem,
     fishingPanel,
+    neighbor: neighborSystem,
     priceChart,
     bgm,
     sfx,

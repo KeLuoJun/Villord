@@ -197,6 +197,14 @@ export class NPCChatSystem {
             }
         }
 
+        // 构建邻村动态上下文
+        let neighborHint = '';
+        if (this.state.neighbors && this.state.neighbors.log && this.state.neighbors.log.length > 0) {
+            const recentNeighborLog = this.state.neighbors.log.slice(0, 2)
+                .map(l => l.text).join('；');
+            neighborHint = `\n【邻村动态】${recentNeighborLog}`;
+        }
+
         const prompt = `你是${villager.name}${villager.avatar}，《治村物语》的村民。现在${currentHour}:00。
 
 【你的性格】${villager.traits.join('、')}
@@ -216,10 +224,12 @@ ${policyLines}
 
 ${meetingContext}
 ${taskConflictHint}
+${neighborHint}
 
 现在你想说一句话。话题参考：${timeTopic}
 规则：20-50字，自然口语化，体现性格特点。如果前面有人说了话，优先接话或回应。不要重复别人说过的。可以偶尔聊聊对村庄政策的感受。如果村长最近下达了工作指示，你可以聊聊对指示的看法或执行情况。
 如果有分工趣事，可以吐槽别人偷懒、抱怨活分配不均、互相推诿谁该干脏活累活、或因为抢同一块田而拌嘴等。不用每次都吐槽，偶尔就好。
+如果有邻村动态，可以偶尔提一句邻村的消息或八卦。
 
 输出JSON：{"text": "你说的话", "mood": "happy/neutral/tired/grumpy/excited"}`;
 

@@ -134,6 +134,26 @@ export const GameState = {
         legendaryRod: false,       // 是否拥有传说鱼竿
     },
 
+    // ===== 邻村往来系统 =====
+    neighbors: {
+        favor: { fenggu: 25, tieling: 20, yunshui: 15 },  // 好感度 0-100
+        status: { fenggu: 'stable', tieling: 'stable', yunshui: 'stable' }, // 繁荣状态
+        reputation: 0,           // 声望值（累计）
+        todayTrades: {},         // 今日已交易次数 { villageId: count }
+        delayedRewards: [],      // 延迟回报队列 [{ dueDay, effect }]
+        eventCooldowns: {},      // 事件冷却 { eventId: lastTriggerDay }
+        aidCooldowns: {},        // 援助冷却 { aidId: lastTriggerDay }
+        log: [],                 // 邻村动态日志（最新在前，最多 30 条）
+        chatHistory: {           // 与各村长的对话历史
+            fenggu: [], tieling: [], yunshui: [],
+        },
+        chatMemory: {            // 往季对话摘要（季末 LLM 压缩）
+            fenggu: [], tieling: [], yunshui: [],
+        },
+        _specialRecruit: false,  // 是否有特殊招募候选人
+        _policyFavorAccum: 0,    // 政策好感度累积（每 5 天结算一次）
+    },
+
     // ===== 村会系统 =====
     meetings: {
         history: [],   // 会议历史（最新在前，最多5条）

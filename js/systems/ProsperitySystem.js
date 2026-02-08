@@ -128,6 +128,21 @@ export class ProsperitySystem {
             decayReasons.push('田地荒废(无作物)');
         }
 
+        // 6. 邻村好感度加成/衰减
+        if (this.state.neighbors && this.state.neighbors.favor) {
+            const friendlyCount = Object.values(this.state.neighbors.favor)
+                .filter(f => f >= 50).length;
+            if (friendlyCount > 0) {
+                gain += friendlyCount;  // 每个友好邻村 +1
+            }
+            const hostileCount = Object.values(this.state.neighbors.favor)
+                .filter(f => f < 20).length;
+            if (hostileCount > 0) {
+                decay += hostileCount;  // 每个敌对邻村 -1
+                decayReasons.push('邻村关系恶化');
+            }
+        }
+
         // ===== 计算净变化 =====
         const net = gain - decay;
         data.total = Math.max(0, data.total + net); // 繁荣度最低为 0
@@ -226,10 +241,10 @@ export class ProsperitySystem {
 
         this.state.addLog('🎁', `领取了「${levelConfig.icon} ${levelConfig.name}」奖励：${levelConfig.reward}💰`, 'success');
 
-        // 最高等级（10级）触发通关
+        // 最高等级（10级）触发庆祝
         if (level === 10) {
-            this.bus.emit('autoPause', { reason: '[通关] 🎉 繁荣度达到传说桃源！' });
-            this.state.addLog('🏆', '恭喜！桃源村已成为传说中的桃源！你是最伟大的村长！', 'success');
+            this.bus.emit('autoPause', { reason: '🎉 繁荣度达到传说桃源！' });
+            this.state.addLog('🏆', '桃源村已成为传说中的桃源！你是最伟大的村长！', 'success');
             this.bus.emit('gameWin', { prosperity: data.total });
         }
 
