@@ -23,7 +23,7 @@ export const WORK_HOURS_POLICIES = {
         id: '996',
         name: '996',
         icon: '🔥',
-        description: '早九晚九、一周六天，产出大增但村民身心俱疲。适合短期冲刺。',
+        description: '早九晚九，产出大增但村民身心俱疲。适合短期冲刺。',
         workStart: 8,
         workEnd: 21,
         productionMult: 1.35,
