@@ -43,6 +43,16 @@ import { RecruitReveal } from './ui/RecruitReveal.js';
 import { PriceChart } from './market/PriceChart.js';
 import { FishingPanel } from './ui/FishingPanel.js';
 
+// 3D 沙盘（懒加载，失败不影响游戏）
+let VillageDiorama = null;
+try {
+    const mod = await import('./ui/VillageDiorama.js');
+    VillageDiorama = mod.VillageDiorama;
+    console.log('[Main] 🗺️ 3D 沙盘模块加载成功');
+} catch (e) {
+    console.warn('[Main] 3D 沙盘模块不可用（Three.js 未加载）:', e.message);
+}
+
 // 配置暴露到全局（供 UIManager 等使用）
 import { SEASON_DEFAULT, SPECIAL_WEATHER_EVENTS } from './config/weather.js';
 import { MARKET_ITEMS } from './config/marketItems.js';
@@ -176,12 +186,19 @@ const recruitReveal = new RecruitReveal(gameState, eventBus, uiManager);
 const eventSystem = new EventSystem(gameState, eventBus, uiManager);
 const tutorialSystem = new TutorialSystem(gameState, eventBus, uiManager);
 
+// ===== 3D 沙盘初始化 =====
+let villageDiorama = null;
+if (VillageDiorama) {
+    villageDiorama = new VillageDiorama(gameState, eventBus);
+}
+
 // ===== 注册子面板 =====
 uiManager.registerPanel('build', buildingSystem);
 uiManager.registerPanel('villagers', uiManager.villagerPanel);
 uiManager.registerPanel('farm', farmSystem);
 uiManager.registerPanel('market', marketEngine);
 uiManager.registerPanel('fishing', fishingPanel);
+if (villageDiorama) uiManager.registerPanel('diorama', villageDiorama);
 neighborSystem.ui = uiManager;
 uiManager.registerPanel('neighbor', neighborSystem);
 uiManager.registerPanel('policy', policySystem);
@@ -1305,6 +1322,7 @@ window.game = {
     fishingPanel,
     neighbor: neighborSystem,
     priceChart,
+    diorama: villageDiorama,
     bgm,
     sfx,
 };

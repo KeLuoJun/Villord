@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏘️ 治村物语 — AI 村长模拟器</title>
 
+    <!-- Three.js CDN (3D 沙盘模块) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
+        }
+    }
+    </script>
+
     <!-- 样式表 -->
     <link rel="stylesheet" href="css/theme-pastoral.css">
     <link rel="stylesheet" href="css/main.css">
@@ -111,6 +120,7 @@
                     <button class="tab-btn" data-tab="neighbor">🏘️ 邻村</button>
                     <button class="tab-btn" data-tab="policy">📜 政策</button>
                     <button class="tab-btn" data-tab="events">📋 事件</button>
+                    <button class="tab-btn" data-tab="diorama">🗺️ 全景</button>
                 </nav>
 
                 <!-- 标签内容 -->
@@ -170,6 +180,19 @@
                     <!-- 钓鱼标签页 -->
                     <div class="tab-page" id="tab-fishing">
                         <div id="fishing-panel-root"></div>
+                    </div>
+
+                    <!-- 3D 村庄全景标签页 -->
+                    <div class="tab-page" id="tab-diorama">
+                        <div class="diorama-wrapper">
+                            <div class="diorama-header">
+                                <h3>🗺️ 村庄全景</h3>
+                                <span class="diorama-hint">拖拽旋转 · 滚轮缩放 · 双击重置</span>
+                            </div>
+                            <div id="diorama-canvas-wrap" class="diorama-canvas-wrap">
+                                <!-- Three.js Canvas 由 VillageDiorama.js 动态插入 -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 邻村标签页 -->

@@ -1143,3 +1143,56 @@
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* ===== 3D 村庄沙盘 ===== */
+
+.diorama-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.diorama-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm, 8px);
+    flex-shrink: 0;
+}
+
+.diorama-header h3 {
+    margin: 0;
+}
+
+.diorama-hint {
+    font-size: 11px;
+    color: var(--text-muted, #999);
+    background: rgba(0, 0, 0, 0.04);
+    padding: 3px 10px;
+    border-radius: 10px;
+}
+
+.diorama-canvas-wrap {
+    flex: 1;
+    min-height: 320px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1a237e;
+    position: relative;
+    box-shadow:
+        0 2px 12px rgba(0, 0, 0, 0.15),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.diorama-canvas-wrap canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 12px;
+    cursor: grab;
+}
+
+.diorama-canvas-wrap canvas:active {
+    cursor: grabbing;
+}
