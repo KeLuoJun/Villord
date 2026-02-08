@@ -65,20 +65,20 @@ export class VillagerScheduler {
 
     // ===== 计划生成 =====
 
-    /** 为所有村民并行生成调度计划（关键任务：超时暂停） */
+    /** 为所有村民顺序生成调度计划（确保后续村民能看到前面村民的计划，避免任务冲突） */
     async generateSchedules() {
         if (this.isScheduling) return;
         this.isScheduling = true;
 
-        console.log('[Scheduler] 开始并行生成村民调度计划...');
+        console.log('[Scheduler] 开始顺序生成村民调度计划...');
         const startTime = Date.now();
 
-        // 并行调用 AI 为每个村民生成计划
-        const promises = this.state.villagers.map(async (villager) => {
+        // 顺序调用 AI（每个村民生成后立即应用，后续村民可见前面的计划）
+        for (const villager of this.state.villagers) {
             if (villager._cancelledByPlayer) {
                 villager._cancelledByPlayer = false;
                 console.log(`[Scheduler] ${villager.name} 的调度已被玩家覆盖，跳过`);
-                return;
+                continue;
             }
 
             try {
@@ -89,9 +89,7 @@ export class VillagerScheduler {
                 console.warn(`[Scheduler] ${villager.name} 计划失败，使用默认`, e.message);
                 this._applySchedule(villager, this.getDefaultSchedule(villager));
             }
-        });
-
-        await Promise.all(promises);
+        }
 
         const elapsed = Date.now() - startTime;
         console.log(`[Scheduler] 全部计划生成完毕，耗时 ${elapsed}ms`);
@@ -196,44 +194,83 @@ export class VillagerScheduler {
         return lines.join('\n');
     }
 
-    /** 构建调度 Prompt（含市场早报/昨日晚报上下文 + 市场时间引导 + 政策上下文） */
+    /**
+     * 构建调度 Prompt
+     * 含农田精确容量约束、其他村民已分配任务统计、市场/政策上下文
+     */
     buildSchedulePrompt(villager, directiveInfo = { summary: '无', tradePolicy: {} }) {
-        // 农田状态
-        const pendingTasks = [];
-        this.state.plots.forEach(p => {
-            if (p.stage === 'empty') pendingTasks.push(`${p.name}空闲可种植`);
-            if (p.crop && !p.watered) pendingTasks.push(`${p.name}需要浇水`);
-            if (p.stage === 'ready') pendingTasks.push(`${p.name}的${p.cropName}已成熟可收获`);
-            if (p.crop && p.stage !== 'ready') pendingTasks.push(`${p.name}种了${p.cropName}(进度${Math.round(p.progress*100)}%，未成熟)`);
+        // ===== 1. 农田精确状态 =====
+        const plots = this.state.plots;
+        const totalPlots = plots.length;
+        const emptyPlots = plots.filter(p => p.stage === 'empty');
+        const needWaterPlots = plots.filter(p => p.crop && !p.watered);
+        const needFertPlots = plots.filter(p => p.crop && !p.fertilized && p.stage !== 'ready');
+        const readyPlots = plots.filter(p => p.stage === 'ready');
+
+        const plotDetails = [];
+        plots.forEach(p => {
+            if (p.stage === 'empty') {
+                plotDetails.push(`${p.name}：空闲可种植`);
+            } else if (p.stage === 'ready') {
+                plotDetails.push(`${p.name}：${p.cropName}已成熟可收获`);
+            } else if (p.crop) {
+                const waterStatus = p.watered ? '已浇水✅' : '需要浇水❌';
+                const fertStatus = p.fertilized ? '已施肥✅' : '未施肥（施肥可+30%产量）';
+                plotDetails.push(`${p.name}：种了${p.cropName}(${Math.round(p.progress*100)}%)，${waterStatus}，${fertStatus}`);
+            }
         });
 
-        // 种子库存和作物信息（供种植决策）
+        // ===== 2. 其他村民已分配的农活统计（精确计算剩余配额） =====
+        const otherVillagers = this.state.villagers.filter(v => v.id !== villager.id);
+        let otherPlantCount = 0, otherWaterCount = 0, otherHarvestCount = 0, otherFertCount = 0;
+        const otherTaskSummaries = [];
+
+        otherVillagers.forEach(v => {
+            if (!v.schedule) return;
+            const taskCounts = {};
+            v.schedule.forEach(s => {
+                const a = s.action;
+                taskCounts[a] = (taskCounts[a] || 0) + 1;
+                if (a === 'plant') otherPlantCount++;
+                if (a === 'water') otherWaterCount++;
+                if (a === 'harvest') otherHarvestCount++;
+                if (a === 'fertilize') otherFertCount++;
+            });
+            const taskDesc = Object.entries(taskCounts)
+                .filter(([, c]) => c > 0)
+                .map(([a, c]) => `${ACTION_ICONS[a] || ''}${ACTION_NAMES[a] || a}×${c}`)
+                .join('、');
+            otherTaskSummaries.push(`${v.avatar||'👤'}${v.name}：${taskDesc || '暂无计划'}`);
+        });
+
+        // 计算你的可用配额
+        const remainPlant = Math.max(0, emptyPlots.length - otherPlantCount);
+        const remainWater = Math.max(0, needWaterPlots.length - otherWaterCount);
+        const remainFert = Math.max(0, needFertPlots.length - otherFertCount);
+        const remainHarvest = Math.max(0, readyPlots.length - otherHarvestCount);
+
+        // ===== 3. 种子和小麦 =====
         const seeds = this.state.resources.seeds;
-        const seedLines = [];
-        const cropConfigs = window.game?.farm?.cropConfigs || {};
         const seedMap = { radish: '萝卜', wheat: '小麦', potato: '土豆', pumpkin: '南瓜', cotton: '棉花', grape: '葡萄' };
+        const seedLines = [];
         for (const [cropId, count] of Object.entries(seeds)) {
-            if (count > 0) {
-                seedLines.push(`${seedMap[cropId] || cropId}种子×${count}`);
-            }
+            if (count > 0) seedLines.push(`${seedMap[cropId] || cropId}种子×${count}`);
         }
-        const hasEmptyPlot = this.state.plots.some(p => p.stage === 'empty');
-        const wheatStock = this.state.inventory.wheat || 0;
         const seedInfo = seedLines.length > 0
             ? `可用种子：${seedLines.join('、')}`
             : '⚠️ 没有任何种子！需要先去市场购买';
+        const wheatStock = this.state.inventory.wheat || 0;
         const wheatUrgency = wheatStock <= 5
             ? `⚠️ 小麦仅剩${wheatStock}🌾，是村民每日消耗的粮食，优先种植小麦！如果没有小麦种子，先安排trade去买小麦种子`
             : wheatStock <= 15
             ? `小麦库存${wheatStock}🌾偏低，建议优先种植小麦保障粮食供应`
             : '';
 
-        // 市场报告上下文
+        // ===== 4. 市场报告和库存 =====
         const morningReport = this.state.market.morningReport?.broadcast || '暂无早报';
         const eveningReport = this.state.market.eveningReport?.broadcast || '暂无昨日晚报';
         const eveningComment = this.state.market.eveningReport?.playerComment || '';
 
-        // 库存和市场价格（供交易决策参考）
         const marketRef = window.game?.market;
         const inventoryLines = [];
         const invItems = [
@@ -257,20 +294,14 @@ export class VillagerScheduler {
             ? inventoryLines.join('，')
             : '无可交易库存';
 
-        // 其他村民的计划（避免重复）
-        const otherPlans = this.state.villagers
-            .filter(v => v.id !== villager.id && v.schedule)
-            .map(v => `${v.avatar||'👤'}${v.name}: ${v.schedule.slice(0,5).map(s => `${s.startHour}:00${ACTION_ICONS[s.action]||''}`).join('→')}`)
-            .join('\n');
-
-        // 构建建筑限制提示
+        // ===== 5. 建筑限制 =====
         const hasLumber = this.state.buildings.some(b => b.type === 'lumberYard');
         const hasQuarry = this.state.buildings.some(b => b.type === 'quarry');
         const buildingRestrictions = [];
         if (!hasLumber) buildingRestrictions.push('❌ 没有伐木场，禁止安排 chop');
         if (!hasQuarry) buildingRestrictions.push('❌ 没有采石场，禁止安排 mine');
 
-        // 性格影响
+        // ===== 6. 性格/政策/会议 =====
         const traitHint = villager.traits.includes('勤劳') ? '你很勤劳，尽量排满工作' :
                          villager.traits.includes('懒惰') ? '你比较懒，多安排休息和闲逛' : '';
 
@@ -278,8 +309,6 @@ export class VillagerScheduler {
         const workEnd = this.getWorkEndHour();
         const restDay = this.state.isRestDay;
         const policyContext = this.buildPolicyContext();
-
-        // 村会指示上下文（影响行动计划）
         const meetingContext = this.meetingSystem
             ? this.meetingSystem.buildMeetingContext(villager)
             : '';
@@ -289,6 +318,27 @@ export class VillagerScheduler {
         const directiveRule = directiveInfo.tradePolicy?.disallowTrade
             ? '• 村长指令：禁止安排交易(trade)'
             : '• 村长近期指令优先级最高，必须严格遵守';
+
+        // ===== 7. 构建协作上下文 =====
+        const villagerCount = this.state.villagers.length;
+        let coordinationBlock = '';
+
+        if (villagerCount > 1) {
+            coordinationBlock = [
+                '',
+                '【其他村民今日计划】（已确定，你的计划必须与他们协调分工）',
+                otherTaskSummaries.join('\n') || '暂无（你是今天第一个排计划的）',
+                '',
+                '【⚠️ 农活剩余配额（已扣除其他村民的安排）】',
+                `• 可种植(plant)：最多${remainPlant}次（空田${emptyPlots.length}块${otherPlantCount > 0 ? `，其他人已安排${otherPlantCount}次` : ''}）`,
+                `• 可浇水(water)：最多${remainWater}次（需水${needWaterPlots.length}块${otherWaterCount > 0 ? `，其他人已安排${otherWaterCount}次` : ''}）`,
+                `• 可施肥(fertilize)：最多${remainFert}次（未施肥${needFertPlots.length}块${otherFertCount > 0 ? `，其他人已安排${otherFertCount}次` : ''}）— 施肥可+30%产量`,
+                `• 可收获(harvest)：最多${remainHarvest}次（成熟${readyPlots.length}块${otherHarvestCount > 0 ? `，其他人已安排${otherHarvestCount}次` : ''}）`,
+                '⚠️ 你安排的 plant/water/fertilize/harvest 次数绝对不能超过上面的配额！超出的活没有田可做，会白费时间。',
+                '⚠️ 配额为0就不要安排该行动，改为其他工作（chop/mine/trade/rest/idle等）。',
+                '💡 多位村民要合理分工：农活不够分时，可以安排伐木、采石、交易等其他工作，不要和别人抢同一块田。',
+            ].join('\n');
+        }
 
         return `为村民${villager.name}${villager.avatar || '👤'}制定今日计划。
 
@@ -309,16 +359,19 @@ ${meetingContext}
 ${eveningComment ? `分析师说：${eveningComment}` : ''}
 
 【村庄资源】${this.state.seasonName}，${this.getCurrentWeatherInfo()}
-金币${this.state.resources.gold}💰，小麦${this.state.inventory.wheat || 0}🌾，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨
-农田：${pendingTasks.join('；') || '无待处理'}
+金币${this.state.resources.gold}💰，小麦${wheatStock}🌾，木材${this.state.resources.wood}🪵，石料${this.state.resources.stone}🪨
 ${seedInfo}
 ${wheatUrgency}
 仓库可交易品：${inventoryInfo}
 
+【🌾 农田详情（共${totalPlots}块）】
+${plotDetails.length > 0 ? plotDetails.join('\n') : '无农田'}
+${villagerCount <= 1 ? `→ 你最多安排 plant ${emptyPlots.length}次、water ${needWaterPlots.length}次、fertilize ${needFertPlots.length}次、harvest ${readyPlots.length}次` : ''}
+
+${coordinationBlock}
+
 【村长近期指令（含时间，最高优先级）】
 ${directiveSummary}
-
-${otherPlans ? `【其他人的计划】（避免重复）\n${otherPlans}` : ''}
 
 【可用行动】
 ${VALID_ACTIONS.map(a => `${a}=${ACTION_NAMES[a]}（${ACTION_DURATIONS[a]}h,${STAMINA_COSTS[a]}体力）`).join('，')}
@@ -332,7 +385,9 @@ ${directiveRule}
 • 市场：只有${MARKET_OPEN_HOUR}:00-${MARKET_CLOSE_HOUR}:00可以trade，价格实时波动（类似股市）
 • 交易策略：你可以低价买入商品囤货，等价格上涨后再卖出赚取差价（但有亏损风险！价格也可能下跌）。参考早报/晚报的价格趋势分析来决策。在note中写明具体买/卖什么商品，如"买木材"、"卖萝卜"
 • 种植：plant时在note中写明要种什么，如"种小麦"、"种萝卜"。小麦是村民每日消耗的粮食，优先保障！没有种子时应先安排trade买种子再plant
+• 施肥：fertilize可让作物产量+30%，对已种植且未施肥的田使用，每块田只能施一次。有未施肥的田时建议安排！
 • 收获：harvest只在作物成熟时有效，无成熟作物不要安排
+• ⚠️ 农田数量限制：全村共${totalPlots}块农田，plant/water/fertilize/harvest的次数不能超过实际可操作的田地数，多了也做不了！
 ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.join('；')}` : ''}
 • 体力不够时安排rest(+4)或eat(+3)
 
@@ -345,7 +400,7 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
     {"startHour": 19, "action": "idle", "duration": 1, "target": null, "note": "散步"},
     {"startHour": 20, "action": "rest", "duration": 2, "target": null, "note": "睡前休息"}
   ],
-  "thought": "今天的想法..."
+  "thought": "今天的想法（说说你对分工的看法、哪些活留给别人干等）..."
 }`;
     }
 
@@ -390,10 +445,29 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
         return { summary, tradePolicy };
     }
 
-    /** 验证计划合法性 */
+    /** 验证计划合法性（含农田任务数量硬性校验） */
     validateSchedule(schedule, villager, tradePolicy = {}) {
         const validated = [];
         let cumulativeStamina = 0;
+
+        // 计算农田任务的实际上限（扣除其他村民已分配的）
+        const otherVillagers = this.state.villagers.filter(v => v.id !== villager.id);
+        let otherPlant = 0, otherWater = 0, otherHarvest = 0, otherFert = 0;
+        otherVillagers.forEach(v => {
+            if (!v.schedule) return;
+            v.schedule.forEach(s => {
+                if (s.action === 'plant') otherPlant++;
+                if (s.action === 'water') otherWater++;
+                if (s.action === 'harvest') otherHarvest++;
+                if (s.action === 'fertilize') otherFert++;
+            });
+        });
+
+        const maxPlant = Math.max(0, this.state.plots.filter(p => p.stage === 'empty').length - otherPlant);
+        const maxWater = Math.max(0, this.state.plots.filter(p => p.crop && !p.watered).length - otherWater);
+        const maxFert = Math.max(0, this.state.plots.filter(p => p.crop && !p.fertilized && p.stage !== 'ready').length - otherFert);
+        const maxHarvest = Math.max(0, this.state.plots.filter(p => p.stage === 'ready').length - otherHarvest);
+        let plantCount = 0, waterCount = 0, harvestCount = 0, fertCount = 0;
 
         for (const item of schedule) {
             const startHour = item.startHour ?? item.hour;
@@ -410,6 +484,25 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 continue; // 近期指令禁止交易
             }
 
+            // ===== 农田任务数量硬性校验 =====
+            if (item.action === 'plant' && plantCount >= maxPlant) {
+                // 超出种植配额，替换为闲逛
+                validated.push({ startHour, action: 'idle', target: null, duration: item.duration || 1, note: '无空田可种' });
+                continue;
+            }
+            if (item.action === 'water' && waterCount >= maxWater) {
+                validated.push({ startHour, action: 'idle', target: null, duration: item.duration || 1, note: '无田需浇水' });
+                continue;
+            }
+            if (item.action === 'fertilize' && fertCount >= maxFert) {
+                validated.push({ startHour, action: 'idle', target: null, duration: item.duration || 1, note: '无田需施肥' });
+                continue;
+            }
+            if (item.action === 'harvest' && harvestCount >= maxHarvest) {
+                validated.push({ startHour, action: 'idle', target: null, duration: item.duration || 1, note: '无成熟作物' });
+                continue;
+            }
+
             const duration = item.duration || ACTION_DURATIONS[item.action] || 1;
             const cost = STAMINA_COSTS[item.action] || 0;
 
@@ -421,6 +514,12 @@ ${buildingRestrictions.length > 0 ? `• 建筑限制：${buildingRestrictions.j
                 continue;
             }
             cumulativeStamina += cost;
+
+            // 农田任务计数
+            if (item.action === 'plant') plantCount++;
+            if (item.action === 'water') waterCount++;
+            if (item.action === 'fertilize') fertCount++;
+            if (item.action === 'harvest') harvestCount++;
 
             validated.push({
                 startHour, action: item.action,

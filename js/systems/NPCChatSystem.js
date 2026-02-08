@@ -171,6 +171,32 @@ export class NPCChatSystem {
             ? this.meetingSystem.buildMeetingContext(villager)
             : '';
 
+        // 构建任务分工/冲突上下文（多人时更有趣）
+        let taskConflictHint = '';
+        if (this.state.villagers.length > 1) {
+            const others = this.state.villagers.filter(v => v.id !== villager.id);
+            const sameAction = others.filter(v => v.currentAction && v.currentAction === villager.currentAction);
+            const failedTasks = villager.schedule?.filter(s => {
+                const key = `${s.startHour}_${s.action}`;
+                return villager._scheduleStatus?.[key] === 'skipped' || villager._scheduleStatus?.[key] === 'failed';
+            }) || [];
+
+            const hints = [];
+            if (sameAction.length > 0) {
+                hints.push(`你和${sameAction.map(v => v.name).join('、')}在做同样的事，可以聊聊谁干得快或互相吐槽`);
+            }
+            if (failedTasks.length > 0) {
+                const failNames = failedTasks.map(s => s.note || s.action).join('、');
+                hints.push(`你今天有任务失败了（${failNames}），可以抱怨几句或推卸给别人`);
+            }
+            if (villager.currentAction?.includes('空闲') || villager.currentAction?.includes('闲逛')) {
+                hints.push('你现在闲着，可以嫌弃别人干活慢、或者说"这活不该我干"');
+            }
+            if (hints.length > 0) {
+                taskConflictHint = '\n【今日分工趣事】\n' + hints.join('\n');
+            }
+        }
+
         const prompt = `你是${villager.name}${villager.avatar}，《治村物语》的村民。现在${currentHour}:00。
 
 【你的性格】${villager.traits.join('、')}
@@ -189,9 +215,11 @@ ${recentChats}
 ${policyLines}
 
 ${meetingContext}
+${taskConflictHint}
 
 现在你想说一句话。话题参考：${timeTopic}
 规则：20-50字，自然口语化，体现性格特点。如果前面有人说了话，优先接话或回应。不要重复别人说过的。可以偶尔聊聊对村庄政策的感受。如果村长最近下达了工作指示，你可以聊聊对指示的看法或执行情况。
+如果有分工趣事，可以吐槽别人偷懒、抱怨活分配不均、互相推诿谁该干脏活累活、或因为抢同一块田而拌嘴等。不用每次都吐槽，偶尔就好。
 
 输出JSON：{"text": "你说的话", "mood": "happy/neutral/tired/grumpy/excited"}`;
 
