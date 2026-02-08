@@ -900,6 +900,19 @@ function showGameRulesModal() {
                 <p>你是桃源村的新村长，目标是将小村庄建设成繁荣的社区。提升<b>繁荣度</b>，达到最高等级「👑 传说桃源」即为通关！</p>
 
                 <hr class="divider">
+                <h4 style="margin:0 0 8px;">💡 新手攻略建议</h4>
+                <p style="font-size:13px;line-height:2;">
+                    <b>① 建鱼塘</b> — 开局优先建造鱼塘，钓鱼后到市场卖出换取启动资金<br>
+                    <b>② 建伐木场</b> — 用金币买入木材，建造伐木场后村民就能帮你伐木了<br>
+                    <b>③ 扩建房屋</b> — 攒够金币和木材后建房，然后招募村民壮大队伍<br>
+                    <b>④ 建采石场</b> — 继续积累资源，建造采石场解锁石材产出<br>
+                    <b>⑤ 持续发展</b> — 扩建农田、招募更多村民、升级建筑，迈向繁荣！
+                </p>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                    📌 小贴士：繁荣度达到新等级可以<b>领取金币奖励</b>；收获的农作物可以<b>卖出换金币</b>；任何时候金币不够，都可以去<b>钓鱼卖鱼</b>补充收入！
+                </p>
+
+                <hr class="divider">
                 <h4 style="margin:0 0 8px;">⏰ 时间系统</h4>
                 <p>游戏以 <b>Tick</b> 为单位推进，1 Tick = 1 游戏小时，1天 = 24 Tick。</p>
                 <p><b>1 Tick = 现实 3 秒</b>（1倍速下），即现实 72 秒 = 游戏 1 天。</p>
@@ -914,6 +927,9 @@ function showGameRulesModal() {
                 <p>• 通过底部对话栏与村民交流，可以安排任务</p>
                 <p>• AI 会每隔一天自动为村民安排行动计划</p>
                 <p>• 注意管理村民的<b>体力</b>和<b>心情</b>！</p>
+                <p style="margin-top:6px;"><b>🔧 村民可以做的事：</b></p>
+                <p style="padding-left:12px;font-size:13px;">🌾 种植/浇水/施肥/收获 — 打理农田<br>🪓 伐木 — 需先建造<b>伐木场</b><br>⛏️ 采石 — 需先建造<b>采石场</b><br>🛒 市场交易 — 买卖商品赚取差价<br>🍚 吃饭/休息/闲逛/聊天 — 恢复体力和心情</p>
+                <p style="padding-left:12px;font-size:13px;color:var(--text-secondary);">🎣 钓鱼 — <b>仅限玩家亲自操作</b>，村民无法钓鱼</p>
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">🌾 农业系统</h4>
