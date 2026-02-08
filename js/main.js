@@ -883,11 +883,7 @@ document.addEventListener('keydown', (e) => {
         }
     }
 
-    // Space 暂停/恢复
-    if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
-        e.preventDefault();
-        timeSystem.togglePause();
-    }
+    // Space 键已分配给钓鱼模块，暂停请使用顶栏按钮
 });
 
 // ===== 游戏规则弹窗 =====
@@ -920,7 +916,7 @@ function showGameRulesModal() {
                 <p>游戏以 <b>Tick</b> 为单位推进，1 Tick = 1 游戏小时，1天 = 24 Tick。</p>
                 <p><b>1 Tick = 现实 3 秒</b>（1倍速下），即现实 72 秒 = 游戏 1 天。</p>
                 <p><b>1 季 = 5 天</b>，春→夏→秋→冬，<b>1 年 = 4 季 = 20 天</b>。</p>
-                <p>可通过右上角按钮调节速度（0.5x / 1x / 1.5x），空格键暂停/恢复。</p>
+                <p>可通过右上角按钮调节速度（0.5x / 1x / 1.5x），点击暂停按钮暂停/恢复。</p>
                 <p>重要事件发生时游戏会自动暂停，给你时间做决策。</p>
 
                 <hr class="divider">
@@ -983,7 +979,7 @@ function showGameRulesModal() {
 
                 <hr class="divider">
                 <h4 style="margin:0 0 8px;">⌨️ 快捷键</h4>
-                <p><b>空格</b> = 暂停/恢复　<b>Ctrl+S</b> = 存档　<b>Ctrl+L</b> = 读档</p>
+                <p><b>Ctrl+S</b> = 存档　<b>Ctrl+L</b> = 读档　<b>空格</b> = 钓鱼操作</p>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-primary rules-close">知道了</button>
@@ -1285,4 +1281,4 @@ window.game = {
 };
 
 console.log('[Main] 🎮 治村物语已就绪 — 在控制台输入 window.game 查看游戏实例');
-console.log('[Main] ⌨️ 快捷键: Space=暂停/恢复, Ctrl+S=存档, Ctrl+L=读档');
+console.log('[Main] ⌨️ 快捷键: Ctrl+S=存档, Ctrl+L=读档, Space=钓鱼操作');
