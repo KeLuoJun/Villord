@@ -17,6 +17,8 @@ import {
     POLICY_FAVOR_EFFECTS,
     TRADE_CONSTANTS,
     GIFT_OPTIONS,
+    STEAL_LOOT_POOLS,
+    STEAL_CONSTANTS,
 } from '../config/neighbors.js';
 
 export class NeighborSystem {
@@ -120,6 +122,11 @@ export class NeighborSystem {
             else if (r < weights[0] + weights[1]) this.state.neighbors.status[vid] = 'stable';
             else this.state.neighbors.status[vid] = 'difficult';
         }
+
+        // 刷新可偷资源
+        this._refreshStealLoot();
+        // 重置偷窃记录
+        this.state.neighbors._seasonStealCount = {};
 
         this.addLog('🔄', '季节变更，邻村形势发生了变化');
         this.bus.emit('neighborUpdate');
@@ -681,6 +688,146 @@ gold(金币)、wheat(小麦)、wood(木材)、stone(石料)、radish(萝卜)、p
         }
     }
 
+    /** 渲染偷窃区域 */
+    _renderStealSection(villageId, villageName) {
+        const loot = this.getStealLoot(villageId);
+        const canDo = this.canSteal(villageId);
+
+        if (loot.length === 0 && !canDo) {
+            return `<div style="margin-top:6px;font-size:11px;color:var(--text-muted);">🤫 本季已无可偷资源</div>`;
+        }
+
+        let html = `<div style="margin-top:8px;font-size:12px;">
+            <div style="color:var(--text-muted);margin-bottom:4px;">🤫 可偷资源${!canDo ? '（本季已偷过）' : ''}：</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">`;
+
+        for (let i = 0; i < loot.length; i++) {
+            const item = loot[i];
+            html += `<button class="btn btn-sm" style="font-size:11px;padding:2px 8px;
+                background:rgba(198,40,40,0.08);border:1px solid rgba(198,40,40,0.25);color:#c62828;"
+                ${!canDo ? 'disabled' : ''}
+                data-steal-village="${villageId}" data-steal-index="${i}"
+                title="偷走 ${item.amount} ${item.name}（好感度 ${STEAL_CONSTANTS.favorPenalty}）">
+                ${item.icon} ${item.amount}${item.name}
+            </button>`;
+        }
+
+        html += `</div></div>`;
+        return html;
+    }
+
+    // ===== 偷窃系统 =====
+
+    /** 刷新每个邻村本季可偷的资源（从池中随机选 2 个） */
+    _refreshStealLoot() {
+        if (!this.state.neighbors._stealLoot) this.state.neighbors._stealLoot = {};
+        const RN = NeighborSystem.RES_NAMES;
+        const RI = NeighborSystem.RES_ICONS;
+
+        for (const vid of Object.keys(NEIGHBOR_VILLAGES)) {
+            const pool = STEAL_LOOT_POOLS[vid] || [];
+
+            // 池子≤2项时全部展示（如铁岭镇的木材+石料），>2项时随机选2项
+            const available = [...pool];
+            const pickCount = available.length <= 2 ? available.length : 2;
+            const selected = [];
+
+            // 先打乱顺序再取前 pickCount 个（保证随机性）
+            for (let i = available.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [available[i], available[j]] = [available[j], available[i]];
+            }
+
+            for (let i = 0; i < pickCount; i++) {
+                const item = available[i];
+                const amount = item.min + Math.floor(Math.random() * (item.max - item.min + 1));
+                selected.push({
+                    resource: item.resource,
+                    amount,
+                    name: RN[item.resource] || item.resource,
+                    icon: RI[item.resource] || '📦',
+                });
+            }
+
+            this.state.neighbors._stealLoot[vid] = selected;
+        }
+    }
+
+    /** 获取某邻村本季可偷的资源 */
+    getStealLoot(villageId) {
+        if (!this.state.neighbors._stealLoot) this._refreshStealLoot();
+        return this.state.neighbors._stealLoot[villageId] || [];
+    }
+
+    /** 本季是否还能偷某邻村 */
+    canSteal(villageId) {
+        const seasonKey = this._getSeasonKey();
+        if (!this.state.neighbors._seasonStealCount) this.state.neighbors._seasonStealCount = {};
+        const count = this.state.neighbors._seasonStealCount[`${villageId}_${seasonKey}`] || 0;
+        return count < STEAL_CONSTANTS.maxPerSeason;
+    }
+
+    /** 执行偷窃 */
+    stealFrom(villageId, lootIndex) {
+        const village = NEIGHBOR_VILLAGES[villageId];
+        if (!village) return { success: false, reason: '未知邻村' };
+
+        const seasonKey = this._getSeasonKey();
+        if (!this.state.neighbors._seasonStealCount) this.state.neighbors._seasonStealCount = {};
+        const stealKey = `${villageId}_${seasonKey}`;
+        const count = this.state.neighbors._seasonStealCount[stealKey] || 0;
+        if (count >= STEAL_CONSTANTS.maxPerSeason) {
+            return { success: false, reason: '本季已偷过该村庄' };
+        }
+
+        const loot = this.getStealLoot(villageId);
+        if (!loot[lootIndex]) return { success: false, reason: '无可偷资源' };
+
+        const item = loot[lootIndex];
+
+        // 获得资源
+        this._addResource(item.resource, item.amount);
+
+        // 记录偷窃次数
+        this.state.neighbors._seasonStealCount[stealKey] = count + 1;
+
+        // 好感度惩罚（固定惩罚）
+        this.modifyFavor(villageId, STEAL_CONSTANTS.favorPenalty, '偷窃行为');
+
+        // 是否被发现（额外惩罚）
+        const detected = Math.random() < STEAL_CONSTANTS.detectChance;
+        if (detected) {
+            this.modifyFavor(villageId, STEAL_CONSTANTS.detectFavorExtra, '偷窃被发现');
+            this.addReputation(-3, `在${village.name}偷窃被发现`);
+        }
+
+        // 记录到邻村对话上下文（村长会记住）
+        this._ensureChatStorage(villageId);
+        if (!this.state.neighbors._stealRecords) this.state.neighbors._stealRecords = {};
+        if (!this.state.neighbors._stealRecords[villageId]) this.state.neighbors._stealRecords[villageId] = [];
+        this.state.neighbors._stealRecords[villageId].push({
+            resource: item.resource,
+            amount: item.amount,
+            detected,
+            season: this.state.seasonName,
+            day: this.state.totalDays,
+        });
+
+        // 日志
+        const detectText = detected
+            ? `⚠️ 被${village.name}发现了！好感度大幅下降！`
+            : `未被发现。`;
+        this.addLog('🤫',
+            `从${village.name}偷走了 ${item.amount} ${item.icon}${item.name}。${detectText}`);
+        this.state.addLog('🤫',
+            `偷窃${village.name}：获得 ${item.amount} ${item.icon}${item.name}${detected ? '（被发现！）' : ''}`,
+            detected ? 'danger' : 'warning');
+
+        this.bus.emit('uiUpdate');
+        this.bus.emit('neighborUpdate');
+        return { success: true, detected, item };
+    }
+
     // ===== 赠礼系统 =====
 
     /**
@@ -887,6 +1034,7 @@ gold(金币)、wheat(小麦)、wood(木材)、stone(石料)、radish(萝卜)、p
                     data-chat-village="${v.id}">
                     💬 拜访${v.name}村长
                 </button>
+                ${this._renderStealSection(v.id, v.name)}
             </div>`;
         }
         html += `</div>`;
@@ -919,6 +1067,50 @@ gold(金币)、wheat(小麦)、wood(木材)、stone(石料)、radish(萝卜)、p
                     this.render();
                 } else {
                     this.ui?.showToast(`❌ ${result.reason}`, 'warning');
+                }
+            });
+        });
+
+        // 绑定偷窃按钮事件
+        container.querySelectorAll('[data-steal-village]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const vid = btn.dataset.stealVillage;
+                const idx = parseInt(btn.dataset.stealIndex);
+                const village = NEIGHBOR_VILLAGES[vid];
+                const loot = this.getStealLoot(vid);
+                const item = loot[idx];
+                if (!item) return;
+
+                // 确认弹窗
+                if (this.ui) {
+                    this.ui.showModal(
+                        `🤫 偷窃 ${village.name}`,
+                        `<div style="text-align:center;line-height:1.8;">
+                            <p>确定要偷走 ${village.name} 的资源吗？</p>
+                            <div style="font-size:24px;margin:12px 0;">${item.icon} ${item.amount} ${item.name}</div>
+                            <p style="color:var(--color-danger,#e74c3c);font-size:13px;">
+                                ⚠️ 好感度 ${STEAL_CONSTANTS.favorPenalty}<br>
+                                ${Math.round(STEAL_CONSTANTS.detectChance * 100)}% 概率被发现（额外 ${STEAL_CONSTANTS.detectFavorExtra} 好感度）<br>
+                                村长会记住你的行为！
+                            </p>
+                        </div>`,
+                        [
+                            { id: 'steal', text: '🤫 动手', class: 'btn-danger', onClick: () => {
+                                const result = this.stealFrom(vid, idx);
+                                if (result.success) {
+                                    const msg = result.detected
+                                        ? `偷到了 ${result.item.amount} ${result.item.icon}${result.item.name}，但被发现了！`
+                                        : `成功偷到 ${result.item.amount} ${result.item.icon}${result.item.name}，未被察觉。`;
+                                    this.ui.showToast(result.detected ? `😱 ${msg}` : `🤫 ${msg}`,
+                                        result.detected ? 'danger' : 'warning');
+                                    this.render();
+                                } else {
+                                    this.ui.showToast(`❌ ${result.reason}`, 'warning');
+                                }
+                            }},
+                            { id: 'cancel', text: '算了', class: 'btn-secondary', onClick: () => {} },
+                        ]
+                    );
                 }
             });
         });
@@ -1211,6 +1403,30 @@ gold(金币)、wheat(小麦)、wood(木材)、stone(石料)、radish(萝卜)、p
             ? `\n【往季交往摘要】${prevMemory}`
             : '';
 
+        // 资源丢失记录（村长不确定是谁偷的，但可能有怀疑）
+        let stealContext = '';
+        const stealRecords = this.state.neighbors._stealRecords?.[villageId];
+        if (stealRecords && stealRecords.length > 0) {
+            const RN = NeighborSystem.RES_NAMES;
+            const recent = stealRecords.slice(-3);
+            const totalTimes = stealRecords.length;
+            const detectedCount = stealRecords.filter(r => r.detected).length;
+            const stealDesc = recent.map(r =>
+                `${r.season}少了${r.amount}${RN[r.resource] || r.resource}${r.detected ? '（有人看到桃源村方向来的人影）' : ''}`
+            ).join('；');
+
+            if (detectedCount >= 2) {
+                // 多次被发现 → 高度怀疑
+                stealContext = `\n【近期困扰】你的村庄多次丢东西：${stealDesc}。有村民多次看到桃源村方向来的可疑人影。你心里高度怀疑是桃源村干的，但没有确凿证据。你可能会在对话中旁敲侧击试探，比如"最近我们丢了不少东西，不知道你有没有听说什么？"。如果对方矢口否认或转移话题，你会更加怀疑。如果对方主动承认或道歉，你可能愿意原谅但还是有些不满。不要直接指控，而是暗示和试探。`;
+            } else if (detectedCount === 1) {
+                // 被发现1次 → 有些怀疑
+                stealContext = `\n【近期困扰】你的村庄丢了东西：${stealDesc}。有人说看到了桃源村方向的可疑人影，你有些怀疑桃源村，但也不敢确定。你可能会含蓄地在聊天中提起"最近村里不太平"，观察对方反应。如果对方表现得心虚或回避，你的怀疑会加深。`;
+            } else {
+                // 没被发现 → 只是烦恼，不特别怀疑桃源村
+                stealContext = `\n【近期困扰】你的村庄丢了一些东西：${stealDesc}。你不太清楚是谁干的，可能是流民也可能是附近的人。你有些烦恼，偶尔会在聊天中叹气提到这件事。`;
+            }
+        }
+
         return `你是${village.name}的${leaderName}村长${village.icon}。性格：${village.personality}。
 你的村庄特点：${village.description}。擅长${village.strength}，缺少${village.weakness}。
 当前状态：${statusConfig.name}。当前季节：${season}。
@@ -1221,6 +1437,7 @@ gold(金币)、wheat(小麦)、wood(木材)、stone(石料)、radish(萝卜)、p
 【桃源村资源参考】${playerRes}
 ${memoryContext}
 ${chatContext}
+${stealContext}
 
 【规则】
 • 用20-60字自然对话，体现你的性格（${village.personality}）
@@ -1539,18 +1756,34 @@ ${village.name}需要：${need?.need || '无'}，擅长：${need?.offer || '无'
                          favor >= 30 ? '关系一般' :
                          favor >= 15 ? '不太熟悉' : '关系冷淡';
 
+        // 资源丢失记忆
+        const stealRecords = this.state.neighbors._stealRecords?.[villageId];
+        let stealNote = '';
+        if (stealRecords?.length > 0) {
+            const detectedCount = stealRecords.filter(r => r.detected).length;
+            if (detectedCount >= 2) {
+                stealNote = '你的村庄多次丢东西，有人看到桃源村方向的可疑人影。你高度怀疑但没证据，会旁敲侧击试探。';
+            } else if (detectedCount === 1) {
+                stealNote = '你的村庄丢过东西，方向似乎是桃源村那边。你有些怀疑，但语气委婉。';
+            } else {
+                stealNote = '你的村庄最近丢过东西，原因不明，你有点烦恼。';
+            }
+        }
+
         return `你是${village.name}的${leaderName}村长。性格：${village.personality}。
 当前季节：${season}，你的村庄状态：${statusConfig.name}。
 与桃源村好感度：${favor}/100（${favorDesc}）。
 你现在缺：${need?.need || '无'}。
 ${prevMemory ? `往季交往：${prevMemory}` : ''}
 ${recentChat ? `最近对话：\n${recentChat}` : '（之前没有对话过）'}
+${stealNote}
 
 桃源村的村长来拜访你了。请用1-2句话自然地打个招呼。
 规则：
 • 15-40字，自然口语化，体现你的性格
 • 好感度高→热情欢迎，好感度低→客气但保持距离
 • 可以自然提及近况、季节、或之前的交往（如果有的话）
+• 如果你的村庄最近丢过东西，可以自然地提起，怀疑程度取决于你掌握的线索
 • 不要每次都说一样的开场白
 
 输出JSON：{"text":"你的开场白"}`;

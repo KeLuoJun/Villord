@@ -315,6 +315,34 @@ export const POLICY_FAVOR_EFFECTS = {
     },
 };
 
+// ===== 可偷资源池（按邻村特色，每季度刷新） =====
+export const STEAL_LOOT_POOLS = {
+    fenggu: [
+        // 丰谷村 — 农产品丰富
+        { resource: 'wheat', min: 3, max: 8, weight: 3 },
+        { resource: 'radish', min: 2, max: 5, weight: 2 },
+        { resource: 'potato', min: 2, max: 5, weight: 2 },
+    ],
+    tieling: [
+        // 铁岭镇 — 建材充裕
+        { resource: 'wood', min: 3, max: 7, weight: 3 },
+        { resource: 'stone', min: 2, max: 6, weight: 3 },
+    ],
+    yunshui: [
+        // 云水乡 — 金币多
+        { resource: 'gold', min: 8, max: 20, weight: 3 },
+        { resource: 'wheat', min: 2, max: 4, weight: 1 },
+    ],
+};
+
+export const STEAL_CONSTANTS = {
+    favorPenalty: -15,          // 偷窃被发现后好感度惩罚
+    detectChance: 0.35,         // 被发现的概率（35%）
+    detectFavorExtra: -5,       // 被发现额外惩罚
+    maxPerSeason: 1,            // 每个邻村每季最多偷 1 次
+    cooldownDays: 3,            // 偷窃后冷却天数
+};
+
 // ===== 赠礼选项（主动提升好感度） =====
 export const GIFT_OPTIONS = [
     {
