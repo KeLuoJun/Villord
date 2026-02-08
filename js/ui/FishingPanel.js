@@ -273,25 +273,20 @@ export class FishingPanel {
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         this._computeLayout();
-        // 重新定位鱼影到新布局
-        for (const fish of this.fishShadows) {
-            const relX = this.pondCX ? (fish.x - 300) / 192 : 0;
-            const relY = this.pondCY ? (fish.y - 190) / 96 : 0;
-            fish.x = this.pondCX + relX * this.pondRX;
-            fish.y = this.pondCY + relY * this.pondRY;
-        }
+        // 重新生成鱼影到正确位置
+        this.initFishShadows();
     }
 
     _computeLayout() {
         this.pondCX = this.W / 2;
-        this.pondCY = this.H * 0.38;
-        this.pondRX = this.W * 0.32;
-        this.pondRY = this.W * 0.16;
+        this.pondCY = this.H * 0.40;
+        this.pondRX = this.W * 0.38;
+        this.pondRY = this.W * 0.19;    // 2:1 扁率，更强的 2.5D 俯视感
 
-        this.rodBaseX = this.W * 0.52;
-        this.rodBaseY = this.H * 0.92;
-        this.rodTipX = this.pondCX + this.pondRX * 0.15;
-        this.rodTipY = this.pondCY - this.pondRY * 0.2;
+        this.rodBaseX = this.W * 0.55;
+        this.rodBaseY = this.H * 0.95;
+        this.rodTipX = this.pondCX + this.pondRX * 0.1;
+        this.rodTipY = this.pondCY - this.pondRY * 0.15;
 
         this.floatX = this.pondCX + this.pondRX * 0.05;
         this.floatY = this.pondCY + this.pondRY * 0.15;
@@ -1068,51 +1063,112 @@ export class FishingPanel {
     }
 
     _drawBackground(ctx) {
-        // 动态天空
-        const grad = ctx.createLinearGradient(0, 0, 0, this.H);
-        grad.addColorStop(0, '#87CEEB');
-        grad.addColorStop(0.6, '#b3e5fc');
-        grad.addColorStop(1, '#aed581'); // 远处草地色衔接
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, this.W, this.H);
+        const W = this.W, H = this.H;
 
-        // 云层
+        // 天空：上浅蓝 → 下淡绿过渡
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.50);
+        skyGrad.addColorStop(0, '#b3ddf0');
+        skyGrad.addColorStop(0.7, '#c8e6c9');
+        skyGrad.addColorStop(1, '#a5d6a7');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, W, H);
+
+        // 地面（大面积绿色，从远到近由浅到深）
+        const groundGrad = ctx.createLinearGradient(0, H * 0.28, 0, H);
+        groundGrad.addColorStop(0, '#8bc34a');
+        groundGrad.addColorStop(0.3, '#7cb342');
+        groundGrad.addColorStop(0.7, '#6faa35');
+        groundGrad.addColorStop(1, '#5d9a28');
+        ctx.fillStyle = groundGrad;
+        ctx.fillRect(0, H * 0.28, W, H * 0.72);
+
+        // 远处地平线柔化带
         ctx.save();
-        ctx.globalAlpha = 0.4;
-        const cloudOffset = (this.time * 10) % this.W;
-        this._drawCloud(ctx, 100 + cloudOffset, 80, 1.2);
-        this._drawCloud(ctx, 400 + cloudOffset * 0.8, 50, 0.8);
-        this._drawCloud(ctx, -200 + cloudOffset, 120, 1.0);
+        ctx.globalAlpha = 0.3;
+        const horizGrad = ctx.createLinearGradient(0, H * 0.26, 0, H * 0.36);
+        horizGrad.addColorStop(0, '#c8e6c9');
+        horizGrad.addColorStop(1, 'rgba(139,195,74,0)');
+        ctx.fillStyle = horizGrad;
+        ctx.fillRect(0, H * 0.26, W, H * 0.1);
         ctx.restore();
 
-        // 草地（增加纹理感）
-        ctx.fillStyle = '#7cb342';
-        ctx.beginPath();
-        ctx.ellipse(this.W / 2, this.H * 0.85, this.W * 0.8, this.H * 0.45, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 远处草地阴影
-        ctx.fillStyle = 'rgba(51, 105, 30, 0.2)';
-        ctx.beginPath();
-        ctx.ellipse(this.W / 2, this.H * 0.85, this.W * 0.7, this.H * 0.4, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 随风摇曳的小草
-        ctx.strokeStyle = '#558b2f';
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 12; i++) {
-            const gx = this.pondCX + (i - 6) * 50 + Math.sin(i * 132.1) * 30;
-            const gy = this.pondCY + this.pondRY + 20 + Math.abs(Math.sin(i * 45.2)) * 30;
-            if (gy > this.H) continue;
-            
-            const sway = Math.sin(this.time * 2 + i) * 4;
-            const height = 10 + Math.random() * 8;
-            
+        // 草地光影斑（微妙的明暗变化）
+        ctx.save();
+        ctx.globalAlpha = 0.06;
+        const spotSeeds = [0.12, 0.35, 0.58, 0.78, 0.25, 0.65, 0.88, 0.45];
+        for (let i = 0; i < spotSeeds.length; i++) {
+            const sx = W * spotSeeds[i];
+            const sy = H * (0.45 + spotSeeds[(i + 3) % spotSeeds.length] * 0.45);
+            ctx.fillStyle = i % 2 === 0 ? '#fff' : '#33691e';
             ctx.beginPath();
-            ctx.moveTo(gx, gy);
-            ctx.quadraticCurveTo(gx + sway, gy - height * 0.6, gx + sway * 1.5 + (Math.random()-0.5)*5, gy - height);
-            ctx.stroke();
+            ctx.ellipse(sx, sy, 35 + i * 8, 20 + i * 4, 0.3, 0, Math.PI * 2);
+            ctx.fill();
         }
+        ctx.restore();
+
+        // 树木（远景小，近景大，分布在池塘左右两侧）
+        // 远景树（小，浅色）
+        this._drawTree(ctx, W * 0.06, H * 0.26, 0.55, true);
+        this._drawTree(ctx, W * 0.94, H * 0.24, 0.50, true);
+        // 中景树
+        this._drawTree(ctx, W * 0.14, H * 0.36, 0.75, false);
+        this._drawTree(ctx, W * 0.88, H * 0.34, 0.80, false);
+        // 近景树（大，深色）
+        this._drawTree(ctx, W * 0.04, H * 0.52, 0.95, false);
+        this._drawTree(ctx, W * 0.96, H * 0.50, 0.90, false);
+
+        // 云朵
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        const co = (this.time * 6) % (W + 300);
+        this._drawCloud(ctx, -120 + co, H * 0.06, 1.1);
+        this._drawCloud(ctx, W * 0.5 + co * 0.4, H * 0.10, 0.75);
+        ctx.restore();
+
+        // 池塘投影（地面上的大椭圆阴影）
+        ctx.save();
+        ctx.globalAlpha = 0.10;
+        ctx.fillStyle = '#2e5a1e';
+        ctx.beginPath();
+        ctx.ellipse(this.pondCX, this.pondCY + this.pondRY * 0.2, this.pondRX + 30, this.pondRY + 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    _drawTree(ctx, x, y, scale, isFar) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        // 树干
+        ctx.fillStyle = isFar ? '#8d6e63' : '#6d4c41';
+        ctx.beginPath();
+        ctx.roundRect(-5, -2, 10, 35, 3);
+        ctx.fill();
+
+        // 树冠（低多边形三角叠层）
+        const baseG = isFar ? ['#66bb6a', '#4caf50', '#43a047'] : ['#43a047', '#388e3c', '#2e7d32'];
+        for (let i = 0; i < 3; i++) {
+            ctx.fillStyle = baseG[i];
+            ctx.beginPath();
+            ctx.moveTo(0, -60 + i * 16);
+            ctx.lineTo(-22 - i * 5, -14 + i * 16);
+            ctx.lineTo(22 + i * 5, -14 + i * 16);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 树冠高光
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(-2, -58);
+        ctx.lineTo(-16, -18);
+        ctx.lineTo(4, -18);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
     }
 
     _drawCloud(ctx, x, y, scale) {
@@ -1121,96 +1177,157 @@ export class FishingPanel {
         ctx.scale(scale, scale);
         ctx.fillStyle = '#fff';
         ctx.beginPath();
-        ctx.arc(0, 0, 20, 0, Math.PI * 2);
-        ctx.arc(25, -5, 25, 0, Math.PI * 2);
-        ctx.arc(50, 0, 20, 0, Math.PI * 2);
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.arc(22, -4, 22, 0, Math.PI * 2);
+        ctx.arc(44, 0, 16, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
 
     _drawPondEdge(ctx) {
         ctx.save();
-        
-        // 塘底阴影
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+
+        const cx = this.pondCX;
+        const cy = this.pondCY;
+        const rx = this.pondRX;
+        const ry = this.pondRY;
+        const rimW = Math.max(14, rx * 0.08);
+        const rimDepth = Math.max(18, ry * 0.18);   // 立体厚度
+
+        // === 1. 外圈地面投影 ===
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
         ctx.beginPath();
-        ctx.ellipse(this.pondCX, this.pondCY + 4, this.pondRX + 16, this.pondRY + 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy + rimDepth * 0.6, rx + rimW + 10, ry + rimW * 0.6 + 8, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 外圈泥土/石头
-        const edgeGrad = ctx.createLinearGradient(0, this.pondCY - this.pondRY, 0, this.pondCY + this.pondRY);
-        edgeGrad.addColorStop(0, '#8d6e63');
-        edgeGrad.addColorStop(1, '#6d4c41');
-        ctx.fillStyle = edgeGrad;
-        
+        // === 2. 边缘立体侧面（下半圈可见的厚度部分） ===
+        const sideGrad = ctx.createLinearGradient(0, cy, 0, cy + rimDepth * 1.2);
+        sideGrad.addColorStop(0, '#cec4b8');
+        sideGrad.addColorStop(0.5, '#b5aa9d');
+        sideGrad.addColorStop(1, '#9a8f82');
+        ctx.fillStyle = sideGrad;
         ctx.beginPath();
-        ctx.ellipse(this.pondCX, this.pondCY, this.pondRX + 14, this.pondRY + 10, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy + rimDepth * 0.55, rx + rimW + 2, ry + rimW * 0.55, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 边缘装饰石块
-        ctx.fillStyle = '#795548';
-        for (let i = 0; i < 24; i++) {
-            const a = (i / 24) * Math.PI * 2;
-            const r = 1;
-            const noise = Math.sin(i * 12.5) * 2;
-            const sx = this.pondCX + Math.cos(a) * (this.pondRX + 12);
-            const sy = this.pondCY + Math.sin(a) * (this.pondRY + 8);
-            
-            ctx.beginPath();
-            ctx.ellipse(sx, sy, 5 + noise, 3 + noise * 0.5, a, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // 内圈边缘线
-        ctx.strokeStyle = '#5d4037';
+        // 侧面暗部（底缘阴影线）
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.ellipse(this.pondCX, this.pondCY, this.pondRX + 10, this.pondRY + 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy + rimDepth * 0.6, rx + rimW, ry + rimW * 0.55, 0, 0.1, Math.PI * 0.9);
         ctx.stroke();
+
+        // === 3. 边缘顶面（米白色石质环形，外减内） ===
+        const topGrad = ctx.createLinearGradient(cx - rx, cy - rimW, cx + rx, cy + rimW);
+        topGrad.addColorStop(0, '#e5ddd5');
+        topGrad.addColorStop(0.25, '#f2ede8');
+        topGrad.addColorStop(0.5, '#f7f3ef');
+        topGrad.addColorStop(0.75, '#eee7e0');
+        topGrad.addColorStop(1, '#e0d8d0');
+        ctx.fillStyle = topGrad;
+        ctx.beginPath();
+        // 外圈顺时针
+        ctx.ellipse(cx, cy, rx + rimW, ry + rimW * 0.55, 0, 0, Math.PI * 2);
+        // 内圈逆时针（形成环形镂空）
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2, true);
+        ctx.fill('evenodd');
+
+        // === 4. 内缘阴影（水面与石边的交界线） ===
+        ctx.save();
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx + rimW, ry + rimW * 0.55, 0, 0, Math.PI * 2);
+        ctx.clip();
+        // 内侧阴影渐变
+        for (let i = 3; i >= 0; i--) {
+            ctx.globalAlpha = 0.04 * (4 - i);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, rx + i, ry + i * 0.5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // === 5. 顶面高光弧（左上方光泽） ===
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - 1, rx + rimW - 5, ry + rimW * 0.5 - 3, 0, Math.PI * 1.05, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.restore();
+
+        // 右下方暗线（增加立体感）
+        ctx.save();
+        ctx.globalAlpha = 0.08;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + 1, rx + rimW - 3, ry + rimW * 0.5 - 2, 0, 0.05, Math.PI * 0.95);
+        ctx.stroke();
+        ctx.restore();
+
         ctx.restore();
     }
 
     _drawWater(ctx) {
         ctx.save();
 
+        const cx = this.pondCX;
+        const cy = this.pondCY;
+        const rx = this.pondRX;
+        const ry = this.pondRY;
+
+        // 裁剪到水面椭圆
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.clip();
+
+        // 水面基底（清澈蓝色径向渐变）
         const waterGrad = ctx.createRadialGradient(
-            this.pondCX, this.pondCY - this.pondRY * 0.3, 0,
-            this.pondCX, this.pondCY, this.pondRX
+            cx - rx * 0.15, cy - ry * 0.25, rx * 0.05,
+            cx, cy + ry * 0.1, rx * 1.1
         );
-        waterGrad.addColorStop(0, 'rgba(100, 185, 225, 0.92)');
-        waterGrad.addColorStop(0.6, 'rgba(55, 145, 195, 0.88)');
-        waterGrad.addColorStop(1, 'rgba(35, 95, 155, 0.82)');
-
+        waterGrad.addColorStop(0, '#6dcff6');
+        waterGrad.addColorStop(0.3, '#4db8e8');
+        waterGrad.addColorStop(0.65, '#3198d4');
+        waterGrad.addColorStop(1, '#2478b0');
         ctx.fillStyle = waterGrad;
-        ctx.beginPath();
-        ctx.ellipse(this.pondCX, this.pondCY, this.pondRX, this.pondRY, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
 
-        // 水面光泽
-        ctx.globalAlpha = 0.18 + Math.sin(this.time * 1.5) * 0.06;
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.ellipse(
-            this.pondCX - this.pondRX * 0.25,
-            this.pondCY - this.pondRY * 0.3,
-            this.pondRX * 0.35,
-            this.pondRY * 0.2,
-            -0.3, 0, Math.PI * 2
+        // 天空倒影高光（左上大面积）
+        ctx.globalAlpha = 0.28 + Math.sin(this.time * 1.0) * 0.06;
+        const hlGrad = ctx.createRadialGradient(
+            cx - rx * 0.28, cy - ry * 0.32, 0,
+            cx - rx * 0.1, cy - ry * 0.05, rx * 0.55
         );
-        ctx.fill();
+        hlGrad.addColorStop(0, 'rgba(255,255,255,0.55)');
+        hlGrad.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+        hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = hlGrad;
+        ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
 
-        // 动态水波
-        ctx.globalAlpha = 0.06;
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1;
+        // 同心涟漪（中心偏移，自然扩散）
+        ctx.globalAlpha = 1;
         for (let i = 0; i < 4; i++) {
-            const phase = this.time * 0.6 + i * 1.7;
-            const rx = this.pondRX * (0.2 + i * 0.18 + Math.sin(phase) * 0.04);
-            const ry = this.pondRY * (0.2 + i * 0.18 + Math.sin(phase) * 0.04);
+            const phase = this.time * 0.4 + i * 1.5;
+            const scale = 0.12 + i * 0.2 + Math.sin(phase) * 0.025;
+            const alpha = 0.07 - i * 0.012;
+            ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.ellipse(this.pondCX, this.pondCY, rx, ry, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx + 5, cy - 3, rx * scale, ry * scale, 0, 0, Math.PI * 2);
             ctx.stroke();
         }
+
+        // 边缘渐暗（池底深处）
+        ctx.globalAlpha = 0.15;
+        const edgeDark = ctx.createRadialGradient(cx, cy, rx * 0.6, cx, cy, rx);
+        edgeDark.addColorStop(0, 'rgba(0,0,0,0)');
+        edgeDark.addColorStop(1, 'rgba(0,40,80,1)');
+        ctx.fillStyle = edgeDark;
+        ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
 
         ctx.restore();
     }
@@ -1226,17 +1343,17 @@ export class FishingPanel {
 
     _createFishShadow(index = 0) {
         const angle = (index / 5) * Math.PI * 2 + Math.random() * 0.5;
-        const dist = 0.3 + Math.random() * 0.4;
+        const dist = 0.2 + Math.random() * 0.5;
         const cx = this.pondCX || 300;
         const cy = this.pondCY || 190;
-        const rx = this.pondRX || 192;
-        const ry = this.pondRY || 96;
+        const rx = this.pondRX || 230;
+        const ry = this.pondRY || 115;
         return {
             x: cx + Math.cos(angle) * rx * dist,
             y: cy + Math.sin(angle) * ry * dist,
             angle,
-            speed: 15 + Math.random() * 25,
-            size: 8 + Math.random() * 14,
+            speed: 12 + Math.random() * 20,
+            size: 14 + Math.random() * 16,    // 更大，更醒目
             phase: Math.random() * Math.PI * 2,
             dist,
             targetX: null,
@@ -1244,8 +1361,7 @@ export class FishingPanel {
             attracted: false,
             wanderAngle: angle,
             wanderTimer: 0,
-            // 颜色随深度变化
-            depth: 0.2 + Math.random() * 0.3,
+            depth: 0.45 + Math.random() * 0.35,   // 更高不透明度
         };
     }
 
@@ -1299,25 +1415,49 @@ export class FishingPanel {
             ctx.translate(fish.x, fish.y);
             ctx.rotate(fish.angle);
 
-            ctx.globalAlpha = fish.depth;
-            ctx.fillStyle = '#1a3a4a';
-            // 鱼身
+            const s = fish.size;
+            const tailWag = Math.sin(this.time * 5 + fish.phase) * s * 0.25;
+
+            // 鱼身阴影（柔和模糊）
+            ctx.globalAlpha = fish.depth * 0.3;
+            ctx.fillStyle = '#0d2933';
             ctx.beginPath();
-            ctx.ellipse(0, 0, fish.size, fish.size * 0.4, 0, 0, Math.PI * 2);
+            ctx.ellipse(2, 2, s * 1.1, s * 0.45, 0, 0, Math.PI * 2);
             ctx.fill();
-            // 鱼尾
+
+            // 鱼身主体（深蓝灰色，更自然）
+            ctx.globalAlpha = fish.depth * 0.85;
+            const bodyGrad = ctx.createLinearGradient(-s, -s * 0.4, -s, s * 0.4);
+            bodyGrad.addColorStop(0, '#2c5364');
+            bodyGrad.addColorStop(0.5, '#1a3a4a');
+            bodyGrad.addColorStop(1, '#203a43');
+            ctx.fillStyle = bodyGrad;
             ctx.beginPath();
-            ctx.moveTo(-fish.size, 0);
-            const tailWag = Math.sin(this.time * 5 + fish.phase) * fish.size * 0.3;
-            ctx.lineTo(-fish.size * 1.5, -fish.size * 0.4 + tailWag);
-            ctx.lineTo(-fish.size * 1.5, fish.size * 0.4 + tailWag);
+            ctx.ellipse(0, 0, s, s * 0.38, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 鱼尾（流线型，带摆动）
+            ctx.beginPath();
+            ctx.moveTo(-s * 0.85, 0);
+            ctx.quadraticCurveTo(-s * 1.2, tailWag - s * 0.15, -s * 1.5, -s * 0.35 + tailWag);
+            ctx.lineTo(-s * 1.3, tailWag);
+            ctx.lineTo(-s * 1.5, s * 0.35 + tailWag);
+            ctx.quadraticCurveTo(-s * 1.2, tailWag + s * 0.15, -s * 0.85, 0);
             ctx.closePath();
             ctx.fill();
-            // 鱼鳍
+
+            // 背鳍
+            ctx.globalAlpha = fish.depth * 0.6;
             ctx.beginPath();
-            ctx.moveTo(fish.size * 0.2, -fish.size * 0.3);
-            ctx.lineTo(fish.size * 0.1, -fish.size * 0.6);
-            ctx.lineTo(-fish.size * 0.2, -fish.size * 0.3);
+            ctx.moveTo(s * 0.15, -s * 0.35);
+            ctx.quadraticCurveTo(0, -s * 0.6, -s * 0.25, -s * 0.35);
+            ctx.closePath();
+            ctx.fill();
+
+            // 胸鳍（小）
+            ctx.beginPath();
+            ctx.moveTo(s * 0.3, s * 0.15);
+            ctx.quadraticCurveTo(s * 0.45, s * 0.35, s * 0.15, s * 0.3);
             ctx.closePath();
             ctx.fill();
 
