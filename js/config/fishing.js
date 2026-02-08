@@ -156,16 +156,16 @@ export const FISHING_TIMING = {
     nibbleDuration: 1500,
 
     // 咬钩窗口持续时间（毫秒）—— 玩家必须在此期间点击
-    biteWindowDuration: 2000,
+    biteWindowDuration: 1500,
 
     // 进度条指针速度（像素/毫秒）
-    pointerSpeed: 0.15,
+    pointerSpeed: 0.20,
 
     // 判定区域占比（进度条总宽度的百分比）
     zones: {
-        perfect: 0.15,   // 中间15%为Perfect区
-        good: 0.30,      // 两侧各15%为Good区（总30%）
-        miss: 0.55,      // 剩余为Miss区
+        perfect: 0.10,   // 中间10%为Perfect区
+        good: 0.25,      // 两侧各12.5%为Good区（总25%）
+        miss: 0.65,      // 剩余为Miss区
     },
 
     // Perfect 加成

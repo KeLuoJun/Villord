@@ -714,16 +714,16 @@ export class FishingPanel {
             ? ['common', 'uncommon', 'rare', 'legendary'].indexOf(this.currentFish.rarity)
             : 0;
         // 普通鱼温和，传说鱼凶猛
-        const fishStrength = 0.4 + rarityIdx * 0.15;       // 鱼的拉力强度
-        const fishSwitchRate = 1.5 - rarityIdx * 0.25;     // 切换目标间隔（越稀有越频繁）
-        const fishTargetRange = 0.3 + rarityIdx * 0.1;     // 目标偏移幅度
+        const fishStrength = 0.5 + rarityIdx * 0.18;       // 鱼的拉力强度（增强）
+        const fishSwitchRate = 1.2 - rarityIdx * 0.2;      // 切换目标间隔（更频繁）
+        const fishTargetRange = 0.35 + rarityIdx * 0.12;   // 目标偏移幅度（更大）
 
         // --- 鱼的行为：平滑地在不同目标间移动 ---
         this.fishTargetTimer -= dt;
         if (this.fishTargetTimer <= 0) {
             this.fishTargetTimer = fishSwitchRate * (0.6 + Math.random() * 0.8);
             // 新目标：在安全区附近波动，偶尔冲向边缘
-            const isLunge = Math.random() < 0.15 + rarityIdx * 0.05; // 猛冲概率
+            const isLunge = Math.random() < 0.20 + rarityIdx * 0.08; // 猛冲概率（提高）
             if (isLunge) {
                 // 猛冲：目标跑到边缘
                 this.fishTarget = Math.random() > 0.5 ? 0.85 + Math.random() * 0.1 : 0.05 + Math.random() * 0.1;
@@ -768,23 +768,23 @@ export class FishingPanel {
         // --- 竿弯曲视觉 ---
         this.rodBend = 0.15 + this.tensionValue * 0.35;
 
-        // --- 安全区判定（0.2-0.8）---
-        const safeMin = 0.2;
-        const safeMax = 0.8;
+        // --- 安全区判定（0.25-0.75，比之前更窄）---
+        const safeMin = 0.25;
+        const safeMax = 0.75;
         const inSafeZone = this.tensionValue >= safeMin && this.tensionValue <= safeMax;
 
         if (inSafeZone) {
-            // 在安全区：进度推进
-            this.reelProgress += dt * 0.35;
-            this.dangerTimer = Math.max(0, this.dangerTimer - dt * 2); // 快速恢复
+            // 在安全区：进度推进（稍慢，需要更长的控制时间）
+            this.reelProgress += dt * 0.28;
+            this.dangerTimer = Math.max(0, this.dangerTimer - dt * 1.5); // 恢复稍慢
 
             // 水花效果
             if (Math.random() < dt * 2) {
                 this._addRipple(this.floatX + (Math.random() - 0.5) * 10, this.floatY);
             }
         } else {
-            // 在危险区：进度缓慢倒退 + 累积危险时间
-            this.reelProgress = Math.max(0, this.reelProgress - dt * 0.1);
+            // 在危险区：进度倒退更快 + 累积危险时间
+            this.reelProgress = Math.max(0, this.reelProgress - dt * 0.15);
             this.dangerTimer += dt;
 
             // 视觉警告
