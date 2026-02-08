@@ -293,6 +293,13 @@ export class MarketEngine {
             if ((this.state.resources[itemId] || 0) < quantity) return false;
             this.state.resources[itemId] -= quantity;
             return true;
+        } else if (itemId.startsWith('seed_')) {
+            // 种子存储在 resources.seeds 中
+            const cropMap = { seed_r: 'radish', seed_w: 'wheat', seed_p: 'potato', seed_pk: 'pumpkin', seed_c: 'cotton', seed_g: 'grape' };
+            const cropId = cropMap[itemId];
+            if (!cropId || (this.state.resources.seeds[cropId] || 0) < quantity) return false;
+            this.state.resources.seeds[cropId] -= quantity;
+            return true;
         } else {
             if ((this.state.inventory[itemId] || 0) < quantity) return false;
             this.state.inventory[itemId] -= quantity;
@@ -587,6 +594,12 @@ export class MarketEngine {
                 this.bus.emit('marketTrade');
                 // 触发 AI 交易点评
                 this.showTradeCommentary(result.tradeRecord);
+            } else {
+                // 交易失败提示
+                this.bus.emit('showToast', { 
+                    message: `❌ 交易失败：${result.reason || '未知错误'}`, 
+                    type: 'error' 
+                });
             }
         });
 
