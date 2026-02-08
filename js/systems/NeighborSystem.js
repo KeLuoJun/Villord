@@ -415,8 +415,10 @@ export class NeighborSystem {
             }
         }
 
+        const RN = NeighborSystem.RES_NAMES;
+        const RI = NeighborSystem.RES_ICONS;
         const costDesc = evt.cost
-            ? Object.entries(evt.cost).map(([k, v]) => `${v} ${k}`).join(' + ')
+            ? Object.entries(evt.cost).map(([k, v]) => `${v} ${RI[k] || ''}${RN[k] || k}`).join(' + ')
             : '';
 
         if (this.ui) {
