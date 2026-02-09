@@ -42,6 +42,7 @@ import { DialogueManager } from './ui/DialogueBox.js';
 import { RecruitReveal } from './ui/RecruitReveal.js';
 import { PriceChart } from './market/PriceChart.js';
 import { FishingPanel } from './ui/FishingPanel.js';
+import { GameRulesHelper } from './ui/GameRulesHelper.js';
 
 // 3D 沙盘（懒加载，失败不影响游戏）
 let VillageDiorama = null;
@@ -185,6 +186,10 @@ dialogueManager.setTimeSystem(timeSystem);
 const recruitReveal = new RecruitReveal(gameState, eventBus, uiManager);
 const eventSystem = new EventSystem(gameState, eventBus, uiManager);
 const tutorialSystem = new TutorialSystem(gameState, eventBus, uiManager);
+
+// ===== 规则小助手初始化 =====
+const gameRulesHelper = new GameRulesHelper(gameState, aiService, eventBus);
+window.gameRulesHelper = gameRulesHelper; // 暴露给全局供规则弹窗调用
 
 // ===== 3D 沙盘初始化 =====
 let villageDiorama = null;
@@ -916,6 +921,16 @@ function showGameRulesModal() {
         <div class="modal fade-in" style="max-width:600px;max-height:80vh;overflow-y:auto;">
             <div class="modal-title">📖 游戏规则与玩法介绍</div>
             <div class="modal-body" style="line-height:1.9;text-align:left;">
+                <!-- 游戏助手入口 -->
+                <div class="game-helper-banner" onclick="this.closest('.modal-overlay').remove();showRulesHelperModal();">
+                    <span class="helper-icon">🤖</span>
+                    <div class="helper-content">
+                        <div class="helper-title">游戏助手「小村助」</div>
+                        <div class="helper-subtitle">有问必答 · 智能建议 · 点击开始对话</div>
+                    </div>
+                    <span class="helper-action">💬</span>
+                </div>
+
                 <h4 style="margin:0 0 8px;">🎯 游戏目标</h4>
                 <p>你是桃源村的新村长，目标是将小村庄建设成繁荣的社区。不断提升<b>繁荣度</b>，解锁更高等级，向「👑 传说桃源」迈进！</p>
 
@@ -1027,7 +1042,7 @@ function showGameRulesModal() {
                 <p><b>Ctrl+S</b> = 存档　<b>Ctrl+L</b> = 读档　<b>空格</b> = 钓鱼操作</p>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-primary rules-close">知道了</button>
+                <button class="btn btn-primary rules-close" style="width:100%;">知道了</button>
             </div>
         </div>
     `;
@@ -1037,8 +1052,124 @@ function showGameRulesModal() {
     document.body.appendChild(overlay);
 }
 
+// ===== 游戏助手弹窗 =====
+function showRulesHelperModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = '10002';
+    overlay.innerHTML = `
+        <div class="modal fade-in rules-helper-modal" style="max-width:500px;height:70vh;display:flex;flex-direction:column;">
+            <div class="modal-title" style="flex-shrink:0;">
+                🤖 游戏助手「小村助」
+                <span style="font-size:12px;color:var(--text-secondary);font-weight:normal;margin-left:8px;">有问必答 · 智能建议</span>
+            </div>
+            <div class="rules-helper-chat" style="flex:1;overflow-y:auto;padding:12px;border-radius:8px;">
+                <div class="chat-messages" id="rules-helper-messages">
+                    <div class="chat-msg assistant">
+                        <div class="chat-avatar">🤖</div>
+                        <div class="chat-bubble">
+                            你好呀，村长！我是小村助~ 🎉<br><br>
+                            有任何游戏问题都可以问我，比如：<br>
+                            • 怎么招募村民？<br>
+                            • 市场什么时候开门？<br>
+                            • 现在该怎么办？<br><br>
+                            我也可以根据你当前的游戏状态给你建议哦！
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="rules-helper-input" style="flex-shrink:0;display:flex;gap:8px;">
+                <input type="text" id="rules-helper-input" placeholder="输入你的问题..." style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-input, #E8EFE3);color:var(--text-primary);font-size:14px;">
+                <button class="btn btn-primary" id="rules-helper-send" style="border-radius:20px;padding:10px 20px;">发送</button>
+            </div>
+            <div class="rules-helper-quick" style="flex-shrink:0;padding:0 12px 12px;display:flex;flex-wrap:wrap;gap:6px;">
+                <button class="btn btn-ghost quick-q" data-q="现在该怎么办？" style="font-size:12px;padding:4px 10px;">💡 给我建议</button>
+                <button class="btn btn-ghost quick-q" data-q="新手开局怎么玩？" style="font-size:12px;padding:4px 10px;">🌟 新手指南</button>
+                <button class="btn btn-ghost quick-q" data-q="怎么赚钱最快？" style="font-size:12px;padding:4px 10px;">💰 赚钱技巧</button>
+                <button class="btn btn-ghost quick-q" data-q="政策怎么选？" style="font-size:12px;padding:4px 10px;">📜 政策建议</button>
+            </div>
+            <div class="modal-actions" style="flex-shrink:0;border-top:1px solid var(--border);padding-top:12px;">
+                <button class="btn btn-secondary helper-back" style="flex:1;">📖 返回游戏说明</button>
+                <button class="btn btn-ghost helper-close" style="flex:1;">关闭</button>
+            </div>
+        </div>
+    `;
+
+    const messagesContainer = overlay.querySelector('#rules-helper-messages');
+    const inputField = overlay.querySelector('#rules-helper-input');
+    const sendBtn = overlay.querySelector('#rules-helper-send');
+
+    // 添加消息到聊天区
+    function addMessage(content, isUser = false) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `chat-msg ${isUser ? 'user' : 'assistant'}`;
+        msgDiv.innerHTML = `
+            <div class="chat-avatar">${isUser ? '👤' : '🤖'}</div>
+            <div class="chat-bubble">${content}</div>
+        `;
+        messagesContainer.appendChild(msgDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // 发送问题
+    async function sendQuestion(presetQuestion) {
+        const question = (presetQuestion || inputField.value).trim();
+        if (!question) return;
+
+        inputField.value = '';
+        addMessage(question, true);
+
+        // 显示加载状态
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'chat-msg assistant loading';
+        loadingDiv.innerHTML = '<div class="chat-avatar">🤖</div><div class="chat-bubble">思考中...</div>';
+        messagesContainer.appendChild(loadingDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        try {
+            const answer = await window.gameRulesHelper.askQuestion(question);
+            loadingDiv.remove();
+            // 将换行符转换为 <br>
+            const formattedAnswer = answer.replace(/\n/g, '<br>');
+            addMessage(formattedAnswer, false);
+        } catch (e) {
+            loadingDiv.remove();
+            addMessage('抱歉，我遇到了一点问题，请稍后再试~ 😅', false);
+        }
+    }
+
+    // 绑定事件
+    sendBtn.addEventListener('click', sendQuestion);
+    inputField.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendQuestion();
+    });
+
+    // 快捷问题
+    overlay.querySelectorAll('.quick-q').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const preset = btn.dataset.q || '';
+            inputField.value = preset;
+            sendQuestion(preset);
+        });
+    });
+
+    // 返回规则
+    overlay.querySelector('.helper-back').addEventListener('click', () => {
+        overlay.remove();
+        showGameRulesModal();
+    });
+
+    // 关闭
+    overlay.querySelector('.helper-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    document.body.appendChild(overlay);
+    inputField.focus();
+}
+
 // 暴露给全局，方便从UI按钮调用
 window.showGameRulesModal = showGameRulesModal;
+window.showRulesHelperModal = showRulesHelperModal;
 
 // ===== BGM 背景音乐系统（含音量调节） =====
 const bgm = (() => {
