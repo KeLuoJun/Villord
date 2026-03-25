@@ -812,7 +812,8 @@ function showConfigModal() {
             <div class="modal-body" style="text-align:left;">
                 <div style="background:rgba(91,140,90,0.08);border:1px solid rgba(91,140,90,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;line-height:1.6;">
                     💡 <b>建议</b>：使用生成速度较快的模型（如 <b>doubao-seed-2-0-mini-260215</b>、<b>gpt-4o-mini</b> 等）可显著提升游戏体验。<br>
-                    大模型响应越快，村民对话和每日计划生成越流畅，游戏不会频繁暂停等待。
+                    大模型响应越快，村民对话和每日计划生成越流畅，游戏不会频繁暂停等待。<br>
+                    如果没有 API Key，可以前往 <a href="https://www.volcengine.com/" target="_blank" style="color:var(--primary);text-decoration:underline;">火山引擎官网</a> 注册并获取豆包模型的 API Key。
                 </div>
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <label style="font-size:13px;font-weight:500;">
