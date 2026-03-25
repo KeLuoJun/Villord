@@ -57,16 +57,16 @@ cd Villord
 npm install
 ```
 
-### 2. 配置 AI 服务
+### 2. 配置 AI 服务（或直接在前端配置，配置将保存在浏览器本地）
 
 复制 `config.example.json` 为 `config.json`，填入你的 API 密钥：
 
 ```json
 {
   "proxyUrl": "",
-  "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+  "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
   "apiKey": "你的API密钥",
-  "model": "gemini-2.5-flash"
+  "model": "doubao-seed-2-0-mini-260215"
 }
 ```
 
