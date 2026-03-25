@@ -811,18 +811,13 @@ function showConfigModal() {
             <div class="modal-title">⚙️ AI 服务配置</div>
             <div class="modal-body" style="text-align:left;">
                 <div style="background:rgba(91,140,90,0.08);border:1px solid rgba(91,140,90,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;line-height:1.6;">
-                    💡 <b>建议</b>：使用生成速度较快的模型（如 <b>gemini-2.5-flash</b>、<b>gpt-4o-mini</b> 等）可显著提升游戏体验。<br>
+                    💡 <b>建议</b>：使用生成速度较快的模型（如 <b>doubao-seed-2-0-mini-260215</b>、<b>gpt-4o-mini</b> 等）可显著提升游戏体验。<br>
                     大模型响应越快，村民对话和每日计划生成越流畅，游戏不会频繁暂停等待。
                 </div>
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <label style="font-size:13px;font-weight:500;">
-                        代理地址 (Proxy URL)
-                        <input id="cfg-proxy" type="text" value="${currentConfig.proxyUrl || ''}" placeholder="例: http://127.0.0.1:7890（可留空）"
-                            style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;">
-                    </label>
-                    <label style="font-size:13px;font-weight:500;">
                         API Base URL <span style="color:var(--danger,#c62828);">*</span>
-                        <input id="cfg-baseurl" type="text" value="${currentConfig.baseUrl || ''}" placeholder="例: https://generativelanguage.googleapis.com/v1beta"
+                        <input id="cfg-baseurl" type="text" value="${currentConfig.baseUrl || ''}" placeholder="例: https://ark.cn-beijing.volces.com/api/v3"
                             style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;">
                     </label>
                     <label style="font-size:13px;font-weight:500;">
@@ -832,7 +827,7 @@ function showConfigModal() {
                     </label>
                     <label style="font-size:13px;font-weight:500;">
                         模型名称 <span style="color:var(--danger,#c62828);">*</span>
-                        <input id="cfg-model" type="text" value="${currentConfig.model || ''}" placeholder="例: gemini-2.5-flash"
+                        <input id="cfg-model" type="text" value="${currentConfig.model || ''}" placeholder="例: doubao-seed-2-0-mini-260215"
                             style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;">
                     </label>
                 </div>
@@ -858,7 +853,6 @@ function showConfigModal() {
 
     overlay.querySelector('[data-action="save"]').addEventListener('click', () => {
         const newConfig = {
-            proxyUrl: document.getElementById('cfg-proxy').value.trim(),
             baseUrl: document.getElementById('cfg-baseurl').value.trim(),
             apiKey: document.getElementById('cfg-apikey').value.trim(),
             model: document.getElementById('cfg-model').value.trim(),

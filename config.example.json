@@ -1,7 +1,5 @@
 {
-  "proxyUrl": "http://127.0.0.1:7890",
-  "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
-  "apiKey": "YOUR_API_KEY_HERE",
-  "model": "gemini-2.5-flash",
-  "imageModel": "imagen-4.0-generate-preview-06-06"
+  "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+  "apiKey": "YOUR_API_KEY",
+  "model": "doubao-seed-2-0-mini-260215"
 }

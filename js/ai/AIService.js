@@ -1,15 +1,14 @@
 /**
  * AIService - LLM API 调用封装
- * 使用 Gemini API，支持重试、超时、降级
+ * 使用兼容 OpenAI 格式的 API（如 Doubao API），支持重试、超时、降级
  * 重试策略：指数退避 + JSON解析失败也可重试（最多1次）
  */
 
 export class AIService {
     constructor(config) {
-        this.baseUrl = config.baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
+        this.baseUrl = config.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
         this.apiKey = config.apiKey || '';
-        this.model = config.model || 'gemini-2.5-flash';
-        this.proxyUrl = config.proxyUrl || '';
+        this.model = config.model || 'doubao-seed-2-0-mini-260215';
         this.timeout = config.timeout || 20000;
         this.maxRetries = 3;
         this.enabled = !!this.apiKey && this.apiKey !== 'YOUR_API_KEY_HERE';
@@ -121,38 +120,37 @@ export class AIService {
 
     /** 实际 API 调用 */
     async _callAPI(prompt, options = {}) {
-        const url = `${this.baseUrl}/models/${encodeURIComponent(this.model)}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
+        const url = `${this.baseUrl}/chat/completions`;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-        // Gemini 2.5 系列为"思考模型"，内部思考 tokens 占用 maxOutputTokens 额度
-        // 解决方案：1) 禁用思考（thinkingBudget=0）2) 增加 token 预算兜底
         const requestedTokens = options.maxTokens ?? 500;
-        const isThinkingModel = this.model.includes('2.5');
-        const generationConfig = {
-            temperature: options.temperature ?? 0.8,
-            maxOutputTokens: isThinkingModel ? requestedTokens + 4096 : requestedTokens,
-            // 强制 Gemini 输出 JSON，大幅减少解析失败
-            responseMimeType: 'application/json',
-        };
-        if (isThinkingModel) {
-            generationConfig.thinkingConfig = { thinkingBudget: 0 };
-        }
 
         const body = {
-            contents: [
-                { role: 'user', parts: [{ text: prompt }] }
+            model: this.model,
+            messages: [
+                { role: 'user', content: prompt }
             ],
-            generationConfig,
+            temperature: options.temperature ?? 0.8,
+            max_tokens: requestedTokens,
+            thinking: {
+                type: "disabled"
+            }
         };
+
+        // 如果需要强制 JSON 输出，可以通过 response_format 指定，但依赖 _extractJSON 也可以
+        // body.response_format = { type: 'json_object' };
 
         console.log(`[AIService] 发起请求: model=${this.model}, prompt长度=${prompt.length}`);
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
                 body: JSON.stringify(body),
                 signal: controller.signal,
             });
@@ -165,23 +163,23 @@ export class AIService {
             }
 
             const data = await response.json();
-            const candidate = data?.candidates?.[0];
-            const finishReason = candidate?.finishReason;
-            const content = candidate?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
+            const choice = data?.choices?.[0];
+            const finishReason = choice?.finish_reason;
+            const content = choice?.message?.content || '';
 
             if (!content) {
                 throw new Error('API 返回空内容');
             }
 
             // 检查响应是否被截断
-            if (finishReason && finishReason !== 'STOP') {
+            if (finishReason && finishReason !== 'stop') {
                 console.warn(`[AIService] ⚠️ 响应未正常结束: finishReason=${finishReason}, 内容长度=${content.length}`);
                 if (content.length < 10) {
                     throw new Error(`API 响应被截断 (finishReason=${finishReason})，内容过短无法使用`);
                 }
             }
 
-            // 提取 JSON（Gemini responseMimeType=json 时通常直接返回 JSON）
+            // 提取 JSON
             return this._extractJSON(content);
         } catch (error) {
             clearTimeout(timeoutId);
@@ -302,29 +300,31 @@ export class AIService {
 
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
             try {
-                const url = `${this.baseUrl}/models/${encodeURIComponent(this.model)}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
+                const url = `${this.baseUrl}/chat/completions`;
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
                 const rawRequestedTokens = options.maxTokens ?? 200;
-                const rawIsThinking = this.model.includes('2.5');
-                const rawGenConfig = {
-                    temperature: options.temperature ?? 0.8,
-                    maxOutputTokens: rawIsThinking ? rawRequestedTokens + 4096 : rawRequestedTokens,
-                };
-                if (rawIsThinking) {
-                    rawGenConfig.thinkingConfig = { thinkingBudget: 0 };
-                }
 
                 const body = {
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    generationConfig: rawGenConfig,
+                    model: this.model,
+                    messages: [
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: options.temperature ?? 0.8,
+                    max_tokens: rawRequestedTokens,
+                    thinking: {
+                        type: "disabled"
+                    }
                 };
 
                 try {
                     const response = await fetch(url, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${this.apiKey}`
+                        },
                         body: JSON.stringify(body),
                         signal: controller.signal,
                     });
@@ -333,7 +333,7 @@ export class AIService {
                     if (!response.ok) throw new Error(`API ${response.status}`);
 
                     const data = await response.json();
-                    const content = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
+                    const content = data?.choices?.[0]?.message?.content || '';
                     if (!content) throw new Error('API 返回空内容');
 
                     console.log(`[AIService] chatRaw 成功 (第${attempt}次), 长度=${content.length}`);
@@ -395,7 +395,6 @@ export class AIService {
         if (newConfig.baseUrl) this.baseUrl = newConfig.baseUrl;
         if (newConfig.apiKey) this.apiKey = newConfig.apiKey;
         if (newConfig.model) this.model = newConfig.model;
-        if (newConfig.proxyUrl !== undefined) this.proxyUrl = newConfig.proxyUrl;
         this.enabled = !!this.apiKey && this.apiKey !== 'YOUR_API_KEY_HERE';
         this.resetCircuitBreaker();
         console.log(`[AIService] 🔄 配置已热更新: model=${this.model}, enabled=${this.enabled}`);
