@@ -833,7 +833,8 @@ function showConfigModal() {
                     </label>
                 </div>
                 <div style="margin-top:12px;font-size:11px;color:var(--text-muted);">
-                    配置保存在浏览器本地，刷新后仍有效。清空所有字段并保存将恢复使用 config.json 默认配置。
+                    🔒 <b>安全声明</b>：您配置的 API Key 仅保存在当前浏览器的本地缓存（Local Storage）中，不会上传到任何第三方服务器。<br>
+                    配置保存在浏览器本地，刷新后仍有效。
                 </div>
             </div>
             <div class="modal-actions">
