@@ -4,8 +4,8 @@
   "description": "治村物语 — AI 村长模拟器",
   "private": true,
   "scripts": {
-    "start": "http-server . -p 3000 -c-1 -o --silent",
-    "dev": "http-server . -p 3000 -c-1 -o --silent"
+    "start": "http-server . -p 5173 -o --silent --cors",
+    "dev": "http-server . -p 5173 -o --silent --cors"
   },
   "devDependencies": {
     "http-server": "^14.1.1"

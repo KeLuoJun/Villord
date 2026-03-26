@@ -1170,6 +1170,7 @@ window.showRulesHelperModal = showRulesHelperModal;
 // ===== BGM 背景音乐系统（含音量调节） =====
 const bgm = (() => {
     const audio = new Audio('./assets/sounds/gbm.mp3');
+    audio.preload = 'none';
     audio.loop = true;
 
     // 默认值
