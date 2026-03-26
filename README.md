@@ -78,7 +78,7 @@ npm install
 npm start
 ```
 
-浏览器会自动打开 `http://localhost:3000`。
+浏览器会自动打开 `http://localhost:5173`。
 
 > **AI 降级**：若 AI 服务不可用，游戏会自动降级为预设对话模式，核心经营玩法不受影响。
 
