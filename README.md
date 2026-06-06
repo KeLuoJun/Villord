@@ -8,9 +8,22 @@
 
 你是桃源村的新村长，通过**自然语言对话**指挥 AI 村民种地、伐木、建设、交易。每个村民都有独特性格和自主意志——他们可能勤劳肯干，也可能偷懒摸鱼、拒绝指令。你还可以亲自钓鱼赚钱、拜访邻村村长拓展外交。在有限资源下权衡决策，带领小村从荒芜走向繁荣。
 
-### 游戏演示
 
-<video src="assets/demo_video.mp4" width="100%" controls></video>
+### 游戏界面
+
+| <img src="assets/image/村庄3D全景概览-夏天.png" width="100%"/> | <img src="assets/image/村庄3D全景概览-冬天.png" width="100%"/> |
+|:---:|:---:|
+| **四季变换的 3D 微缩沙盘 (夏)** | **四季变换的 3D 微缩沙盘 (冬)** |
+| <img src="assets/image/村民AI自由对话.png" width="100%"/> | <img src="assets/image/村民管理与日程.png" width="100%"/> |
+| **AI 村民沉浸式自由对话** | **村民属性与智能日程安排** |
+| <img src="assets/image/邻村外交与贸易.png" width="100%"/> | <img src="assets/image/邻村虫灾援助事件.png" width="100%"/> |
+| **生动的邻村AI村长外交** | **丰富的随机事件与互助挑战** |
+| <img src="assets/image/农场种植管理.png" width="100%"/> | <img src="assets/image/钓鱼小游戏.png" width="100%"/> |
+| **精细的农场种植经营** | **沉浸式沉浸式钓鱼小游戏** |
+| <img src="assets/image/市场价格与交易.png" width="100%"/> | <img src="assets/image/建设与扩建面板.png" width="100%"/> |
+| **动态市场趋势与 AI 晚报** | **资源统筹与建筑规划** |
+| <img src="assets/image/村庄政策设置.png" width="100%"/> | <img src="assets/image/天气预报详情.png" width="100%"/> |
+| **深度村政制定与权衡** | **天气预报与 AI 生动思考** |
 
 ### 核心玩法
 
